@@ -8,4 +8,5 @@ _tmp/
 .vite/
 coverage/
 *.log
+*.zip
 .DS_Store

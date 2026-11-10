@@ -62,6 +62,28 @@ Para una PC de laboratorio: **30 fps + Baja**. En una GPU dedicada: **60 fps + A
 
 > Las capturas de este README se tomaron con render por software (sin GPU), por eso el contador muestra pocos FPS. En una GPU real el mismo escenario sube bastante; el límite de 60 es un techo, no una promesa.
 
+## Publicarlo en internet
+
+La app es estática: `npm run build` genera `dist/` y se puede publicar en cualquier hosting. Guía completa, con DNS y dominio propio: **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+
+| Opción | URL gratuita | Cuándo |
+|---|---|---|
+| **Netlify Drop** | `beamlab-leo.netlify.app` | La clase es pronto; arrastras `dist` y listo. |
+| **GitHub Pages** | `tu-usuario.github.io/beamlab-leo` | Recomendada: el workflow ya está en `.github/workflows/deploy.yml`. |
+| **Vercel** | `beamlab-leo.vercel.app` | Panel sencillo y dominio propio fácil. |
+
+Para GitHub Pages, sube el repo y activa **Settings → Pages → Source: GitHub Actions**:
+
+```bash
+git remote add origin https://github.com/TU_USUARIO/beamlab-leo.git
+git branch -M main
+git push -u origin main
+```
+
+Cada `git push` instala, corre las 16 pruebas, compila y publica. Para Netlify, `npm run build` y arrastra `dist` a <https://app.netlify.com/drop>.
+
+Un **dominio propio** (`beamlab.tudominio.com`) se compra aparte (~US$ 10–15/año) y se conecta con un CNAME o registros A; el certificado HTTPS lo emite el hosting. Los pasos exactos están en la guía.
+
 ### Atajos
 
 | Tecla | Acción |

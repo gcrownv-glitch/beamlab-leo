@@ -1,0 +1,19 @@
+{
+  "name": "BeamLab LEO",
+  "short_name": "BeamLab",
+  "description": "Simulador interactivo de órbita LEO, antenas en fase y beamforming satelital.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#04070d",
+  "theme_color": "#04070d",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

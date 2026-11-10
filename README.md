@@ -2,6 +2,10 @@
 
 **Simulador interactivo de órbita, antenas en fase y _beamforming_ satelital.**
 
+**Demo en vivo:** [gcrownv-glitch.github.io/beamlab-leo](https://gcrownv-glitch.github.io/beamlab-leo/) · **Repositorio:** [gcrownv-glitch/beamlab-leo](https://github.com/gcrownv-glitch/beamlab-leo)
+
+[![Deploy to GitHub Pages](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml/badge.svg)](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml)
+
 Un satélite LEO a 550 km se mueve a 7,6 km/s. Desde ahí “ve” un disco de la Tierra, y debe repartir su potencia en haces que apuntan a zonas concretas. Este proyecto hace visible ese proceso: la órbita, la geometría de la huella, la fase de cada elemento del arreglo, la cobertura celular y el diseño de un haz conformado.
 
 ![Vista general de BeamLab LEO](docs/img/02-satelite.jpg)
@@ -64,15 +68,21 @@ Para una PC de laboratorio: **30 fps + Baja**. En una GPU dedicada: **60 fps + A
 
 ## Publicarlo en internet
 
-La app es estática: `npm run build` genera `dist/` y se puede publicar en cualquier hosting. Guía completa, con DNS y dominio propio: **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+Este proyecto ya está publicado en GitHub Pages:
+
+- **Demo:** <https://gcrownv-glitch.github.io/beamlab-leo/>
+- **Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>
+- **Workflow:** [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
+
+Cada `git push` a `main` instala, corre las 16 pruebas, compila y despliega. La app es estática: `npm run build` genera `dist/` y se puede publicar en cualquier hosting. Guía completa, con DNS y dominio propio: **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
 | Opción | URL gratuita | Cuándo |
 |---|---|---|
 | **Netlify Drop** | `beamlab-leo.netlify.app` | La clase es pronto; arrastras `dist` y listo. |
-| **GitHub Pages** | `tu-usuario.github.io/beamlab-leo` | Recomendada: el workflow ya está en `.github/workflows/deploy.yml`. |
+| **GitHub Pages** | `gcrownv-glitch.github.io/beamlab-leo` | La opción de este proyecto; se actualiza con `git push`. |
 | **Vercel** | `beamlab-leo.vercel.app` | Panel sencillo y dominio propio fácil. |
 
-Para GitHub Pages, sube el repo y activa **Settings → Pages → Source: GitHub Actions**:
+Para replicarlo en otra cuenta:
 
 ```bash
 git remote add origin https://github.com/TU_USUARIO/beamlab-leo.git
@@ -80,7 +90,7 @@ git branch -M main
 git push -u origin main
 ```
 
-Cada `git push` instala, corre las 16 pruebas, compila y publica. Para Netlify, `npm run build` y arrastra `dist` a <https://app.netlify.com/drop>.
+Luego activa **Settings → Pages → Source: GitHub Actions**.
 
 Un **dominio propio** (`beamlab.tudominio.com`) se compra aparte (~US$ 10–15/año) y se conecta con un CNAME o registros A; el certificado HTTPS lo emite el hosting. Los pasos exactos están en la guía.
 

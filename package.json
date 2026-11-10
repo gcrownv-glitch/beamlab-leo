@@ -3,6 +3,13 @@
   "private": true,
   "version": "1.0.0",
   "description": "Simulador interactivo de beamforming satelital en órbita LEO",
+  "homepage": "https://gcrownv-glitch.github.io/beamlab-leo/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gcrownv-glitch/beamlab-leo.git"
+  },
+  "author": "Jhorel Cornejo",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

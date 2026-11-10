@@ -1,5 +1,7 @@
 # Publicar BeamLab LEO en internet
 
+> **Estado de este proyecto:** ya está publicado en <https://gcrownv-glitch.github.io/beamlab-leo/> con el repositorio <https://github.com/gcrownv-glitch/beamlab-leo>. Esta guía sirve para replicarlo en otra cuenta o con un dominio propio.
+
 La app es **100 % estática**: `npm run build` genera una carpeta `dist/` con HTML, JS, CSS, texturas y fuentes. No hay backend ni base de datos, así que se puede servir desde cualquier hosting estático.
 
 Hay dos piezas que conviene separar:

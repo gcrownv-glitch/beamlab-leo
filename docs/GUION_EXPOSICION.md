@@ -1,160 +1,427 @@
 # Guion de exposición — BeamLab LEO
 
-**Duración objetivo: 10–12 minutos.** La demo está pensada para hacerse en vivo, con la guía integrada. Si algo falla, hay capturas de respaldo en `docs/img/`.
+### La historia de una antena que no se mueve
+
+**Demo en vivo:** <https://gcrownv-glitch.github.io/beamlab-leo/>  
+**Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>  
+**Versión PDF (para imprimir o tablet):** [Guion_BeamLab_LEO.pdf](Guion_BeamLab_LEO.pdf)
+
+> **La idea en una frase:** un satélite en órbita baja no puede iluminar toda la Tierra con una sola antena; reparte su potencia en muchos haces pequeños y puede moverlos **sin mover nada**, solo cambiando el tiempo (la fase) con que emite cada antena.
+
+<div class="gallery">
+  <img src="img/01-general.jpg" alt="Vista general de BeamLab LEO">
+  <img src="img/02-satelite.jpg" alt="Satélite y haz sobre Lima">
+  <img src="img/04-celular.jpg" alt="Cobertura celular sobre Perú">
+  <img src="img/05-conformado.jpg" alt="Haz conformado sobre Lima">
+</div>
+
+*Cuatro vistas de la app: general, satélite, celular y conformado.*
+
+> **Cómo usar este guion:** no lo memorices palabra por palabra. Lee las frases en negrita, mira las imágenes y sigue las escenas. Si te pierdes, vuelve a “luz, foco, mapa” y a las tres C. Cada fórmula tiene una frase que la traduce.
+
+### La exposición en 30 segundos
+
+> “Un satélite LEO se mueve a 7,6 km/s y solo ve un casquete de la Tierra. Para dar internet, no usa una antena gigante: usa 256 antenitas que emiten con pequeños retrasos. Eso mueve el haz sin mover la antena. Con muchos haces cubre un país; con un haz con forma cubre una ciudad. Y siempre hay un compromiso entre cobertura, potencia y capacidad.”
 
 ---
 
-## Antes de entrar
+## Antes de empezar: lo que quiero que recuerden
 
-1. Ejecuta `npm install` una vez y luego `npm run dev`.
-2. Abre `http://localhost:5173` en Edge o Chrome, a pantalla completa (F11), zoom 100 %.
-3. Comprueba que se ve el globo, el satélite y el panel de la derecha.
-4. Pulsa **Guía** una vez para verificar que aparece la tarjeta; ciérrala con la ✕.
-5. Ten a mano `docs/GUION_EXPOSICION.md` y las capturas de `docs/img/` por si el proyector o la red fallan.
+No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y **tres números**.
 
-> El simulador arranca a **10×**. Al entrar a **Celular** o **Conformada** se pausa y reposiciona el satélite sobre la región: es intencional, para que el diseño sea reproducible.
+### Las 3 ideas (luz, foco, mapa)
 
----
+1. **La luz:** el satélite no ve toda la Tierra; ve un casquete de unos 4.500 km de radio. Y se mueve a 7,6 km/s.
+2. **El foco:** para mover el haz no se mueve la antena; se cambia la fase de cada elemento. Es una orquesta de 256 antenitas.
+3. **El mapa:** para cubrir un país se usan cientos de haces pequeños; para una zona, un haz con forma. Siempre hay un compromiso entre **cobertura**, **concentración** y **capacidad**.
 
-## Guion minuto a minuto
+### Las 3 C (el triángulo del diseño)
 
-### 0:00–0:40 · Gancho
+| C | Qué significa | Se mide con |
+|---|---|---|
+| **Cobertura** | cuánta Tierra iluminas | km de huella, número de celdas |
+| **Concentración** | cuánta potencia pones en cada punto | dBi, HPBW |
+| **Capacidad** | cuántos datos caben | C/N₀, reutilización de frecuencia |
 
-> “Un satélite LEO a 550 km se mueve a 7,6 km/s. Desde ahí no puede iluminar toda la Tierra con una sola antena: tiene que repartir su potencia en haces que apuntan a zonas concretas. Este simulador muestra cómo se hace, desde la órbita hasta la fase de cada elemento del arreglo.”
+> **Frase para recordar:** “No se pueden maximizar las tres C al mismo tiempo. El beamforming mueve el equilibrio.”
 
-Señala la pantalla:
+### Los 3 números
 
-- Globo 3D, órbita cian, traza amarilla.
-- Panel izquierdo: órbita y parámetros.
-- Panel derecho: antena y modos.
-- Abajo: corte del patrón, enlace y número de haces.
+- **550 km** de altura.
+- **287 celdas** para cubrir Perú.
+- **98 %** de cobertura del haz conformado sobre Lima.
 
-### 0:40–2:00 · Órbita y geometría
+### Mapa de la exposición
 
-**Haz:** clic en **Guía → Siguiente** (paso 1), o manualmente:
+| # | Escena | # | Escena |
+|---|---|---|---|
+| 1 | El satélite que no se queda quieto | 5 | Cubrir un país: el panal |
+| 2 | El problema: una lámpara no alcanza | 6 | Un haz con forma de Lima |
+| 3 | La solución: una orquesta de antenas | 7 | ¿Llega la señal? El presupuesto |
+| 4 | El precio de concentrar | 8 | Cierre: las tres ideas |
 
-1. En **Constelación**, elige **Starlink**.
-2. Muestra **Altitud 550 km**, **Inclinación 53°**, **Período 95,6 min**, **Velocidad 7,59 km/s**.
-3. Activa **Trazar** y **Huella**.
-4. Pulsa **Seguir** o **Satélite** para ver de cerca el satélite y su panel de antena.
+*Cada escena lleva su tiempo orientativo en el título.*
 
-> “La órbita es kepleriana con corrección J2. La línea cian es la órbita; la traza es su paso sobre el suelo. El anillo azul es el horizonte: desde 550 km se ve hasta 67° de nadir, un disco de 4.500 km de radio. Todo lo que está fuera de ese disco no se puede iluminar.”
-
-**Si el satélite ya se movió:** pulsa **Ahora** (vuelve a pasar sobre Lima) o cambia de modo; el simulador lo reposiciona.
-
-### 2:00–4:00 · Global vs puntual
-
-**Paso 2 de la guía.** Modo **Global**.
-
-> “Con una sola bocina ancha cubrimos casi todo el disco, pero la ganancia es de apenas 5 dBi y el C/N₀ baja a ~50 dBHz. Además, la bocina de 17° del apunte cubre todo el disco **desde GEO**, a 35.786 km; desde LEO ese mismo haz solo ilumina 160 km. Por eso LEO necesita dividir el disco en haces.”
-
-Cambia a **Puntual**. El haz se coloca sobre Lima.
-
-> “Ahora un arreglo de 16×16. La ganancia sube a ~26 dBi y el haz baja a ~8°. El satélite sigue moviéndose y la fase se recalcula para no soltar Lima.”
-
-Abre **Satélite** y muestra la textura de fase del panel.
-
-> “Cada elemento recibe una fase distinta. Esa rampa inclina el frente de onda: no se mueve la antena, se mueve el haz. Eso es beamforming.”
-
-**Señala el mapa de fase** del panel derecho (si está visible; si no, desplázate) y el corte del patrón: HPBW, SLL, lóbulos.
-
-### 4:00–6:00 · El arreglo manda
-
-**Pasos 4 y 5 de la guía.**
-
-1. Pulsa **4×4**. Observa: HPBW ~25°, huella enorme, ganancia baja.
-2. Pulsa **16×16**. Observa: HPBW ~7–9°, ganancia ~29 dBi, huella pequeña.
-3. Mueve **Separación** a 0,8 λ. Aparece el aviso de lóbulos de difracción y el corte muestra lóbulos adicionales.
-4. Cambia **Taper** de Uniforme a Kaiser −30 dB. El SLL baja, el haz se ensancha y la ganancia baja un poco.
-
-> “La regla es θ ≈ 0,886 λ/L: si duplico la apertura, el haz se estrecha a la mitad. El taper es el primer compromiso: menos lóbulos laterales, pero menos ganancia y un haz más ancho. Y si separo más de 0,5 λ, aparecen lóbulos de difracción: por eso los arreglos reales usan ~0,5 λ.”
-
-**Frase para conectar:** “Hasta aquí un haz. Una constelación necesita cientos.”
-
-### 6:00–7:30 · Cobertura celular
-
-**Paso 6 de la guía.** Modo **Celular**, región **Perú**, 3 colores.
-
-> “Para cubrir Perú se despliegan ~287 celdas, como en la diapositiva de constelaciones LEO. Cada celda tiene su propio haz y su color de reutilización: celdas del mismo color comparten canal. El satélite recalcula la fase de cada celda mientras la ve, y las que caen bajo el horizonte se apagan.”
-
-Señala:
-
-- **Haces activos: 287**.
-- **Celdas visibles: 287/287**.
-- La mancha de cobertura sobre Perú.
-- La leyenda A/B/C.
-- El **C/N₀** del enlace.
-
-> “Esto es lo que hace Starlink o OneWeb: no un haz global, sino una malla de haces que se reutiliza en frecuencia. La cobertura se convierte en capacidad.”
-
-**Prueba:** cambia la reutilización a 4 colores y observa cómo cambia el mosaico y el número de canales.
-
-### 7:30–9:30 · Haz conformado
-
-**Paso 7 de la guía.** Modo **Conformada**, centro **Lima**, radio **100 km**, pulsa **Sintetizar cobertura**.
-
-> “Ahora no queremos un punto, queremos una zona. La síntesis resuelve (AᴴA+λI)w = Aᴴd para que el campo valga 1 dentro y 0 fuera, ajustando amplitud y fase de los 256 elementos. Es la versión digital de un reflector con múltiples alimentadores.”
-
-Espera ~1 s. Lee:
-
-- **Cobertura 98 %**, **derrame −18,8 dB**, **D 21,7 dBi**.
-- **HPBW ~20,8°**: el haz se ensanchó para cubrir los 100 km.
-- Compara con el haz puntual: más cobertura, menos ganancia. Ese es el compromiso.
-
-> “Si aumento el radio a 200 km, la cobertura baja y la ganancia también: una apertura de 19 cm no puede hacer magia. Para zonas más grandes se usan más celdas o un reflector más grande.”
-
-**Demo opcional:** sube el radio a 200 km y vuelve a sintetizar; muestra la caída de cobertura. Luego vuelve a 100 km.
-
-### 9:30–11:00 · Enlace y cierre
-
-Señala la tarjeta **Presupuesto**:
-
-> “La ganancia del haz entra en el EIRP; la distancia oblicua en la pérdida de espacio libre. Con 20 W y 26 dBi, el EIRP es ~40 dBW, la pérdida ~169 dB y el C/N₀ ~73 dBHz. En modo global, con 3,5 dBi, el C/N₀ cae a ~50 dBHz. Misma potencia, distinta concentración.”
-
-Cierre:
-
-> “El diseño satelital es un triángulo: **ganancia**, **cobertura** y **capacidad**. No se pueden maximizar los tres a la vez. El beamforming es la herramienta que permite mover ese compromiso haz por haz, celda por celda, en tiempo real. El simulador está en GitHub; el motor orbital, el de antenas y la síntesis tienen pruebas automáticas.”
+**Antes de entrar:** abre la URL, prueba **Guía** una vez, deja **FPS máx. 60** y **Calidad Alta** (o 30/Baja si la PC es débil), y ten a mano las capturas de `docs/img/` por si falla internet.
 
 ---
 
-## Preguntas previsibles
+## Escena 1 · El satélite que no se queda quieto
+
+**Tiempo:** 0:40–2:00  
+**Muestra:** app en **Puntual**, constelación **Starlink**, cámara **Satélite** o **Seguir**; activa **Órbita**, **Traza** y **Huella**.
+
+**Di algo así:**
+
+- “¿Han visto una antena parabólica? El satélite de televisión parece quieto porque está a 35.786 km, en órbita geoestacionaria. Este no: está a 550 km y da una vuelta a la Tierra cada 95 minutos.”
+- “Se mueve a 7,6 km/s. Para que se hagan una idea, de Lima a Arequipa hay unos 1.000 km: este satélite los recorre en poco más de dos minutos.”
+- “Desde 550 km no ve toda la Tierra. Ve un casquete de 67° alrededor de la vertical, un disco de unos 4.500 km de radio: más o menos de Lima a Miami. Ese es su ‘campo de visión’.”
+- “La ventaja de LEO es que está cerca: menos retardo y más señal. El precio es que se mueve y hay que repartir la cobertura.”
+
+**Frase para recordar:** “El satélite no ve la Tierra; ve una ventana.”
+
+**Dato con interpretación:** 550 km es casi la distancia Lima–Cusco; 95 minutos es una clase y media; el disco visible tiene el tamaño de un continente.
+
+**Si preguntan “¿por qué no usan GEO?”:** “GEO cubre mucho con un solo haz, pero está lejos: más retardo y menos señal. LEO está cerca, pero se mueve y necesita muchos haces. Son compromisos distintos.”
+
+---
+
+## Escena 2 · El problema: una lámpara no alcanza
+
+**Tiempo:** 2:00–3:30  
+**Muestra:** modo **Global**; luego **Puntual** con objetivo **Lima**. Compara el tamaño de la huella y las métricas del panel.
+
+**Di algo así:**
+
+- “Con un haz muy ancho, como una lámpara de ambiente, iluminamos casi todo el disco. Pero la potencia se reparte: la ganancia es de unos 5 dBi.”
+- “Con un haz puntual, como una linterna, iluminamos solo Lima. La ganancia sube a unos 29 dBi.”
+- “La diferencia entre 5 y 29 dBi es de 24 dB. En potencia, 24 dB es unas 250 veces. Es la diferencia entre una lámpara que ilumina toda la sala y una linterna que apunta a una pared.”
+- “Ojo con un detalle del apunte: la bocina de 17° es de un satélite GEO. Desde LEO, 17° solo ilumina unos 160 km. Para cubrir el disco visible desde LEO haría falta un haz de 134°, y la ganancia cae a 5 dBi.”
+
+**Qué es dBi (en simple):**
+
+> dBi no es un voltaje ni una potencia absoluta. Es una forma de decir **cuántas veces concentra** la antena la potencia en una dirección, comparada con una antena ideal que reparte por igual en todas direcciones.
+>
+> - **0 dBi** = reparte por igual, como una vela.
+> - **3 dB** = 2 veces.
+> - **10 dB** = 10 veces.
+> - **29 dBi** ≈ 800 veces.
+> - **5 dBi** ≈ 3 veces.
+
+**Frase para recordar:** “No se puede tener cobertura total y mucha ganancia con una sola antena.”
+
+**Dato con interpretación:** 29 dBi no significa 29 vatios; significa que la antena concentra como si tuviera ~800 veces más potencia en esa dirección.
+
+**Si preguntan “¿y por qué no ponen más potencia?”:** “Porque el satélite tiene límite de energía, calor y peso. Es más eficiente concentrar la potencia con la antena que subir la potencia del transmisor.”
+
+---
+
+## Escena 3 · La solución: una orquesta de antenas
+
+**Tiempo:** 3:30–5:30  
+**Muestra:** cámara **Satélite**; señala el panel de la antena y el **mapa de fase** del panel derecho.
+
+**Di algo así:**
+
+- “La antena no se mueve. Lo que cambia es el **tiempo** con el que emite cada elemento.”
+- “Imaginen 256 personas en una tribuna haciendo una ola. Si todos levantan la tarjeta al mismo tiempo, la ola no va a ningún lado. Si cada uno la levanta un poquito después que el anterior, la ola viaja hacia donde ustedes quieren. Aquí pasa lo mismo, pero con ondas de radio.”
+- “Cada antenita emite la misma señal con un pequeño retraso. En la dirección de Lima, todas las ondas llegan en fase y se suman. En otra dirección, se cancelan. Eso es **beamforming**.”
+- “El mapa de fase es ese arcoíris: cada color es un retraso distinto. El arcoíris se repite porque la fase da vueltas cada 360°, pero lo importante es la **dirección de la rampa**, no el color.”
+
+**La fórmula, con interpretación:**
+
+\[
+\varphi_{mn} = -k\,(x_m u_0 + y_n v_0)
+\]
+
+- \(\varphi\): el retraso (fase) de cada elemento.
+- \(x_m, y_n\): la posición de cada antenita en el panel.
+- \(u_0, v_0\): la dirección a la que queremos apuntar (Lima).
+- \(k = 2\pi/\lambda\): cuánto cambia la onda por unidad de distancia.
+
+> En una frase: “la fase es un retraso; la rampa de fase inclina el frente de onda y apunta el haz.”
+
+**Frase para recordar:** “No movemos la antena; movemos el tiempo.”
+
+**Dato con interpretación:** el panel tiene 256 elementos y mide unos 19 cm (como una pizza mediana). No hay motores: todo es electrónica.
+
+**Si preguntan “¿cómo sabe dónde está Lima?”:** “Con su posición orbital y el modelo de la Tierra; el software calcula el retraso para cada elemento. En un sistema real se agrega calibración y seguimiento.”
+
+---
+
+## Escena 4 · El precio de concentrar
+
+**Tiempo:** 5:30–6:45  
+**Muestra:** cambia **4×4 → 16×16**; mueve **Separación** a 0,8 λ; cambia **Taper** de Uniforme a **Kaiser −30 dB**.
+
+**Di algo así:**
+
+- “Con 4×4 el haz mide unos 25° y la huella es enorme. Con 16×16 baja a unos 7° y la ganancia sube a 29 dBi.”
+- “La regla es simple: si duplicas el tamaño del panel, el haz se estrecha a la mitad. Es como ponerle un lente más grande a una linterna: más concentrado, pero iluminas menos área.”
+- “El **taper** es bajar la potencia en los bordes del panel. Eso reduce los **lóbulos laterales**: esa luz que se escapa por los costados y puede interferir con otras celdas. El precio es un haz un poco más ancho y algo menos de ganancia.”
+- “Si separo los elementos más de 0,5 λ, aparecen **lóbulos de difracción**: copias del haz en otras direcciones. Por eso los arreglos reales usan ~0,5 λ.”
+
+**Fórmulas, con interpretación:**
+
+\[
+\theta_{3\text{dB}} \approx 0{,}886\,\frac{\lambda}{L}
+\]
+
+- \(\theta_{3\text{dB}}\): el ancho del haz a media potencia.
+- \(\lambda\): la longitud de onda (unos 2,5 cm en Ku).
+- \(L\): el tamaño del panel.
+
+> “Si \(L\) se duplica, \(\theta\) se reduce a la mitad: panel más grande, haz más fino.”
+
+**Frase para recordar:** “Apertura más grande = haz más fino; taper = menos lados, menos ganancia.”
+
+**Dato con interpretación:** 16×16 con 0,5 λ en Ku mide 19 cm y da ~29 dBi; 4×4 da un haz 4 veces más ancho.
+
+**Si preguntan “¿qué es SLL?”:** “El nivel de los lóbulos laterales. Es la luz que se escapa por los costados del haz. Uniforme ronda −13 dB; Kaiser −30 dB baja mucho más, a costa de ensanchar el haz principal.”
+
+---
+
+## Escena 5 · Cubrir un país: el panal
+
+**Tiempo:** 6:45–8:15  
+**Muestra:** modo **Celular**, región **Perú**, **3 colores**; observa el número de haces y la rejilla.
+
+**Di algo así:**
+
+- “Perú es demasiado grande para un solo haz. Se cubre con un panal de unos 287 haces pequeños.”
+- “Cada celda tiene su propio haz. Los colores son **reutilización de frecuencia**: celdas del mismo color usan el mismo canal, como un mapa con tres colores. Así se reutiliza el espectro, que es un recurso escaso.”
+- “Las celdas están fijas a Tierra. El satélite recalcula la fase de cada una mientras la ve; las que caen bajo el horizonte o muy cerca del borde se apagan.”
+- “Es como regar un jardín con 287 aspersores pequeños en vez de una manguera gigante: cubres todo, pero cada aspersor tiene su caudal y su control.”
+
+**Frase para recordar:** “Para cubrir un país, muchos focos pequeños; para una zona, un foco con forma.”
+
+**Dato con interpretación:** 287 celdas, 3 colores, unos 26 dBi por celda y C/N₀ cercano a 72 dBHz en el centro. Más celdas = más capacidad, pero más complejidad y más interferencia potencial.
+
+**Si preguntan “¿cuántos satélites se necesitan?”:** “Depende de la constelación. Aquí vemos un satélite; en una constelación, varios comparten la cobertura y se pasan las celdas entre ellos (handover).”
+
+---
+
+## Escena 6 · Un haz con forma de Lima
+
+**Tiempo:** 8:15–9:45  
+**Muestra:** modo **Conformada**, centro **Lima**, radio **100 km**, pulsa **Sintetizar cobertura**.
+
+**Di algo así:**
+
+- “Ahora no queremos un punto, queremos una zona: Lima metropolitana.”
+- “La antena no puede mover un reflector. Lo que hace es combinar la amplitud y la fase de los 256 elementos para que el haz tenga **forma de mancha**, no de círculo.”
+- “El software resuelve un problema de ajuste: que el campo valga 1 dentro de la zona y 0 fuera. Es como un ajuste de mínimos cuadrados, pero con ondas.”
+- “Resultado: 98 % de cobertura, derrame de −18,8 dB y 21,7 dBi. El haz se ensanchó a 20,8°, justo el tamaño de la zona.”
+
+**La fórmula, con interpretación:**
+
+\[
+\min_{\mathbf w}\;\|A\mathbf w-\mathbf d\|^2+\lambda\|\mathbf w\|^2
+\]
+
+- \(\mathbf w\): los pesos (amplitud y fase) de cada elemento.
+- \(A\): cómo contribuye cada elemento en cada punto de la Tierra.
+- \(\mathbf d\): 1 dentro de Lima, 0 fuera.
+- \(\lambda\): un freno para que la solución no se vuelva loca.
+
+> En una frase: “buscamos los pesos que hacen que las ondas se sumen dentro de Lima y se cancelen fuera.”
+
+**Frase para recordar:** “El haz deja de ser un círculo y se vuelve una mancha con forma de Lima.”
+
+**Dato con interpretación:** 21,7 dBi es ~150 veces; el haz puntual era 29 dBi (~800 veces). Cambiamos concentración por cobertura: menos potencia por punto, pero toda Lima iluminada.
+
+**Si preguntan “¿esto existe en la vida real?”:** “Sí, es la versión digital de un reflector con varios alimentadores, como los que menciona el apunte. En vez de mover un reflector, se ajustan amplitudes y fases.”
+
+---
+
+## Escena 7 · ¿Llega la señal? El presupuesto de enlace
+
+**Tiempo:** 9:45–11:00  
+**Muestra:** tarjeta **Presupuesto** (EIRP, Pérdida, P<sub>rx</sub>, C/N₀, capacidad).
+
+**Di algo así:**
+
+- “La ganancia del haz entra en el **EIRP**: la potencia efectiva que el satélite parece tener en esa dirección. Aquí son unos 39 dBW, equivalentes a unos 8 kW efectivos, pero concentrados en un haz.”
+- “La distancia juega en contra: la **pérdida de espacio libre** es de unos 170 dB. La señal llega muy, muy débil.”
+- “El **C/N₀** compara la señal con el ruido: 71 dBHz es bueno; 50 dBHz es débil. De ahí sale la capacidad, en Mbps.”
+- “Y aquí está el triángulo: si concentro más el haz, sube el C/N₀ pero cubro menos. Si cubro más, reparto la potencia. Si quiero más capacidad, necesito más potencia, más antena o más espectro.”
+
+**Las fórmulas, con interpretación:**
+
+\[
+\text{EIRP}=P_{tx}+G_{tx}\qquad
+L_{fs}=20\log_{10}\!\left(\frac{4\pi d}{\lambda}\right)\qquad
+\frac{C}{N_0}=P_{rx}-N_0
+\]
+
+- **EIRP:** potencia del transmisor + ganancia de la antena. “Lo que el satélite ‘parece’ tener en esa dirección.”
+- **Pérdida de espacio libre:** la señal se diluye con la distancia. “Como una lámpara que ilumina menos cuanto más lejos.”
+- **C/N₀:** señal frente a ruido. “Qué tan fácil es distinguir la música del ruido de fondo.”
+
+**La escala de dB, en simple:**
+
+- 3 dB = 2 veces.
+- 10 dB = 10 veces.
+- 20 dB = 100 veces.
+- 24 dB ≈ 250 veces.
+
+**Frase para recordar:** “La señal llega muy débil; la antena y el ruido deciden si hay internet.”
+
+**Dato con interpretación:** 39 dBW ≈ 8 kW efectivos; 170 dB de pérdida es una atenuación enorme; 71 dBHz es un enlace cómodo; 50 dBHz es un enlace justo.
+
+**Si preguntan “¿por qué no suben la potencia?”:** “Porque el satélite tiene límites de energía, calor y peso. Es más eficiente mejorar la antena y la cobertura que subir vatios.”
+
+---
+
+## Escena 8 · Cierre: las tres ideas
+
+**Tiempo:** 11:00–11:45  
+**Muestra:** vuelve a **Puntual** o deja la vista general; señala la URL.
+
+**Di algo así:**
+
+- “Recuerden tres ideas: **la luz** —el satélite ve un casquete, no la Tierra—; **el foco** —mover el haz es cambiar fases, no motores—; **el mapa** —para cubrir un país, muchos haces; para una zona, un haz con forma.”
+- “Y recuerden las tres C: **cobertura, concentración y capacidad**. No se pueden maximizar las tres; el diseño elige.”
+- “BeamLab LEO es un simulador abierto: pueden mover el satélite, cambiar el arreglo, ver la fase, generar cientos de celdas y diseñar un haz conformado. El código y la demo están en GitHub.”
+
+**Frase de cierre:** “En LEO no se cubre con un haz, se cubre con muchos; y cada haz es un compromiso.”
+
+**Cierre de 15 segundos:** “Gracias. La demo está en `gcrownv-glitch.github.io/beamlab-leo`; el repositorio, en GitHub. ¿Preguntas?”
+
+---
+
+## Glosario para no ingenieros
+
+| Término | Qué significa | Analogía |
+|---|---|---|
+| **LEO** | órbita baja, ~550 km; el satélite se mueve rápido | un dron que pasa |
+| **GEO** | órbita geoestacionaria, 35.786 km; parece quieto | un faro fijo |
+| **dBi** | cuánto concentra la antena respecto a una que reparte por igual | el zoom de una linterna |
+| **dB** | escala relativa: +3 dB = 2×, +10 dB = 10× | el volumen del equipo de sonido |
+| **HPBW** | ancho del haz a media potencia | el ancho del cono de la linterna |
+| **SLL** | nivel de los lóbulos laterales | la luz que se escapa por los costados |
+| **EIRP** | potencia efectiva del satélite en una dirección | la potencia “aparente” del foco |
+| **FSPL** | pérdida por distancia | la luz se diluye con la distancia |
+| **C/N₀** | señal frente a ruido | qué tan fuerte se oye la música sobre el ruido |
+| **Fase** | retraso pequeño de cada antena | cada músico entra un instante después |
+| **Beamforming** | mover el haz cambiando fases | una orquesta que apunta el sonido |
+| **Huella** | zona de la Tierra que ilumina el haz | el círculo de luz en el piso |
+| **Reutilización** | repetir el mismo canal en celdas separadas | colores de un mapa |
+| **Taper** | bajar la potencia en los bordes del panel | suavizar el borde del foco |
+
+---
+
+## Números con interpretación
+
+| Número | Qué significa | Comparación |
+|---|---|---|
+| **550 km** | altura del satélite | casi Lima–Cusco |
+| **7,6 km/s** | velocidad orbital | Lima–Arequipa en ~2 min |
+| **95 min** | una vuelta a la Tierra | una clase y media |
+| **67°** | ángulo visible desde la vertical | un casquete, no la Tierra entera |
+| **4.500 km** | radio del disco visible | Lima–Miami |
+| **256** | elementos del arreglo 16×16 | 256 antenitas |
+| **19 cm** | tamaño del panel en Ku | una pizza mediana |
+| **29 dBi** | ganancia del haz puntual | ~800× respecto a una antena ideal |
+| **7°** | ancho del haz puntual | huella de ~70 km a nadir |
+| **287** | celdas para Perú | un panal de haces |
+| **100 km** | radio de la zona conformada | Lima metropolitana |
+| **98 %** | cobertura lograda | 2 % de derrame |
+| **21,7 dBi** | ganancia del haz conformado | ~150×; menos que 29 dBi, pero cubre Lima |
+| **39 dBW** | EIRP del enlace | ~8 kW efectivos |
+| **170 dB** | pérdida de espacio libre | atenuación enorme |
+| **71 dBHz** | C/N₀ del enlace | enlace cómodo |
+| **−18,8 dB** | derrame fuera de la zona | ~1,3 % de la potencia |
+| **0,5 λ** | separación entre elementos | evita copias del haz |
+
+> **Para los que quieran el detalle:** \(G(\text{dBi})=10\log_{10}G\); \(D=4\pi A/\lambda^2\); \(HPBW\approx0{,}886\lambda/L\); \(EIRP=P_{tx}G_{tx}\); \(FSPL=20\log_{10}(4\pi d/\lambda)\); \(C/N_0=P_{rx}-N_0\). No hace falta recitarlas: cada una tiene su interpretación en la tabla.
+
+---
+
+## Preguntas y respuestas (para público general)
+
+**¿Por qué no usan una sola antena grande?**
+Porque una antena grande concentra mucho en una zona pequeña. Para cubrir un país necesitas muchos haces o una antena gigante que no cabe en el satélite. El compromiso es cobertura vs. concentración.
+
+**¿Cómo apuntan sin mover la antena?**
+Cambiando el retraso (fase) de cada elemento. Las ondas se suman en la dirección deseada y se cancelan en las demás. No hay motores.
+
+**¿Qué es dBi?**
+Una medida de cuánto concentra la antena. 0 dBi reparte por igual; 3 dB es 2×; 10 dB es 10×; 29 dBi es ~800×. No es una potencia absoluta.
 
 **¿Por qué 0,5 λ?**
-Es el espaciado estándar para evitar lóbulos de difracción en un barrido amplio y mantener el lóbulo principal limpio. Al aumentar la separación, el patrón se estrecha, pero aparecen lóbulos de difracción (grating lobes) que roban potencia y crean falsos objetivos.
+Para evitar los lóbulos de difracción, que son copias del haz en otras direcciones. Si separas más, aparecen copias que roban potencia y crean falsos objetivos.
 
-**¿Por qué no usar un haz más ancho y listo?**
-Porque la ganancia de una apertura cae al ensanchar el haz. Un haz de 134° da ~5 dBi; uno de 7° da ~29 dBi. Para la misma potencia, la diferencia en C/N₀ es ~24 dB.
+**¿Por qué el apunte dice 17° y aquí usan 134°?**
+Porque 17° es el haz global de un satélite GEO. Desde LEO, 17° solo cubre ~160 km; para el disco visible de LEO hace falta ~134°, con muy poca ganancia.
 
-**¿Cómo sabe el satélite dónde está la celda?**
-Con su efeméride (posición y orientación) y el modelo de Tierra. El haz se apunta por fase; en sistemas reales se añade calibración, seguimiento y handover entre satélites.
+**¿Esto es real o solo un dibujo?**
+Es un simulador didáctico con física realista: órbita kepleriana con corrección J2, arreglo en fase, Tierra esférica, enlace de espacio libre. No es un diseño de vuelo, pero los compromisos son reales.
 
-**¿Esto es un modelo real o didáctico?**
-Didáctico, con números realistas. Usa esfera, órbita kepleriana con J2 secular, arreglo ideal sin acoplamiento mutuo ni errores de fase, y enlace de espacio libre. Sirve para entender los compromisos, no para certificar un enlace.
+**¿La PC de la universidad lo va a correr?**
+Sí. Es una web estática; no necesita instalar nada. Si la GPU es débil, usa **30 fps + Calidad Baja** en la barra inferior.
 
-**¿Por qué la bocina del apunte dice 17° y aquí uso 134°?**
-Porque 17° es el haz global de un satélite **GEO**. A 35.786 km, 17° cubre el disco terrestre. A 550 km, 17° solo cubre ~160 km; para el disco visible de LEO hace falta ~134°, con muy poca ganancia. Es una de las ideas que más se malinterpretan y que el simulador deja ver.
+**¿Se puede usar sin internet?**
+Sí, con `npm run dev` en la laptop; también se puede servir en la red local. La URL pública necesita internet.
 
-**¿Qué diferencia hay con el beamforming de 5G?**
-La física es la misma (arreglo en fase, fase por elemento); cambian la escala, la geometría (Tierra curvada, órbita), la cobertura celular y el presupuesto de enlace. En 5G el “haz” cubre usuarios; aquí cubre celdas de decenas de km.
+**¿Cuánto cuesta?**
+El hosting es gratis (GitHub Pages). Un dominio propio cuesta ~US$ 10–15 al año; es opcional.
 
-**¿Por qué el mapa de fase tiene tantos colores?**
-Porque la fase se envuelve en $[-\pi,\pi]$. Varios ciclos completos se ven como un arcoíris; lo importante es la **dirección de la rampa**, no el color absoluto. Al apuntar más lejos, la rampa es más rápida y hay más ciclos.
+**¿Qué faltaría para un sistema real?**
+Hardware, calibración de fase, handover entre satélites, interferencia, regulación, seguridad y miles de detalles más. Este proyecto muestra los conceptos y los compromisos.
 
 ---
 
-## Si algo falla
+## Versión de 5 minutos
+
+Si el tiempo se acorta:
+
+1. **0:00–0:45 · Gancho y órbita.** “Un satélite a 550 km se mueve a 7,6 km/s y solo ve un casquete de 4.500 km.”
+2. **0:45–2:00 · Problema y beamforming.** Global vs puntual; dBi; “no movemos la antena, movemos el tiempo”; muestra el mapa de fase.
+3. **2:00–3:00 · El arreglo.** 4×4 vs 16×16; panel de 19 cm; 29 dBi; taper y lóbulos.
+4. **3:00–4:15 · Cobertura.** Celular Perú (287 celdas, 3 colores); conformada Lima (100 km, 98 %).
+5. **4:15–5:00 · Enlace y cierre.** EIRP/FSPL/C/N₀; las 3 C; URL.
+
+---
+
+## Si la demo falla
 
 | Problema | Solución |
 |---|---|
-| El satélite ya no ve Lima | Pulsa **Ahora**, o cambia a **Celular/Conformada** (se reposiciona y pausa). |
-| La síntesis da error de cobertura | Baja el radio a 80–100 km, o sube a 20×20/32×32. |
-| La app se ve lenta | Baja **FPS máx. a 30** y **Calidad a Baja**, usa 4×4 u 8×8 y desactiva **Ganancia**. |
-| Oculté un panel y no sé cómo volver | Pestaña lateral **Órbita** / **Antena**, o teclas `[` / `]`. |
-| No hay texturas (globo azul) | Ocurre si se abre `dist/index.html` con `file://`; usa `npm run preview` o `npm run dev`. |
-| El proyector no muestra el 3D | Ten las capturas de `docs/img/` como respaldo y explica con ellas. |
+| No hay internet | Usa las capturas de `docs/img/` y explica con ellas. |
+| El satélite ya no ve Lima | Pulsa **Ahora** o cambia a **Celular/Conformada** (se reposiciona y pausa). |
+| La síntesis da error | Baja el radio a 80–100 km o sube a 20×20/32×32. |
+| La PC va lenta | **FPS máx. 30**, **Calidad Baja**, 4×4 u 8×8, desactiva **Ganancia**. |
+| El proyector no muestra el 3D | Abre `docs/img/02-satelite.jpg`, `04-celular.jpg`, `05-conformado.jpg`. |
+
+**Plan de 60 segundos:** “Un satélite LEO ve un casquete; para cubrirlo usa muchos haces; mueve cada haz cambiando fases, no motores; y elige entre cobertura, concentración y capacidad.”
 
 ---
 
-## Cierre de 30 segundos
+## Chuleta final (una página)
 
-> “BeamLab LEO convierte una diapositiva de cobertura en algo que se puede tocar: órbita, huella, fase, celdas y enlace. La conclusión es simple: en LEO no se cubre con un haz, se cubre con muchos; y cada haz es un compromiso entre ganancia, cobertura y capacidad.”
+**3 ideas:** luz (casquete) · foco (fases) · mapa (muchos haces).
+
+**3 C:** cobertura · concentración · capacidad.
+
+**3 números:** 550 km · 287 celdas · 98 %.
+
+**3 frases:**
+1. “El satélite no ve la Tierra; ve una ventana.”
+2. “No movemos la antena; movemos el tiempo.”
+3. “En LEO no se cubre con un haz, se cubre con muchos.”
+
+**3 clics:**
+1. **Puntual** → **Satélite** → mapa de fase.
+2. **Celular** → **Perú** → 287 haces.
+3. **Conformada** → **Lima** → **Sintetizar**.
+
+**dBi en 10 segundos:** 0 = todas las direcciones; 3 dB = 2×; 10 dB = 10×; 29 dBi ≈ 800×.
+
+**Si te pierdes:** vuelve a “luz, foco, mapa” y a las tres C. No necesitas recitar fórmulas; cada fórmula tiene una frase que la explica.
+
+---
+
+**Demo:** <https://gcrownv-glitch.github.io/beamlab-leo/>  
+**Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>  
+**Teoría completa:** [TEORIA.md](TEORIA.md) · **Despliegue:** [DEPLOY.md](DEPLOY.md)

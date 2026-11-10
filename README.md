@@ -2,7 +2,7 @@
 
 **Simulador interactivo de órbita, antenas en fase y _beamforming_ satelital.**
 
-**Demo en vivo:** [gcrownv-glitch.github.io/beamlab-leo](https://gcrownv-glitch.github.io/beamlab-leo/) · **Repositorio:** [gcrownv-glitch/beamlab-leo](https://github.com/gcrownv-glitch/beamlab-leo)
+**Demo en vivo:** [gcrownv-glitch.github.io/beamlab-leo](https://gcrownv-glitch.github.io/beamlab-leo/) · **Repositorio:** [gcrownv-glitch/beamlab-leo](https://github.com/gcrownv-glitch/beamlab-leo) · **Guion PDF:** [docs/Guion_BeamLab_LEO.pdf](docs/Guion_BeamLab_LEO.pdf)
 
 [![Deploy to GitHub Pages](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml/badge.svg)](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml)
 
@@ -200,7 +200,9 @@ El botón **Guía** (o `T`) recorre ocho pasos y configura la simulación sola:
 7. Haz conformado sobre Lima (síntesis).
 8. Presupuesto de enlace y compromiso ganancia/cobertura.
 
-El guion detallado, con tiempos y frases sugeridas, está en **[docs/GUION_EXPOSICION.md](docs/GUION_EXPOSICION.md)**.
+El guion detallado, con tiempos y frases sugeridas, está en **[docs/GUION_EXPOSICION.md](docs/GUION_EXPOSICION.md)**. La **versión visual en PDF** (18 páginas, portada, glosario, números, Q&A y chuleta) está en **[docs/Guion_BeamLab_LEO.pdf](docs/Guion_BeamLab_LEO.pdf)**.
+
+[![Portada del guion de exposición](docs/img/08-guion-portada.jpg)](docs/Guion_BeamLab_LEO.pdf)
 
 ![Guía de presentación](docs/img/06-guia.jpg)
 

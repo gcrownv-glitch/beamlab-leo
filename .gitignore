@@ -10,3 +10,4 @@ coverage/
 *.log
 *.zip
 .DS_Store
+docs/_guion.html

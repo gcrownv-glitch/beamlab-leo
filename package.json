@@ -1,0 +1,24 @@
+{
+  "name": "beamlab-leo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Simulador interactivo de beamforming satelital en órbita LEO",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "katex": "0.16.22",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.187.0",
+    "typescript": "5.9.3",
+    "vite": "7.1.7",
+    "vitest": "3.2.4"
+  }
+}

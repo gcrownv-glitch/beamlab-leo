@@ -1,0 +1,11 @@
+node_modules/
+dist/
+_tmp/
+.npm-cache/
+.npm-logs/
+.tmp-build/
+.edge-profile*/
+.vite/
+coverage/
+*.log
+.DS_Store

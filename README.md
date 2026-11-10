@@ -58,6 +58,7 @@ npm test
 | `Espacio` | Reproducir / pausar |
 | `1` … `4` | Global, puntual, celular, conformada |
 | `G` | Mostrar / ocultar el mapa de ganancia |
+| `[` / `]` | Mostrar / ocultar el panel de órbita / antena |
 | `T` | Abrir la guía de presentación |
 | `H` | Abrir la teoría |
 | `P` | Descargar una captura |

@@ -279,10 +279,42 @@ export class UI {
       b.addEventListener('click', () => {
         const panel = document.getElementById(b.dataset.target ?? '');
         panel?.classList.toggle('collapsed');
+        this.syncPanelTabs();
       });
     }
+    for (const id of ['tab-orbit', 'tab-antenna']) {
+      const tab = document.getElementById(id);
+      tab?.addEventListener('click', () => {
+        const panel = document.getElementById(tab.getAttribute('aria-controls') ?? '');
+        panel?.classList.toggle('collapsed');
+        this.syncPanelTabs();
+      });
+    }
+    this.syncPanelTabs();
 
     window.addEventListener('keydown', (e) => this.onKey(e));
+  }
+
+  /** Muestra las pestañas de borde solo para los paneles contraídos. */
+  private syncPanelTabs() {
+    const pairs: [string, string][] = [
+      ['panel-orbit', 'tab-orbit'],
+      ['panel-antenna', 'tab-antenna'],
+    ];
+    for (const [panelId, tabId] of pairs) {
+      const panel = document.getElementById(panelId);
+      const tab = document.getElementById(tabId);
+      if (!panel || !tab) continue;
+      const collapsed = panel.classList.contains('collapsed');
+      tab.classList.toggle('visible', collapsed);
+      tab.setAttribute('aria-expanded', String(!collapsed));
+    }
+  }
+
+  private togglePanel(panelId: string) {
+    const panel = document.getElementById(panelId);
+    panel?.classList.toggle('collapsed');
+    this.syncPanelTabs();
   }
 
   private onKey(e: KeyboardEvent) {
@@ -299,6 +331,8 @@ export class UI {
     else if (e.key.toLowerCase() === 't') this.startTour();
     else if (e.key.toLowerCase() === 'h') this.toggleHelp();
     else if (e.key.toLowerCase() === 'p') this.h.screenshot();
+    else if (e.key === '[') this.togglePanel('panel-orbit');
+    else if (e.key === ']') this.togglePanel('panel-antenna');
     else if (e.key === 'Escape') {
       this.toggleHelp(false);
       this.closeTour();

@@ -210,6 +210,52 @@ h3 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.1px; }
 .panel.collapsed { transform: translateX(calc(-100% - 18px)); opacity: 0; pointer-events: none; }
 .panel-right.collapsed { transform: translateX(calc(100% + 18px)); }
 
+/* Pestañas de recuperación cuando un panel está contraído */
+.panel-tab {
+  position: absolute;
+  top: 50%;
+  z-index: 24;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 128px;
+  min-width: 30px;
+  padding: 12px 6px;
+  border: 1px solid rgba(56, 189, 248, 0.42);
+  background: linear-gradient(180deg, rgba(15, 31, 51, 0.98), rgba(5, 12, 22, 0.96));
+  color: #d6e8f5;
+  font-family: var(--font);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45), 0 0 18px rgba(34, 211, 238, 0.08);
+  transition: color 0.2s, border-color 0.2s;
+}
+.panel-tab.left {
+  left: 0;
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+}
+.panel-tab.right {
+  right: 0;
+  border-right: 0;
+  border-radius: 10px 0 0 10px;
+}
+.panel-tab.left.visible,
+.panel-tab.right.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.panel-tab:hover { color: var(--teal); border-color: rgba(34, 211, 238, 0.55); }
+.panel-tab .chev { font-family: var(--mono); font-size: 13px; line-height: 1; color: var(--teal); }
+
 .panel-body {
   overflow-y: auto;
   overflow-x: hidden;
@@ -805,6 +851,7 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; background: #
 }
 @media (max-width: 760px) {
   .panel { display: none; }
+  .panel-tab { display: none; }
   .dock { left: 10px; right: 10px; bottom: 66px; height: 150px; }
   .tour { width: calc(100vw - 40px); bottom: 230px; }
   .brand { min-width: 0; }

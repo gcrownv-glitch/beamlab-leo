@@ -149,6 +149,7 @@ Porque la fase se envuelve en $[-\pi,\pi]$. Varios ciclos completos se ven como 
 | El satélite ya no ve Lima | Pulsa **Ahora**, o cambia a **Celular/Conformada** (se reposiciona y pausa). |
 | La síntesis da error de cobertura | Baja el radio a 80–100 km, o sube a 20×20/32×32. |
 | La app se ve lenta | Baja a 4×4 u 8×8, desactiva **Ganancia**, cierra otras pestañas. |
+| Oculté un panel y no sé cómo volver | Pestaña lateral **Órbita** / **Antena**, o teclas `[` / `]`. |
 | No hay texturas (globo azul) | Ocurre si se abre `dist/index.html` con `file://`; usa `npm run preview` o `npm run dev`. |
 | El proyector no muestra el 3D | Ten las capturas de `docs/img/` como respaldo y explica con ellas. |
 

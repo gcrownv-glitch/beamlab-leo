@@ -57,7 +57,7 @@
             <div class="eyebrow">Segmento espacial</div>
             <h2>Órbita</h2>
           </div>
-          <button class="collapse" data-target="panel-orbit" aria-label="Contraer panel">
+          <button class="collapse" data-target="panel-orbit" aria-label="Contraer panel" title="Contraer panel · se reabre con la pestaña lateral o la tecla [">
             <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" /></svg>
           </button>
         </div>
@@ -137,7 +137,7 @@
             <div class="eyebrow">Carga útil</div>
             <h2>Antena y haces</h2>
           </div>
-          <button class="collapse" data-target="panel-antenna" aria-label="Contraer panel">
+          <button class="collapse" data-target="panel-antenna" aria-label="Contraer panel" title="Contraer panel · se reabre con la pestaña lateral o la tecla ]">
             <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" /></svg>
           </button>
         </div>
@@ -281,6 +281,13 @@
           </div>
         </div>
       </aside>
+
+      <button class="panel-tab left" id="tab-orbit" aria-controls="panel-orbit" aria-expanded="true" title="Mostrar/ocultar el panel de órbita (tecla [)">
+        <span class="chev">›</span><span class="tab-text">Órbita</span>
+      </button>
+      <button class="panel-tab right" id="tab-antenna" aria-controls="panel-antenna" aria-expanded="true" title="Mostrar/ocultar el panel de antena (tecla ])">
+        <span class="tab-text">Antena</span><span class="chev">‹</span>
+      </button>
 
       <section class="dock" id="dock" aria-label="Análisis">
         <button class="dock-toggle" id="dock-toggle" title="Mostrar/ocultar análisis">

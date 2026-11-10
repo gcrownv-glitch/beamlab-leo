@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Engine } from './engine';
 import { SceneView, type Textures } from './scene';
 import { UI, type ToggleKey, type UIHandlers } from './ui';
-import { defaultState, type CameraMode, type Mode, type SimState } from './state';
+import { defaultState, type CameraMode, type Mode, type Quality, type SimState } from './state';
 import { elementsOverPoint, presetById } from './core/presets';
 import { DEG, R_EARTH } from './core/constants';
 import { anglesForGroundPoint } from './core/geometry';
@@ -24,7 +24,11 @@ class App {
 
   private lastTick = 0;
   private fps = 60;
+  private fpsFrames = 0;
+  private fpsWindowStart = 0;
   private uiAccum = 0;
+  private nextFrame = 0;
+  renderedFrames = 0;
 
   constructor() {
     this.state = defaultState();
@@ -146,10 +150,36 @@ class App {
       this.scene?.capture();
       this.ui.toast('Captura guardada.');
     },
+    setFpsCap: (cap) => this.setFpsCap(cap),
+    setQuality: (q) => this.setQuality(q),
   };
 
-  private setMode(mode: Mode) {
-    const prev = this.state.mode;
+  private setFpsCap(cap: number) {
+    this.state.fpsCap = cap;
+    this.nextFrame = 0;
+    this.persistPerf();
+    this.ui.syncControls(this.state);
+  }
+
+  private setQuality(quality: Quality) {
+    this.state.quality = quality;
+    this.scene?.setQuality(quality);
+    this.persistPerf();
+    this.ui.syncControls(this.state);
+    const label = quality === 'high' ? 'alta' : quality === 'medium' ? 'media' : 'baja';
+    this.ui.toast(`Calidad ${label} · ${quality === 'high' ? 'bloom activo' : 'sin bloom'}`);
+  }
+
+  private persistPerf() {
+    try {
+      localStorage.setItem('beamlab:fpsCap', String(this.state.fpsCap));
+      localStorage.setItem('beamlab:quality', this.state.quality);
+    } catch {
+      // almacenamiento no disponible (modo privado, etc.)
+    }
+  }
+
+  private setMode(mode: Mode) {    const prev = this.state.mode;
     this.engine.setMode(mode);
     if (prev !== mode && (mode === 'cellular' || mode === 'shaped')) {
       if (mode === 'cellular') {
@@ -287,6 +317,7 @@ class App {
     this.scene = new SceneView(canvas, textures, (lat, lon) => this.pick(lat, lon), (lat, lon, x, y) => this.hover(lat, lon, x, y));
     this.scene.setCamera('earth');
     this.scene.setViewToEci(this.engine.derived.sat.r);
+    this.scene.setQuality(this.state.quality);
     setProgress(100, 'Listo · iniciando simulación');
 
     this.engine.update();
@@ -300,9 +331,13 @@ class App {
     });
 
     document.addEventListener('visibilitychange', () => {
+      this.nextFrame = 0;
       this.lastTick = performance.now();
+      this.fpsWindowStart = performance.now();
+      this.fpsFrames = 0;
     });
     this.lastTick = performance.now();
+    this.fpsWindowStart = performance.now();
     requestAnimationFrame(this.loop);
   }
 
@@ -377,15 +412,33 @@ class App {
   }
 
   private loop = (t: number) => {
+    const cap = this.state.fpsCap;
+    if (cap > 0) {
+      const interval = 1000 / cap;
+      if (t + 1.0 < this.nextFrame) {
+        requestAnimationFrame(this.loop);
+        return;
+      }
+      this.nextFrame = t + interval;
+    }
+
     const dt = Math.min(0.06, Math.max(0, (t - this.lastTick) / 1000));
     this.lastTick = t;
-    this.fps = this.fps * 0.92 + (1 / Math.max(dt, 1e-3)) * 0.08;
 
     if (this.state.playing && dt > 0) {
       this.state.simTime += dt * 1000 * this.state.speed;
     }
     this.engine.update(t);
     this.scene?.update(this.state, this.engine.derived, dt);
+    this.renderedFrames++;
+
+    // FPS reales en ventana de 500 ms (no depende del dt limitado).
+    this.fpsFrames++;
+    if (t - this.fpsWindowStart >= 500) {
+      this.fps = (this.fpsFrames * 1000) / Math.max(1, t - this.fpsWindowStart);
+      this.fpsFrames = 0;
+      this.fpsWindowStart = t;
+    }
 
     this.uiAccum += dt;
     if (this.uiAccum >= 0.12) {

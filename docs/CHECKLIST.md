@@ -13,6 +13,7 @@
 - [ ] Cargar la laptop y llevar cargador.
 - [ ] Probar el proyector y la resolución (ideal 1600×900 o 1920×1080).
 - [ ] Abrir la app en Edge/Chrome a pantalla completa, zoom 100 %.
+- [ ] Dejar **FPS máx. 60** y **Calidad Alta** (o **30 / Baja** si la PC es débil).
 - [ ] Cerrar pestañas y aplicaciones que consuman GPU.
 - [ ] Verificar que el audio no sea necesario (la demo es visual).
 
@@ -37,7 +38,7 @@
 
 - [ ] Si falla la laptop: usar las capturas `docs/img/01-general.jpg` … `07-teoria.jpg`.
 - [ ] Si falla el proyector: explicar con la captura de `05-conformado.jpg` y el diagrama del patrón.
-- [ ] Si la app va lenta: 4×4 u 8×8, desactivar **Ganancia**, cerrar el navegador y reabrir.
+- [ ] Si la app va lenta: **FPS máx. 30**, **Calidad Baja**, 4×4 u 8×8, desactivar **Ganancia**.
 
 ## Después
 

@@ -51,6 +51,17 @@ npm test
 
 > El proyecto usa Three.js para el globo 3D, Vite + TypeScript para la app y KaTeX para las ecuaciones. No necesita conexión a internet una vez instalado.
 
+### Rendimiento
+
+La barra inferior tiene dos controles que se guardan en el navegador:
+
+- **FPS máx.**: 30, 45, **60 (por defecto)**, 75, 120 o ∞. Es un **máximo**: si la GPU no alcanza, el contador mostrará menos.
+- **Calidad**: **Alta** (bloom + 1,75×), **Media** (sin bloom + 1,25×) o **Baja** (sin bloom + 1×).
+
+Para una PC de laboratorio: **30 fps + Baja**. En una GPU dedicada: **60 fps + Alta**. El límite no acelera una PC que ya está por debajo; para eso baja la calidad, usa un arreglo más pequeño o desactiva capas (ganancia, haces 3D).
+
+> Las capturas de este README se tomaron con render por software (sin GPU), por eso el contador muestra pocos FPS. En una GPU real el mismo escenario sube bastante; el límite de 60 es un techo, no una promesa.
+
 ### Atajos
 
 | Tecla | Acción |

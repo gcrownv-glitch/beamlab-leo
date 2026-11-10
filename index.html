@@ -349,7 +349,26 @@
           </div>
         </div>
         <div class="time-right">
-          <span class="fps" id="fps">—</span>
+          <span class="fps" id="fps" title="FPS reales. El límite es un máximo: si la GPU no alcanza, verás menos.">—</span>
+          <label class="perf-select" title="Límite máximo de fotogramas por segundo. 60 por defecto.">
+            <span>FPS máx.</span>
+            <select id="fps-cap">
+              <option value="30">30</option>
+              <option value="45">45</option>
+              <option value="60" selected>60</option>
+              <option value="75">75</option>
+              <option value="120">120</option>
+              <option value="0">∞</option>
+            </select>
+          </label>
+          <label class="perf-select" title="Calidad gráfica: resolución de render y bloom">
+            <span>Calidad</span>
+            <select id="quality">
+              <option value="high" selected>Alta</option>
+              <option value="medium">Media</option>
+              <option value="low">Baja</option>
+            </select>
+          </label>
           <span class="status-dot" id="status-dot"></span>
           <span id="status-text">simulando</span>
         </div>

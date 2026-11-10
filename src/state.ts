@@ -7,6 +7,7 @@ import type { RegionId } from './core/regions';
 
 export type Mode = 'global' | 'spot' | 'cellular' | 'shaped';
 export type CameraMode = 'earth' | 'sat' | 'follow';
+export type Quality = 'high' | 'medium' | 'low';
 
 export interface PhaseView {
   phases: Float64Array;
@@ -64,12 +65,27 @@ export interface SimState {
   rxGainDbi: number;
   noiseFigureDb: number;
   bandwidthMHz: number;
+  fpsCap: number;
+  quality: Quality;
   tourStep: number;
 }
 
 export function defaultState(): SimState {
   const epoch = Math.floor(Date.now() / 1000) * 1000;
   const orbit = elementsOverPoint(550, 53, -12.05, -77.04, epoch, 2.5, 0.0001);
+  let fpsCap = 60;
+  let quality: Quality = 'high';
+  try {
+    const rawCap = localStorage.getItem('beamlab:fpsCap');
+    if (rawCap !== null) {
+      const n = Number(rawCap);
+      if ([30, 45, 60, 75, 120, 0].includes(n)) fpsCap = n;
+    }
+    const rawQuality = localStorage.getItem('beamlab:quality');
+    if (rawQuality === 'high' || rawQuality === 'medium' || rawQuality === 'low') quality = rawQuality;
+  } catch {
+    // almacenamiento no disponible (modo privado, etc.)
+  }
   return {
     presetId: 'starlink',
     orbit,
@@ -104,6 +120,8 @@ export function defaultState(): SimState {
     rxGainDbi: 0,
     noiseFigureDb: 2,
     bandwidthMHz: 100,
+    fpsCap,
+    quality,
     tourStep: 0,
   };
 }

@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { DEG, EARTH_UNITS, R_EARTH } from './core/constants';
-import type { Derived, SimState } from './state';
+import type { Derived, Quality, SimState } from './state';
 import { footprintRing, type AntennaFrame } from './core/geometry';
 import { groundTrack, maxCentralAngle, orbitPathEci } from './core/orbit';
 import type { Vec3 } from './core/vec';
@@ -926,6 +926,17 @@ export class SceneView {
     if (mode === 'earth') {
       this.camera.position.set(0, -16.5, 8.6);
     }
+  }
+
+  /** Ajusta resolución de render y bloom según la potencia de la GPU. */
+  setQuality(quality: Quality): void {
+    const dpr = window.devicePixelRatio || 1;
+    const ratio = quality === 'high' ? Math.min(dpr, 1.75) : quality === 'medium' ? Math.min(dpr, 1.25) : 1;
+    this.renderer.setPixelRatio(ratio);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.composer.setPixelRatio(ratio);
+    this.composer.setSize(window.innerWidth, window.innerHeight);
+    this.bloom.enabled = quality === 'high';
   }
 
   /** Centra la vista en el punto subsatelital (dirección ECI del satélite). */

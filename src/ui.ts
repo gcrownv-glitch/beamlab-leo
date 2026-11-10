@@ -11,7 +11,7 @@ import { ORBIT_PRESETS } from './core/presets';
 import type { RegionId } from './core/regions';
 import { drawPatternChart, drawPhaseMap, type PatternPoint } from './charts';
 import { BEAM_HEX, REUSE_LABELS } from './palette';
-import type { CameraMode, Derived, Mode, PhaseView, SimState } from './state';
+import type { CameraMode, Derived, Mode, PhaseView, Quality, SimState } from './state';
 
 export type ToggleKey =
   | 'showOrbit'
@@ -44,6 +44,8 @@ export interface UIHandlers {
   synthesize(): void;
   setPtx(w: number): void;
   screenshot(): void;
+  setFpsCap(cap: number): void;
+  setQuality(quality: Quality): void;
 }
 
 interface TourStep {
@@ -212,6 +214,13 @@ export class UI {
       const cur = this.state.simTime;
       const k = Math.round((cur - base) / T);
       this.h.setTime(base + k * T);
+    });
+
+    ($('fps-cap') as HTMLSelectElement).addEventListener('change', (e) => {
+      this.h.setFpsCap(Number((e.target as HTMLSelectElement).value));
+    });
+    ($('quality') as HTMLSelectElement).addEventListener('change', (e) => {
+      this.h.setQuality((e.target as HTMLSelectElement).value as Quality);
     });
 
     for (const b of document.querySelectorAll<HTMLButtonElement>('#modes [data-mode]')) {
@@ -412,6 +421,8 @@ export class UI {
       $('shape-radius-val').textContent = `${s.shapedRadiusKm} km`;
       ($('cell-region') as HTMLSelectElement).value = s.region;
       ($('cell-reuse') as HTMLSelectElement).value = String(s.reuse);
+      ($('fps-cap') as HTMLSelectElement).value = String(s.fpsCap);
+      ($('quality') as HTMLSelectElement).value = s.quality;
 
       $('block-spot').hidden = s.mode !== 'spot';
       $('block-cellular').hidden = s.mode !== 'cellular';
@@ -549,7 +560,7 @@ export class UI {
   }
 
   setFps(v: number) {
-    this.el('fps').textContent = `${v.toFixed(0)} fps`;
+    this.el('fps').textContent = v > 0 ? `${v.toFixed(0)} fps` : '—';
   }
 
   toast(msg: string, error = false) {

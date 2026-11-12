@@ -13,14 +13,22 @@ import {
   peakDirection,
   qForHpbw,
 } from './core/array';
-import { DEG } from './core/constants';
+import { DEG, R_EARTH } from './core/constants';
 import {
   anglesForGroundPoint,
   beamGroundPoint,
   type AntennaFrame,
 } from './core/geometry';
 import { linkBudget } from './core/link';
-import { antennaBasis, ecefToGeodetic, propagate, slantRange, type OrbitElements, type OrbitState } from './core/orbit';
+import {
+  antennaBasis,
+  ecefToGeodetic,
+  elevationAngle,
+  propagate,
+  slantRange,
+  type OrbitElements,
+  type OrbitState,
+} from './core/orbit';
 import {
   beamsForGroundCells,
   beamsVisibleLattice,
@@ -29,12 +37,13 @@ import {
 } from './core/coverage';
 import {
   buildGroundCells,
+  regionAreaKm2,
   regionPolygon,
   type DirectionSample,
   type GroundCell,
 } from './core/regions';
 import { synthesizeCoverage, type SynthesisResult } from './core/synthesis';
-import type { Derived, Mode, PhaseView, ShapedInfo, SimState } from './state';
+import type { Derived, Mode, PhaseView, ShapedInfo, SimState, SystemInfo } from './state';
 
 const ZERO_BEAM: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 0 };
 const SHAPED_BEAM: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 1 };
@@ -58,6 +67,7 @@ export class Engine {
 
   private cells: GroundCell[] = [];
   private cellKey = '';
+  private cellSpacing = 0;
 
   private patternDirty = true;
   private beamsDirty = true;
@@ -101,18 +111,31 @@ export class Engine {
   setMode(mode: Mode) {
     if (this.state.mode === mode) return;
     this.state.mode = mode;
+    if (mode !== 'cellular') this.state.cellTarget = null;
     this.beamsDirty = true;
     this.gainDirty = true;
-    if (mode === 'spot' && this.bodyBeam) {
-      // conserva la última dirección apuntada
-    }
+  }
+
+  setCellTarget(lat: number, lon: number) {
+    this.state.cellTarget = { lat, lon };
+    this.cachedActive = null;
+    this.cachedMetrics = null;
+  }
+
+  private resetSynthesis() {
+    this.synth = null;
+    this.synthKey = '';
+    this.synthInfo = null;
+    this.cachedMetrics = null;
+    this.cachedActive = null;
+    this.cachedPhase = null;
+    this.beamsDirty = true;
+    this.gainDirty = true;
   }
 
   setAntenna(patch: Partial<ArrayConfig>) {
     Object.assign(this.state.antenna, patch);
-    this.synth = null;
-    this.synthKey = '';
-    this.synthInfo = null;
+    this.resetSynthesis();
     this.cellKey = '';
     this.patternDirty = true;
   }
@@ -120,9 +143,7 @@ export class Engine {
   setFrequency(freqGHz: number) {
     this.state.antenna.freqGHz = freqGHz;
     this.hornCfg = { ...this.hornCfg, freqGHz };
-    this.synth = null;
-    this.synthKey = '';
-    this.synthInfo = null;
+    this.resetSynthesis();
     this.patternDirty = true;
   }
 
@@ -130,6 +151,8 @@ export class Engine {
     this.state.orbit = orbit;
     if (presetId) this.state.presetId = presetId;
     this.cellKey = '';
+    this.resetSynthesis();
+    this.lastBeamSat = { x: Infinity, y: Infinity, z: Infinity };
     this.beamsDirty = true;
   }
 
@@ -150,24 +173,17 @@ export class Engine {
 
   setShapedCenter(lat: number, lon: number) {
     this.state.shapedCenter = { lat, lon };
-    this.synth = null;
-    this.synthKey = '';
-    this.synthInfo = null;
-    this.beamsDirty = true;
-    this.gainDirty = true;
+    this.resetSynthesis();
   }
 
   setShapedRadius(km: number) {
     this.state.shapedRadiusKm = km;
-    this.synth = null;
-    this.synthKey = '';
-    this.synthInfo = null;
-    this.beamsDirty = true;
-    this.gainDirty = true;
+    this.resetSynthesis();
   }
 
   setRegion(region: SimState['region']) {
     this.state.region = region;
+    this.state.cellTarget = null;
     this.cellKey = '';
     this.beamsDirty = true;
     this.gainDirty = true;
@@ -175,6 +191,7 @@ export class Engine {
 
   setReuse(reuse: number) {
     this.state.reuse = reuse;
+    this.state.cellTarget = null;
     this.beamsDirty = true;
     this.gainDirty = true;
   }
@@ -293,7 +310,7 @@ export class Engine {
     const gainInterval = s.mode === 'cellular' ? 850 : 160;
     if (this.gainDirty && (now - this.lastGainMs > gainInterval || initial)) {
       const count = beams.length;
-      const size = count > 180 ? 192 : count > 80 ? 256 : count > 30 ? 320 : 384;
+      const size = count > 1600 ? 128 : count > 800 ? 160 : count > 400 ? 192 : count > 180 ? 224 : count > 80 ? 256 : count > 30 ? 320 : 384;
       if (source === 'synthesis') {
         gainMap = computeGainMap(pattern, [SHAPED_BEAM], patternQ, size);
       } else {
@@ -304,29 +321,48 @@ export class Engine {
     }
 
     let rangeKm = sat.alt;
+    let elevationDeg = 90;
     if (active) {
       if (active.target) {
         rangeKm = slantRange(sat.rEcef, active.target.lat * DEG, active.target.lon * DEG);
+        elevationDeg = elevationAngle(sat.rEcef, active.target.lat * DEG, active.target.lon * DEG) / DEG;
       } else if (s.mode === 'shaped') {
         rangeKm = slantRange(sat.rEcef, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG);
+        elevationDeg = elevationAngle(sat.rEcef, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG) / DEG;
       } else {
         const pt = beamGroundPoint(sat.rEcef, frame, active);
         if (pt) {
           const geo = ecefToGeodetic(pt);
           rangeKm = slantRange(sat.rEcef, geo.lat, geo.lon);
+          elevationDeg = elevationAngle(sat.rEcef, geo.lat, geo.lon) / DEG;
         }
       }
     }
 
-    const link = linkBudget({
-      slantKm: rangeKm,
-      freqGHz: this.state.antenna.freqGHz,
-      txPowerW: s.ptxW,
-      txGainDbi: metrics.gainDb,
-      rxGainDbi: s.rxGainDbi,
-      noiseFigureDb: s.noiseFigureDb,
-      bandwidthMHz: s.bandwidthMHz,
-    });
+    const link = active
+      ? linkBudget({
+          slantKm: rangeKm,
+          freqGHz: s.antenna.freqGHz,
+          txPowerW: s.ptxW,
+          txGainDbi: metrics.gainDb,
+          rxGainDbi: s.rxGainDbi,
+          noiseFigureDb: s.noiseFigureDb,
+          bandwidthMHz: s.bandwidthMHz,
+          elevationDeg,
+          rainMarginDb: s.rainMarginDb,
+          usersPerBeam: s.usersPerBeam,
+        })
+      : null;
+
+    const colors = s.mode === 'cellular' ? s.reuse : 1;
+    const system: SystemInfo = {
+      activeBeams: beams.length,
+      rfPowerW: beams.length * s.ptxW,
+      spectrumMHz: colors * s.bandwidthMHz,
+      capacityMbps: colors * (link?.throughputMbps ?? 0),
+      perUserMbps: link?.userThroughputMbps ?? 0,
+      coverageFraction: beamSet?.coverageFraction ?? (s.mode === 'shaped' ? (this.synthInfo?.coverage ?? null) : null),
+    };
 
     return {
       sat,
@@ -341,6 +377,7 @@ export class Engine {
       link,
       beamSet,
       shaped: this.synthInfo,
+      system,
       source,
     };
   }
@@ -372,14 +409,39 @@ export class Engine {
     if (s.mode === 'cellular') {
       const poly = regionPolygon(s.region);
       if (!poly) {
-        const beams = beamsVisibleLattice(sat.rEcef, frame, this.baseMetrics.hpbwDeg, s.reuse, 380);
-        return { beams, beamSet: null };
+        const beams = beamsVisibleLattice(sat.rEcef, frame, this.baseMetrics.hpbwDeg, s.reuse, 1200);
+        const radius = R_EARTH * Math.acos(R_EARTH / (R_EARTH + Math.max(1, sat.alt)));
+        const area = Math.PI * radius * radius;
+        const spacing = cellSpacingKm(sat.alt, Math.max(1.2, this.baseMetrics.hpbwDeg));
+        const footRadius = sat.alt * Math.tan((Math.max(1.2, this.baseMetrics.hpbwDeg) * DEG) / 2);
+        const coverageFraction = area > 0
+          ? Math.min(1, (beams.length * Math.PI * footRadius * footRadius) / area)
+          : 0;
+        return {
+          beams,
+          beamSet: {
+            visibleCells: beams.length,
+            totalCells: beams.length,
+            coverageFraction,
+            spacingKm: spacing,
+          },
+        };
       }
       this.rebuildCells(sat);
       const res = beamsForGroundCells(this.cells, sat.rEcef, frame, s.reuse, 10, 0.98);
+      const area = regionAreaKm2(poly);
+      const footRadius = sat.alt * Math.tan((Math.max(1.2, this.baseMetrics.hpbwDeg) * DEG) / 2);
+      const coverageFraction = area > 0
+        ? Math.min(1, (this.cells.length * Math.PI * footRadius * footRadius) / area)
+        : 0;
       return {
         beams: res.beams,
-        beamSet: { visibleCells: res.visibleCells, totalCells: res.totalCells },
+        beamSet: {
+          visibleCells: res.visibleCells,
+          totalCells: res.totalCells,
+          coverageFraction,
+          spacingKm: this.cellSpacing,
+        },
       };
     }
     // shaped: un haz marcador en el centro de la zona
@@ -400,13 +462,34 @@ export class Engine {
       return;
     }
     const spacing = cellSpacingKm(sat.alt, Math.max(1.2, this.baseMetrics.hpbwDeg));
-    const key = `${s.region}|${spacing.toFixed(1)}|320`;
+    this.cellSpacing = spacing;
+    const key = `${s.region}|${spacing.toFixed(1)}|2500`;
     if (key === this.cellKey) return;
     this.cellKey = key;
-    this.cells = buildGroundCells(poly, spacing, 320);
+    this.cells = buildGroundCells(poly, spacing, 2500);
   }
 
   private pickActive(beams: Beam[]): number {
+    const s = this.state;
+    if (s.mode === 'cellular' && s.cellTarget) {
+      let best = 0;
+      let bestD = Infinity;
+      for (let i = 0; i < beams.length; i++) {
+        const t = beams[i].target;
+        if (!t) continue;
+        const dLat = (t.lat - s.cellTarget.lat) * DEG;
+        const dLon = (t.lon - s.cellTarget.lon) * DEG;
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(s.cellTarget.lat * DEG) * Math.cos(t.lat * DEG) * Math.sin(dLon / 2) ** 2;
+        const d = 2 * Math.asin(Math.min(1, Math.sqrt(a)));
+        if (d < bestD) {
+          bestD = d;
+          best = i;
+        }
+      }
+      return best;
+    }
     let best = 0;
     let bestTheta = Infinity;
     for (let i = 0; i < beams.length; i++) {
@@ -457,7 +540,13 @@ export class Engine {
   private synthesisKey(): string {
     const s = this.state;
     const a = s.antenna;
-    return `${s.shapedCenter.lat.toFixed(2)}|${s.shapedCenter.lon.toFixed(2)}|${s.shapedRadiusKm}|${a.n}|${a.dx}|${a.freqGHz}|${a.taper}|${a.q}`;
+    const o = s.orbit;
+    return [
+      s.shapedCenter.lat.toFixed(3), s.shapedCenter.lon.toFixed(3), s.shapedRadiusKm,
+      a.n, a.dx, a.dy, a.freqGHz, a.taper, a.q,
+      s.simTime, o.a.toFixed(3), o.e.toFixed(6), o.i.toFixed(6), o.raan.toFixed(6),
+      o.argp.toFixed(6), o.M0.toFixed(6), o.epoch,
+    ].join('|');
   }
 
   /** Diseña la fase/amplitud para iluminar la zona circular seleccionada. */
@@ -476,32 +565,48 @@ export class Engine {
     this.synth = null;
     this.synthKey = '';
     this.synthInfo = null;
+
     const hpbw = Math.max(1.2, this.baseMetrics.hpbwDeg) * DEG;
-    const core = Math.max(0.004, s.shapedRadiusKm / center.range);
-    const edge = core + Math.max(0.55 * hpbw, 0.012);
-    const maxR = Math.min(0.94, edge + 4 * hpbw);
-    const step = Math.max(hpbw / 5, 0.0035);
+    const radiusKm = Math.max(10, s.shapedRadiusKm);
+    const edgeKm = Math.max(10, 0.55 * hpbw * center.range);
+    const guardKm = edgeKm + Math.max(40, 4 * hpbw * center.range);
+    const totalKm = radiusKm + guardKm;
+    const stepKm = Math.max(6, Math.min(20, radiusKm / 14));
+    const cosLat = Math.max(0.2, Math.cos(s.shapedCenter.lat * DEG));
+    const dLat = stepKm / R_EARTH;
+    const dLon = dLat / cosLat;
+    const latSpan = totalKm / R_EARTH;
+    const lonSpan = latSpan / cosLat;
+    const lat0 = s.shapedCenter.lat * DEG;
+    const lon0 = s.shapedCenter.lon * DEG;
+    const edgeFrac = edgeKm / radiusKm;
     const inside: DirectionSample[] = [];
     const outside: DirectionSample[] = [];
 
-    for (let du = -maxR; du <= maxR + 1e-9; du += step) {
-      for (let dv = -maxR; dv <= maxR + 1e-9; dv += step) {
-        const r = Math.hypot(du, dv);
-        const u = center.u + du;
-        const v = center.v + dv;
-        if (u * u + v * v > 0.92) continue;
-        if (r <= edge) {
-          const desired = r <= core ? 1 : 0.5 * (1 + Math.cos((Math.PI * (r - core)) / (edge - core)));
-          inside.push({
-            u, v, desired, inside: r <= core, lat: 0, lon: 0,
-            weight: r <= core ? 4 : 2,
-          });
-        } else if (r <= maxR) {
-          inside.push({ u, v, desired: 0, inside: false, lat: 0, lon: 0, weight: 0.8 });
+    // Muestreo en coordenadas de Tierra: el objetivo es un círculo de radio
+    // `radiusKm` sobre la superficie, no un círculo en el espacio (u,v).
+    for (let dlat = -latSpan; dlat <= latSpan + 1e-12; dlat += dLat) {
+      for (let dlon = -lonSpan; dlon <= lonSpan + 1e-12; dlon += dLon) {
+        const lat = lat0 + dlat;
+        const lon = lon0 + dlon;
+        if (lat <= -Math.PI / 2 || lat >= Math.PI / 2) continue;
+        const groundKm = Math.hypot(dlat, dlon * cosLat) * R_EARTH;
+        if (groundKm > totalKm + stepKm) continue;
+        const ang = anglesForGroundPoint(sat.rEcef, frame, lat, lon);
+        if (ang.w <= 0.02) continue;
+        const rho = groundKm / radiusKm;
+        if (rho <= 1) {
+          inside.push({ u: ang.u, v: ang.v, desired: 1, inside: true, lat, lon, weight: 4 });
+        } else if (rho <= 1 + edgeFrac) {
+          const desired = 0.5 * (1 + Math.cos((Math.PI * (rho - 1)) / edgeFrac));
+          inside.push({ u: ang.u, v: ang.v, desired, inside: false, lat, lon, weight: 0.5 });
+        } else {
+          outside.push({ u: ang.u, v: ang.v, desired: 0, inside: false, lat, lon, weight: 1.0 });
         }
       }
     }
 
+    const maxR = Math.min(0.94, totalKm / Math.max(1, center.range));
     const farStep = 0.12;
     for (let u = -0.9; u <= 0.9 + 1e-9; u += farStep) {
       for (let v = -0.9; v <= 0.9 + 1e-9; v += farStep) {
@@ -523,7 +628,7 @@ export class Engine {
       return Array.from({ length: max }, (_, i) => arr[Math.floor(i * stride)]);
     };
 
-    const result = synthesizeCoverage(s.antenna, thin(inside, 720), thin(outside, 420), 1e-2);
+    const result = synthesizeCoverage(s.antenna, thin(inside, 900), thin(outside, 500), 1e-2);
     const directivity = gridDirectivity(result.grid, s.antenna.q);
     const dMax =
       10 * Math.log10(4 * Math.PI * (s.antenna.n * s.antenna.dx) * (s.antenna.n * s.antenna.dy));

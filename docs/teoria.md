@@ -127,7 +127,7 @@ $$
 \gamma_h=\arccos\!\left(\frac{R_\oplus}{r}\right).
 $$
 
-Para $h=550$ km: $\alpha_h\approx67°$, $\gamma_h\approx22.4°$ y un disco visible de ~4.500 km de radio. Esa es la razón por la que LEO necesita **muchos haces pequeños**: un solo haz tendría que cubrir un ángulo enorme con muy poca ganancia.
+Para $h=550$ km: $\alpha_h\approx67{,}0°$, $\gamma_h\approx23{,}0°$, radio superficial $\approx2.560$ km y diámetro $\approx5.100$ km. Esa es la razón por la que LEO necesita **muchos haces pequeños**: un solo haz tendría que cubrir un ángulo enorme con muy poca ganancia.
 
 ---
 
@@ -344,7 +344,7 @@ $$
 - Fondo: resto del disco visible, $d=0$, peso 0,28.
 - Se limitan las muestras a ~720 internas y ~420 externas para que el cálculo sea interactivo.
 
-El resultado se evalúa con la cobertura a −3 dB de los puntos del núcleo y el derrame máximo fuera de la zona. Para Lima 100 km, $16\times16$, 12 GHz: cobertura ≈98 %, derrame ≈−18,8 dB, $D\approx21{,}7$ dBi. El haz se ensancha (~20,8° de HPBW) y pierde ganancia respecto del haz puntual: ese es el precio de cubrir una zona.
+El resultado se evalúa con la cobertura a −3 dB de los puntos del núcleo y el derrame máximo fuera de la zona. Para Lima 100 km, $16\times16$, 12 GHz: cobertura ≈100 %, derrame ≈−12,1 dB, $D\approx20{,}3$ dBi. El haz se ensancha (~16,2° de HPBW) y pierde ganancia respecto del haz puntual: ese es el precio de cubrir una zona.
 
 ### 4.4 Por qué se ve una “cruz” en el mapa de ganancia
 
@@ -362,39 +362,74 @@ $$
 
 $$
 \mathrm{EIRP}=P_{tx}G_{tx},\qquad
-P_{rx}=\mathrm{EIRP}-L_{fs}+G_{rx},
+P_{rx}=\mathrm{EIRP}-L_{fs}-L_{atm}-L_{rain}+G_{rx},
+$$
+
+La temperatura de sistema incluye la antena y el receptor:
+
+$$
+T_{sys}=T_{ant}+(F-1)T_0,\qquad
+N_0=-228{,}6+10\log_{10}(T_{sys})\ \text{dBW/Hz},
 $$
 
 $$
-N_0=-174\ \text{dBm/Hz}+\mathrm{NF},\qquad
-\frac{C}{N_0}=P_{rx}-N_0.
-$$
-
-La capacidad estimada usa Shannon con 10 dB de margen de implementación:
-
-$$
-C\approx B\log_2\!\left(1+10^{(C/N-10)/10}\right),
-\qquad
+\frac{G}{T}=G_{rx}-10\log_{10}(T_{sys}),\qquad
+\frac{C}{N_0}=P_{rx}-N_0,\qquad
 \frac{C}{N}=\frac{C/N_0}{B}.
 $$
 
-Con 20 W por haz, $G=26$ dBi, 550 km y 12 GHz: EIRP ≈39,6 dBW, $L_{fs}\approx169$ dB, $P_{rx}\approx-99$ dBm y $C/N_0\approx73$ dBHz. El modo global, con $G\approx3{,}5$ dBi, baja a $C/N_0\approx50$ dBHz: la misma potencia, mucho menos concentrada.
+### 5.1 MODCOD y umbral
+
+No se usa Shannon como si fuera un módem real. El simulador elige el **MODCOD DVB-S2X** más alto cuyo umbral de C/N se cumple, con 1 dB de margen de implementación. La tabla es orientativa:
+
+| MODCOD | C/N mínimo | Eficiencia espectral |
+|---|---:|---:|
+| QPSK 1/4 | −2,4 dB | 0,49 bit/s/Hz |
+| QPSK 1/2 | +1,0 dB | 0,99 |
+| QPSK 3/4 | +3,8 dB | 1,49 |
+| 8PSK 2/3 | +5,5 dB | 1,98 |
+| 8PSK 3/4 | +6,8 dB | 2,22 |
+| 16APSK 2/3 | +8,5 dB | 2,64 |
+| 16APSK 3/4 | +10,5 dB | 3,03 |
+| 32APSK 3/4 | +12,8 dB | 3,50 |
+| 32APSK 4/5 | +14,5 dB | 4,00 |
+| 64APSK 5/6 | +19,5 dB | 5,00 |
+
+Si ningún MODCOD cumple, el enlace queda en **outage**: capacidad cero y “sin enlace” en la interfaz. La capacidad es agregada por haz: `C = B · η_espectral`; por usuario se divide entre el número de usuarios del haz.
+
+### 5.2 Ejemplo con la configuración por defecto
+
+Con 20 W por haz, $G=26{,}2$ dBi, terminal VSAT de 0,6 m ($G_{rx}=34$ dBi, NF 1,5 dB), 550 km y 12 GHz:
+
+- EIRP ≈ 39,2 dBW.
+- $L_{fs}\approx169{,}7$ dB a 611 km.
+- $P_{rx}\approx-66{,}5$ dBm.
+- $C/N_0\approx109{,}6$ dBHz; $C/N\approx29{,}6$ dB en 100 MHz.
+- 64APSK 5/6; ≈500 Mbps por haz; ≈25 Mbps por usuario con 20 usuarios.
+
+Con una antena isotrópica de 0 dBi, el mismo enlace queda en $C/N\approx-8{,}6$ dB y **outage**. Ese era el origen de los “0–3 Mbps” de la versión anterior: no era un throughput realista, era un receptor isotrópico.
+
+El modo global, con $G\approx3{,}5$ dBi, baja mucho el C/N₀: la misma potencia, mucho menos concentrada. La capacidad de sistema se estima como `n_colores × capacidad_por_canal`; la potencia RF total como `n_haces × P_tx`, y se muestra para evidenciar que no todos los haces transmiten a plena potencia a la vez.
 
 ---
 
 ## 6. Validación
 
-Las 16 pruebas de `npm test` comprueban, entre otras cosas:
+Las 22 pruebas de `npm test` comprueban, entre otras cosas:
 
 | Prueba | Resultado esperado |
 |---|---|
 | GMST en J2000 | 280,4606° |
 | ISS a 420 km | $v\approx7{,}66$ km/s, $T\approx92{,}6$ min |
 | `elementsOverPoint` | lat/lon de Lima con error < $10^{-6}$° |
+| Horizonte a 550 km | 67,0° de nadir; 23,0° central; radio 2.559 km |
+| Base de antena | +X este, +Z nadir |
 | Bocina 17° | HPBW 17°, $D\approx21{,}05$ dBi |
 | 16×16 uniforme, 0,5λ | $D\approx29{,}1$ dBi, HPBW 6,35°, SLL ≈−13 dB |
 | Kaiser −30 dB | SLL al menos 5 dB menor que uniforme, haz más ancho |
 | Fase de apuntamiento | rampa lineal $-\!2\pi d_x u$ |
+| Enlace VSAT 34 dBi | 64APSK 5/6, 500 Mbps/haz, 25 Mbps/usuario |
+| Enlace isotrópico 0 dBi | outage, 0 Mbps |
 | Síntesis real Lima 100 km | cobertura >90 %, derrame <−12 dB, $16<D<28$ dBi |
 
 ---

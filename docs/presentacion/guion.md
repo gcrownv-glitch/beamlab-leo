@@ -4,15 +4,15 @@
 
 **Demo en vivo:** <https://gcrownv-glitch.github.io/beamlab-leo/>  
 **Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>  
-**Versión PDF (para imprimir o tablet):** [Guion_BeamLab_LEO.pdf](Guion_BeamLab_LEO.pdf)
+**Versión PDF (para imprimir o tablet):** [guion-beamlab-leo.pdf](guion-beamlab-leo.pdf)
 
 > **La idea en una frase:** un satélite en órbita baja no puede iluminar toda la Tierra con una sola antena; reparte su potencia en muchos haces pequeños y puede moverlos **sin mover nada**, solo cambiando el tiempo (la fase) con que emite cada antena.
 
 <div class="gallery">
-  <img src="img/01-general.jpg" alt="Vista general de BeamLab LEO">
-  <img src="img/02-satelite.jpg" alt="Satélite y haz sobre Lima">
-  <img src="img/04-celular.jpg" alt="Cobertura celular sobre Perú">
-  <img src="img/05-conformado.jpg" alt="Haz conformado sobre Lima">
+  <img src="../img/01-general.jpg" alt="Vista general de BeamLab LEO">
+  <img src="../img/02-satelite.jpg" alt="Satélite y haz sobre Lima">
+  <img src="../img/04-celular.jpg" alt="Cobertura celular sobre Perú">
+  <img src="../img/05-conformado.jpg" alt="Haz conformado sobre Lima">
 </div>
 
 *Cuatro vistas de la app: general, satélite, celular y conformado.*
@@ -31,7 +31,7 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 
 ### Las 3 ideas (luz, foco, mapa)
 
-1. **La luz:** el satélite no ve toda la Tierra; ve un casquete de unos 4.500 km de radio. Y se mueve a 7,6 km/s.
+1. **La luz:** el satélite no ve toda la Tierra; ve un casquete de unos 2.560 km de radio (~5.100 km de diámetro). Y se mueve a 7,6 km/s.
 2. **El foco:** para mover el haz no se mueve la antena; se cambia la fase de cada elemento. Es una orquesta de 256 antenitas.
 3. **El mapa:** para cubrir un país se usan cientos de haces pequeños; para una zona, un haz con forma. Siempre hay un compromiso entre **cobertura**, **concentración** y **capacidad**.
 
@@ -48,8 +48,8 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 ### Los 3 números
 
 - **550 km** de altura.
-- **287 celdas** para cubrir Perú.
-- **98 %** de cobertura del haz conformado sobre Lima.
+- **~400 celdas** para cubrir Perú.
+- **100 %** de cobertura del haz conformado sobre Lima.
 
 ### Mapa de la exposición
 
@@ -62,7 +62,7 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 
 *Cada escena lleva su tiempo orientativo en el título.*
 
-**Antes de entrar:** abre la URL, prueba **Guía** una vez, deja **FPS máx. 60** y **Calidad Alta** (o 30/Baja si la PC es débil), y ten a mano las capturas de `docs/img/` por si falla internet.
+**Antes de entrar:** abre la URL, prueba **Guía** una vez, deja **FPS máx. 60** y **Calidad Alta** (o 30/Baja si la PC es débil), y ten a mano las capturas de `../img/` por si falla internet.
 
 ---
 
@@ -75,7 +75,7 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 
 - “¿Han visto una antena parabólica? El satélite de televisión parece quieto porque está a 35.786 km, en órbita geoestacionaria. Este no: está a 550 km y da una vuelta a la Tierra cada 95 minutos.”
 - “Se mueve a 7,6 km/s. Para que se hagan una idea, de Lima a Arequipa hay unos 1.000 km: este satélite los recorre en poco más de dos minutos.”
-- “Desde 550 km no ve toda la Tierra. Ve un casquete de 67° alrededor de la vertical, un disco de unos 4.500 km de radio: más o menos de Lima a Miami. Ese es su ‘campo de visión’.”
+- “Desde 550 km no ve toda la Tierra. Ve un casquete de 67° alrededor de la vertical, un disco de unos 2.560 km de radio (~5.100 km de diámetro): más o menos de Lima a Miami. Ese es su ‘campo de visión’.”
 - “La ventaja de LEO es que está cerca: menos retardo y más señal. El precio es que se mueve y hay que repartir la cobertura.”
 
 **Frase para recordar:** “El satélite no ve la Tierra; ve una ventana.”
@@ -95,7 +95,7 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 
 - “Con un haz muy ancho, como una lámpara de ambiente, iluminamos casi todo el disco. Pero la potencia se reparte: la ganancia es de unos 5 dBi.”
 - “Con un haz puntual, como una linterna, iluminamos solo Lima. La ganancia sube a unos 29 dBi.”
-- “La diferencia entre 5 y 29 dBi es de 24 dB. En potencia, 24 dB es unas 250 veces. Es la diferencia entre una lámpara que ilumina toda la sala y una linterna que apunta a una pared.”
+- “La diferencia entre 5 y ~29 dBi es de 24 dB. En potencia, 24 dB es unas 250 veces. Es la diferencia entre una lámpara que ilumina toda la sala y una linterna que apunta a una pared.”
 - “Ojo con un detalle del apunte: la bocina de 17° es de un satélite GEO. Desde LEO, 17° solo ilumina unos 160 km. Para cubrir el disco visible desde LEO haría falta un haz de 134°, y la ganancia cae a 5 dBi.”
 
 **Qué es dBi (en simple):**
@@ -105,12 +105,12 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 > - **0 dBi** = reparte por igual, como una vela.
 > - **3 dB** = 2 veces.
 > - **10 dB** = 10 veces.
-> - **29 dBi** ≈ 800 veces.
+> - **~29 dBi** ≈ 800 veces.
 > - **5 dBi** ≈ 3 veces.
 
 **Frase para recordar:** “No se puede tener cobertura total y mucha ganancia con una sola antena.”
 
-**Dato con interpretación:** 29 dBi no significa 29 vatios; significa que la antena concentra como si tuviera ~800 veces más potencia en esa dirección.
+**Dato con interpretación:** ~29 dBi no significa 29 vatios; significa que la antena concentra como si tuviera ~800 veces más potencia en esa dirección.
 
 **Si preguntan “¿y por qué no ponen más potencia?”:** “Porque el satélite tiene límite de energía, calor y peso. Es más eficiente concentrar la potencia con la antena que subir la potencia del transmisor.”
 
@@ -156,7 +156,7 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 
 **Di algo así:**
 
-- “Con 4×4 el haz mide unos 25° y la huella es enorme. Con 16×16 baja a unos 7° y la ganancia sube a 29 dBi.”
+- “Con 4×4 el haz mide unos 25° y la huella es enorme. Con 16×16 baja a unos 7° y la ganancia sube a ~29 dBi.”
 - “La regla es simple: si duplicas el tamaño del panel, el haz se estrecha a la mitad. Es como ponerle un lente más grande a una linterna: más concentrado, pero iluminas menos área.”
 - “El **taper** es bajar la potencia en los bordes del panel. Eso reduce los **lóbulos laterales**: esa luz que se escapa por los costados y puede interferir con otras celdas. El precio es un haz un poco más ancho y algo menos de ganancia.”
 - “Si separo los elementos más de 0,5 λ, aparecen **lóbulos de difracción**: copias del haz en otras direcciones. Por eso los arreglos reales usan ~0,5 λ.”
@@ -188,14 +188,14 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 
 **Di algo así:**
 
-- “Perú es demasiado grande para un solo haz. Se cubre con un panal de unos 287 haces pequeños.”
+- “Perú es demasiado grande para un solo haz. Se cubre con un panal de unos ~400 haces pequeños.”
 - “Cada celda tiene su propio haz. Los colores son **reutilización de frecuencia**: celdas del mismo color usan el mismo canal, como un mapa con tres colores. Así se reutiliza el espectro, que es un recurso escaso.”
 - “Las celdas están fijas a Tierra. El satélite recalcula la fase de cada una mientras la ve; las que caen bajo el horizonte o muy cerca del borde se apagan.”
-- “Es como regar un jardín con 287 aspersores pequeños en vez de una manguera gigante: cubres todo, pero cada aspersor tiene su caudal y su control.”
+- “Es como regar un jardín con ~400 aspersores pequeños en vez de una manguera gigante: cubres todo, pero cada aspersor tiene su caudal y su control.”
 
 **Frase para recordar:** “Para cubrir un país, muchos focos pequeños; para una zona, un foco con forma.”
 
-**Dato con interpretación:** 287 celdas, 3 colores, unos 26 dBi por celda y C/N₀ cercano a 72 dBHz en el centro. Más celdas = más capacidad, pero más complejidad y más interferencia potencial.
+**Dato con interpretación:** ~400 celdas, 3 colores, unos 26 dBi por celda y C/N₀ cercano a 110 dBHz en el centro. Más celdas = más capacidad, pero más complejidad y más interferencia potencial.
 
 **Si preguntan “¿cuántos satélites se necesitan?”:** “Depende de la constelación. Aquí vemos un satélite; en una constelación, varios comparten la cobertura y se pasan las celdas entre ellos (handover).”
 
@@ -211,7 +211,7 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 - “Ahora no queremos un punto, queremos una zona: Lima metropolitana.”
 - “La antena no puede mover un reflector. Lo que hace es combinar la amplitud y la fase de los 256 elementos para que el haz tenga **forma de mancha**, no de círculo.”
 - “El software resuelve un problema de ajuste: que el campo valga 1 dentro de la zona y 0 fuera. Es como un ajuste de mínimos cuadrados, pero con ondas.”
-- “Resultado: 98 % de cobertura, derrame de −18,8 dB y 21,7 dBi. El haz se ensanchó a 20,8°, justo el tamaño de la zona.”
+- “Resultado: 100 % de cobertura, derrame de −12,1 dB y 20,3 dBi. El haz se ensanchó a 16,2°, justo el tamaño de la zona.”
 
 **La fórmula, con interpretación:**
 
@@ -228,7 +228,7 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 
 **Frase para recordar:** “El haz deja de ser un círculo y se vuelve una mancha con forma de Lima.”
 
-**Dato con interpretación:** 21,7 dBi es ~150 veces; el haz puntual era 29 dBi (~800 veces). Cambiamos concentración por cobertura: menos potencia por punto, pero toda Lima iluminada.
+**Dato con interpretación:** 20,3 dBi es ~150 veces; el haz puntual era ~29 dBi (~800 veces). Cambiamos concentración por cobertura: menos potencia por punto, pero toda Lima iluminada.
 
 **Si preguntan “¿esto existe en la vida real?”:** “Sí, es la versión digital de un reflector con varios alimentadores, como los que menciona el apunte. En vez de mover un reflector, se ajustan amplitudes y fases.”
 
@@ -237,26 +237,31 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 ## Escena 7 · ¿Llega la señal? El presupuesto de enlace
 
 **Tiempo:** 9:45–11:00  
-**Muestra:** tarjeta **Presupuesto** (EIRP, Pérdida, P<sub>rx</sub>, C/N₀, capacidad).
+**Muestra:** tarjeta **Presupuesto** (EIRP, FSPL, P<sub>rx</sub>, C/N₀, C/N, MODCOD, margen, G/T, elevación, oblicua, capacidad).
 
 **Di algo así:**
 
 - “La ganancia del haz entra en el **EIRP**: la potencia efectiva que el satélite parece tener en esa dirección. Aquí son unos 39 dBW, equivalentes a unos 8 kW efectivos, pero concentrados en un haz.”
-- “La distancia juega en contra: la **pérdida de espacio libre** es de unos 170 dB. La señal llega muy, muy débil.”
-- “El **C/N₀** compara la señal con el ruido: 71 dBHz es bueno; 50 dBHz es débil. De ahí sale la capacidad, en Mbps.”
-- “Y aquí está el triángulo: si concentro más el haz, sube el C/N₀ pero cubro menos. Si cubro más, reparto la potencia. Si quiero más capacidad, necesito más potencia, más antena o más espectro.”
+- “La distancia juega en contra: la **pérdida de espacio libre** es de unos 170 dB a 611 km. La señal llega muy débil: del orden de −66 dBm en una terminal de 0,6 m.”
+- “El **C/N₀** compara la señal con el ruido: 109,6 dBHz. Pero C/N₀ solo no dice si el enlace sirve: con 100 MHz, eso equivale a **C/N = 29,6 dB**. Con 71 dBHz y 100 MHz tendríamos **−9 dB**, y no habría enlace. Por eso el medidor ahora muestra el **margen frente al umbral del MODCOD**, no C/N₀ a secas.”
+- “Con C/N 29,6 dB, el módem puede usar **64APSK 5/6**: 5 bits/s/Hz, es decir, unos **500 Mbps por haz**. Si repartimos ese haz entre 20 usuarios, son unos **25 Mbps por usuario**.”
+- “Si llueve y perdemos 8 dB, el C/N baja a ~21,6 dB y el sistema elige un MODCOD más robusto. Si el C/N cae por debajo del umbral, la tarjeta dice **sin enlace** y la capacidad es cero.”
 
 **Las fórmulas, con interpretación:**
 
 \[
 \text{EIRP}=P_{tx}+G_{tx}\qquad
 L_{fs}=20\log_{10}\!\left(\frac{4\pi d}{\lambda}\right)\qquad
-\frac{C}{N_0}=P_{rx}-N_0
+\frac{C}{N_0}=P_{rx}-N_0\qquad
+\frac{C}{N}=\frac{C/N_0}{B}
 \]
 
 - **EIRP:** potencia del transmisor + ganancia de la antena. “Lo que el satélite ‘parece’ tener en esa dirección.”
 - **Pérdida de espacio libre:** la señal se diluye con la distancia. “Como una lámpara que ilumina menos cuanto más lejos.”
-- **C/N₀:** señal frente a ruido. “Qué tan fácil es distinguir la música del ruido de fondo.”
+- **C/N₀:** señal frente a ruido por hertz. “Qué tan fuerte es la música frente al ruido de fondo.”
+- **C/N:** C/N₀ repartido en el ancho de banda. “El mismo ruido, escuchado con una ventana más ancha, empeora.”
+
+**MODCOD y margen:** cada modulación necesita un C/N mínimo. El simulador elige el MODCOD más alto que cabe con 1 dB de margen de implementación. Si ninguno cabe, hay outage.
 
 **La escala de dB, en simple:**
 
@@ -265,11 +270,11 @@ L_{fs}=20\log_{10}\!\left(\frac{4\pi d}{\lambda}\right)\qquad
 - 20 dB = 100 veces.
 - 24 dB ≈ 250 veces.
 
-**Frase para recordar:** “La señal llega muy débil; la antena y el ruido deciden si hay internet.”
+**Frase para recordar:** “C/N₀ solo no basta: el ancho de banda y el umbral del módem deciden si hay internet.”
 
-**Dato con interpretación:** 39 dBW ≈ 8 kW efectivos; 170 dB de pérdida es una atenuación enorme; 71 dBHz es un enlace cómodo; 50 dBHz es un enlace justo.
+**Dato con interpretación:** 39 dBW ≈ 8 kW efectivos; 169,7 dB de FSPL a 611 km; C/N₀ 109,6 dBHz; C/N 29,6 dB; 64APSK 5/6; 500 Mbps/haz; 25 Mbps/usuario con 20 usuarios. Con antena isotrópica (0 dBi) el mismo enlace queda en outage: eso explica los antiguos 0–3 Mbps.
 
-**Si preguntan “¿por qué no suben la potencia?”:** “Porque el satélite tiene límites de energía, calor y peso. Es más eficiente mejorar la antena y la cobertura que subir vatios.”
+**Si preguntan “¿por qué no suben la potencia?”:** “Porque el satélite tiene límites de energía, calor y peso. Es más eficiente mejorar la antena y la cobertura que subir vatios. Además, ~400 haces a 20 W serían ~8 kW de RF: en un satélite real la potencia se comparte.”
 
 ---
 
@@ -319,19 +324,21 @@ L_{fs}=20\log_{10}\!\left(\frac{4\pi d}{\lambda}\right)\qquad
 | **7,6 km/s** | velocidad orbital | Lima–Arequipa en ~2 min |
 | **95 min** | una vuelta a la Tierra | una clase y media |
 | **67°** | ángulo visible desde la vertical | un casquete, no la Tierra entera |
-| **4.500 km** | radio del disco visible | Lima–Miami |
+| **2.560 km** | radio del disco visible (~5.100 km de diámetro) | Lima–Miami de extremo a extremo |
 | **256** | elementos del arreglo 16×16 | 256 antenitas |
 | **19 cm** | tamaño del panel en Ku | una pizza mediana |
-| **29 dBi** | ganancia del haz puntual | ~800× respecto a una antena ideal |
+| **~29 dBi** | directividad del haz puntual (G ≈ 26 dBi con η = 65 %) | ~800× respecto a una antena ideal |
 | **7°** | ancho del haz puntual | huella de ~70 km a nadir |
-| **287** | celdas para Perú | un panal de haces |
+| **~400** | celdas para Perú | un panal de haces |
 | **100 km** | radio de la zona conformada | Lima metropolitana |
-| **98 %** | cobertura lograda | 2 % de derrame |
-| **21,7 dBi** | ganancia del haz conformado | ~150×; menos que 29 dBi, pero cubre Lima |
+| **100 %** | cobertura lograda | derrame −12,1 dB |
+| **20,3 dBi** | directividad del haz conformado | ~150×; menos que ~29 dBi, pero cubre Lima |
 | **39 dBW** | EIRP del enlace | ~8 kW efectivos |
-| **170 dB** | pérdida de espacio libre | atenuación enorme |
-| **71 dBHz** | C/N₀ del enlace | enlace cómodo |
-| **−18,8 dB** | derrame fuera de la zona | ~1,3 % de la potencia |
+| **169,7 dB** | pérdida de espacio libre a 611 km | atenuación enorme |
+| **109,6 dBHz** | C/N₀ del enlace | C/N 29,6 dB en 100 MHz |
+| **64APSK 5/6** | MODCOD seleccionado | 5 bits/s/Hz |
+| **500 Mbps** | capacidad agregada por haz | 25 Mbps/usuario con 20 usuarios |
+| **−12,1 dB** | derrame fuera de la zona | ~6 % de la potencia |
 | **0,5 λ** | separación entre elementos | evita copias del haz |
 
 > **Para los que quieran el detalle:** \(G(\text{dBi})=10\log_{10}G\); \(D=4\pi A/\lambda^2\); \(HPBW\approx0{,}886\lambda/L\); \(EIRP=P_{tx}G_{tx}\); \(FSPL=20\log_{10}(4\pi d/\lambda)\); \(C/N_0=P_{rx}-N_0\). No hace falta recitarlas: cada una tiene su interpretación en la tabla.
@@ -347,7 +354,7 @@ Porque una antena grande concentra mucho en una zona pequeña. Para cubrir un pa
 Cambiando el retraso (fase) de cada elemento. Las ondas se suman en la dirección deseada y se cancelan en las demás. No hay motores.
 
 **¿Qué es dBi?**
-Una medida de cuánto concentra la antena. 0 dBi reparte por igual; 3 dB es 2×; 10 dB es 10×; 29 dBi es ~800×. No es una potencia absoluta.
+Una medida de cuánto concentra la antena. 0 dBi reparte por igual; 3 dB es 2×; 10 dB es 10×; ~29 dBi es ~800×. No es una potencia absoluta.
 
 **¿Por qué 0,5 λ?**
 Para evitar los lóbulos de difracción, que son copias del haz en otras direcciones. Si separas más, aparecen copias que roban potencia y crean falsos objetivos.
@@ -376,10 +383,10 @@ Hardware, calibración de fase, handover entre satélites, interferencia, regula
 
 Si el tiempo se acorta:
 
-1. **0:00–0:45 · Gancho y órbita.** “Un satélite a 550 km se mueve a 7,6 km/s y solo ve un casquete de 4.500 km.”
+1. **0:00–0:45 · Gancho y órbita.** “Un satélite a 550 km se mueve a 7,6 km/s y solo ve un casquete de 2.560 km de radio.”
 2. **0:45–2:00 · Problema y beamforming.** Global vs puntual; dBi; “no movemos la antena, movemos el tiempo”; muestra el mapa de fase.
-3. **2:00–3:00 · El arreglo.** 4×4 vs 16×16; panel de 19 cm; 29 dBi; taper y lóbulos.
-4. **3:00–4:15 · Cobertura.** Celular Perú (287 celdas, 3 colores); conformada Lima (100 km, 98 %).
+3. **2:00–3:00 · El arreglo.** 4×4 vs 16×16; panel de 19 cm; ~29 dBi; taper y lóbulos.
+4. **3:00–4:15 · Cobertura.** Celular Perú (~400 celdas, 3 colores); conformada Lima (100 km, 100 %).
 5. **4:15–5:00 · Enlace y cierre.** EIRP/FSPL/C/N₀; las 3 C; URL.
 
 ---
@@ -388,11 +395,11 @@ Si el tiempo se acorta:
 
 | Problema | Solución |
 |---|---|
-| No hay internet | Usa las capturas de `docs/img/` y explica con ellas. |
+| No hay internet | Usa las capturas de `../img/` y explica con ellas. |
 | El satélite ya no ve Lima | Pulsa **Ahora** o cambia a **Celular/Conformada** (se reposiciona y pausa). |
 | La síntesis da error | Baja el radio a 80–100 km o sube a 20×20/32×32. |
 | La PC va lenta | **FPS máx. 30**, **Calidad Baja**, 4×4 u 8×8, desactiva **Ganancia**. |
-| El proyector no muestra el 3D | Abre `docs/img/02-satelite.jpg`, `04-celular.jpg`, `05-conformado.jpg`. |
+| El proyector no muestra el 3D | Abre `../img/02-satelite.jpg`, `04-celular.jpg`, `05-conformado.jpg`. |
 
 **Plan de 60 segundos:** “Un satélite LEO ve un casquete; para cubrirlo usa muchos haces; mueve cada haz cambiando fases, no motores; y elige entre cobertura, concentración y capacidad.”
 
@@ -404,7 +411,7 @@ Si el tiempo se acorta:
 
 **3 C:** cobertura · concentración · capacidad.
 
-**3 números:** 550 km · 287 celdas · 98 %.
+**3 números:** 550 km · ~400 celdas · 100 %.
 
 **3 frases:**
 1. “El satélite no ve la Tierra; ve una ventana.”
@@ -413,10 +420,10 @@ Si el tiempo se acorta:
 
 **3 clics:**
 1. **Puntual** → **Satélite** → mapa de fase.
-2. **Celular** → **Perú** → 287 haces.
+2. **Celular** → **Perú** → ~400 haces.
 3. **Conformada** → **Lima** → **Sintetizar**.
 
-**dBi en 10 segundos:** 0 = todas las direcciones; 3 dB = 2×; 10 dB = 10×; 29 dBi ≈ 800×.
+**dBi en 10 segundos:** 0 = todas las direcciones; 3 dB = 2×; 10 dB = 10×; ~29 dBi ≈ 800×.
 
 **Si te pierdes:** vuelve a “luz, foco, mapa” y a las tres C. No necesitas recitar fórmulas; cada fórmula tiene una frase que la explica.
 
@@ -424,4 +431,4 @@ Si el tiempo se acorta:
 
 **Demo:** <https://gcrownv-glitch.github.io/beamlab-leo/>  
 **Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>  
-**Teoría completa:** [TEORIA.md](TEORIA.md) · **Despliegue:** [DEPLOY.md](DEPLOY.md)
+**Teoría completa:** [teoría](../teoria.md) · **Despliegue:** [despliegue](../deploy.md)

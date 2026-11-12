@@ -68,6 +68,18 @@ export function limaPolygon(radiusDeg = 1.0, segments = 28): [number, number][] 
   return out;
 }
 
+/** Área aproximada de un polígono lat/lon sobre la esfera [km²]. */
+export function regionAreaKm2(poly: [number, number][]): number {
+  if (poly.length < 3) return 0;
+  let sum = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const [lat1, lon1] = poly[i];
+    const [lat2, lon2] = poly[(i + 1) % poly.length];
+    sum += (lon2 - lon1) * DEG * (2 + Math.sin(lat1 * DEG) + Math.sin(lat2 * DEG));
+  }
+  return Math.abs(sum) * R_EARTH * R_EARTH * 0.5;
+}
+
 export function regionPolygon(id: RegionId): [number, number][] | null {
   if (id === 'lima') return limaPolygon();
   return regionById(id).polygon;

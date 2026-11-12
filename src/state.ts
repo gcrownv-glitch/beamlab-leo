@@ -8,6 +8,16 @@ import type { RegionId } from './core/regions';
 export type Mode = 'global' | 'spot' | 'cellular' | 'shaped';
 export type CameraMode = 'earth' | 'sat' | 'follow';
 export type Quality = 'high' | 'medium' | 'low';
+export type TerminalId = 'vsat60' | 'vsat45' | 'isotropic';
+
+export interface SystemInfo {
+  activeBeams: number;
+  rfPowerW: number;
+  spectrumMHz: number;
+  capacityMbps: number;
+  perUserMbps: number;
+  coverageFraction: number | null;
+}
 
 export interface PhaseView {
   phases: Float64Array;
@@ -34,8 +44,14 @@ export interface Derived {
   gainMap: GainMap;
   phase: PhaseView;
   link: LinkResult | null;
-  beamSet: { visibleCells: number; totalCells: number } | null;
+  beamSet: {
+    visibleCells: number;
+    totalCells: number;
+    coverageFraction: number;
+    spacingKm: number;
+  } | null;
   shaped: ShapedInfo | null;
+  system: SystemInfo;
   source: 'horn' | 'array' | 'synthesis';
 }
 
@@ -61,10 +77,14 @@ export interface SimState {
   spotFixed: boolean;
   shapedCenter: { lat: number; lon: number };
   shapedRadiusKm: number;
+  cellTarget: { lat: number; lon: number } | null;
+  terminalId: TerminalId;
   ptxW: number;
   rxGainDbi: number;
   noiseFigureDb: number;
   bandwidthMHz: number;
+  rainMarginDb: number;
+  usersPerBeam: number;
   fpsCap: number;
   quality: Quality;
   tourStep: number;
@@ -116,10 +136,14 @@ export function defaultState(): SimState {
     spotFixed: true,
     shapedCenter: { lat: -12.05, lon: -77.04 },
     shapedRadiusKm: 100,
+    cellTarget: null,
+    terminalId: 'vsat60',
     ptxW: 20,
-    rxGainDbi: 0,
-    noiseFigureDb: 2,
+    rxGainDbi: 34,
+    noiseFigureDb: 1.5,
     bandwidthMHz: 100,
+    rainMarginDb: 0,
+    usersPerBeam: 20,
     fpsCap,
     quality,
     tourStep: 0,

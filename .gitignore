@@ -11,3 +11,4 @@ coverage/
 *.zip
 .DS_Store
 docs/_guion.html
+docs/presentacion/_guion.html

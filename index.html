@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#04070d" />
+    <meta name="author" content="Jhorel Cornejo" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="manifest" href="./site.webmanifest" />
     <meta
@@ -29,6 +30,7 @@
           <div>
             <div class="brand-name">BeamLab <span>LEO</span></div>
             <div class="brand-sub">beamforming satelital · órbita baja</div>
+            <div class="brand-credit">Elaborado por <b>Jhorel Cornejo</b></div>
           </div>
         </div>
 
@@ -246,6 +248,7 @@
               <button class="btn small" id="cell-generate">Regenerar</button>
             </div>
             <div class="info-row" id="cell-info">—</div>
+            <p class="hint" id="cell-selected">Haz clic en el globo para inspeccionar una celda.</p>
             <div class="reuse-legend" id="reuse-legend"></div>
             <p class="hint">Celdas fijas a Tierra: el satélite recalcula la fase de cada haz mientras las ve.</p>
           </div>
@@ -262,6 +265,7 @@
             </div>
             <button class="btn primary" id="shape-run">Sintetizar cobertura</button>
             <div class="info-row" id="shape-info">Diseña la fase para iluminar la zona y anular el exterior.</div>
+            <p class="hint" id="shape-lock">Tiempo congelado: el haz conformado es un diseño estático. Vuelve a Puntual/Global para simular.</p>
             <p class="hint">La síntesis por mínimos cuadrados complejos ajusta amplitud y fase de cada elemento.</p>
           </div>
 
@@ -279,6 +283,10 @@
           <div class="slider-row">
             <div class="slider-label"><span>P<sub>tx</sub> por haz</span><b id="ptx-val">20 W</b></div>
             <input id="ptx" type="range" min="1" max="60" step="1" value="20" />
+          </div>
+          <div class="slider-row">
+            <div class="slider-label"><span>Ancho de canal</span><b id="bw-val">100 MHz</b></div>
+            <input id="bandwidth" type="range" min="25" max="200" step="25" value="100" />
           </div>
         </div>
       </aside>
@@ -309,11 +317,42 @@
           </div>
           <div class="link-grid">
             <div><span>EIRP</span><b id="lk-eirp">—</b></div>
-            <div><span>Pérdida</span><b id="lk-fspl">—</b></div>
+            <div><span>FSPL</span><b id="lk-fspl">—</b></div>
             <div><span>P<sub>rx</sub></span><b id="lk-prx">—</b></div>
             <div><span>C/N₀</span><b id="lk-cn0">—</b></div>
           </div>
+          <div class="link-grid link-grid-secondary">
+            <div><span>C/N</span><b id="lk-cn">—</b></div>
+            <div><span>MODCOD</span><b id="lk-modcod">—</b></div>
+            <div><span>Margen</span><b id="lk-margin">—</b></div>
+            <div><span>G/T</span><b id="lk-gt">—</b></div>
+            <div><span>Elev.</span><b id="lk-elev">—</b></div>
+            <div><span>Oblicua</span><b id="lk-slant">—</b></div>
+          </div>
           <div class="meter"><div class="meter-fill" id="cn0-meter"></div><span id="lk-throughput">—</span></div>
+          <div class="link-controls">
+            <label><span>Terminal</span>
+              <select id="terminal-preset">
+                <option value="vsat60" selected>VSAT 0.6 m · 34 dBi</option>
+                <option value="vsat45">VSAT 0.45 m · 32 dBi</option>
+                <option value="isotropic">Isotrópica · 0 dBi</option>
+              </select>
+            </label>
+            <label><span>Lluvia</span>
+              <select id="rain-margin">
+                <option value="0" selected>Cielo despejado</option>
+                <option value="3">Lluvia · +3 dB</option>
+                <option value="8">Lluvia fuerte · +8 dB</option>
+              </select>
+            </label>
+            <label class="users-control"><span>Usuarios/haz</span><input id="users-beam" type="range" min="1" max="50" step="1" value="20" /><b id="users-val">20</b></label>
+          </div>
+          <div class="link-system">
+            <div><span>RF total</span><b id="sys-power">—</b></div>
+            <div><span>Espectro</span><b id="sys-spectrum">—</b></div>
+            <div><span>Cap. sistema</span><b id="sys-capacity">—</b></div>
+            <div><span>Cobertura</span><b id="sys-coverage">—</b></div>
+          </div>
           <div class="link-foot"><span>haz activo</span><b id="lk-range">—</b></div>
         </article>
 
@@ -430,7 +469,7 @@
                 <h3>4 · De ángulo a huella</h3>
                 <p>Un rayo desde el satélite en dirección <em>d</em> corta la esfera terrestre en el punto <em>P</em>. La huella a −3 dB es el conjunto de rayos dentro de ±HPBW/2. A nadir el radio es <em>r ≈ h·tan(HPBW/2)</em>; al escanear, la huella se alarga y la distancia oblicua crece.</p>
                 <div class="math" data-tex="\sin\alpha_h=\frac{R_\oplus}{R_\oplus+h},\qquad \gamma=\arcsin\!\left(\frac{R_\oplus+h}{R_\oplus}\sin\alpha\right)-\alpha"></div>
-                <p>Desde 550 km el satélite ve hasta 67° de nadir: un disco de ~4.500 km de radio. Por eso LEO necesita muchos haces pequeños.</p>
+                <p>Desde 550 km el satélite ve hasta 67° de nadir: en la superficie, el casquete tiene ~23° de ángulo central, unos <strong>2.560 km de radio (~5.100 km de diámetro)</strong>. Por eso LEO necesita muchos haces pequeños.</p>
                 <p class="fine">Ojo con la escala: la bocina de 17° del apunte es de un satélite GEO, a 35.786 km. Desde LEO ese mismo haz solo ilumina ~160 km de diámetro; para cubrir el disco visible haría falta un haz de ~134°, con muy poca ganancia.</p>
               </section>
               <section id="t-synth">
@@ -453,7 +492,7 @@
                   <li>ITU-R S.580 / S.465: patrones de referencia de antenas.</li>
                   <li>Vallado, D. A. <em>Fundamentals of Astrodynamics and Applications</em>.</li>
                 </ul>
-                <p class="fine">Modelo docente: esfera terrestre, órbita kepleriana con deriva J2 secular, arreglo ideal sin acoplamiento mutuo ni errores de fase. Las cifras son realistas, no certificadas.</p>
+                <p class="fine">Modelo docente: esfera terrestre, órbita kepleriana con deriva J2 secular, arreglo ideal sin acoplamiento mutuo ni errores de fase. Las cifras son realistas, no certificadas. Elaborado por Jhorel Cornejo.</p>
               </section>
             </div>
           </div>

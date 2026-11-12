@@ -1,242 +1,191 @@
 # BeamLab LEO
 
-**Simulador interactivo de órbita, antenas en fase y _beamforming_ satelital.**
+**Simulador interactivo de órbita, arreglos en fase y beamforming satelital.**
 
-**Demo en vivo:** [gcrownv-glitch.github.io/beamlab-leo](https://gcrownv-glitch.github.io/beamlab-leo/) · **Repositorio:** [gcrownv-glitch/beamlab-leo](https://github.com/gcrownv-glitch/beamlab-leo) · **Guion PDF:** [docs/Guion_BeamLab_LEO.pdf](docs/Guion_BeamLab_LEO.pdf)
+[![Demo](https://img.shields.io/badge/demo-online-22d3ee?style=flat-square)](https://gcrownv-glitch.github.io/beamlab-leo/)
+[![Deploy](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml/badge.svg)](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-3da639?style=flat-square)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D20.19-339933?style=flat-square)](package.json)
+[![Tests](https://img.shields.io/badge/tests-22%20passing-22d3ee?style=flat-square)](tests)
 
-[![Deploy to GitHub Pages](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml/badge.svg)](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml)
+**Demo:** <https://gcrownv-glitch.github.io/beamlab-leo/><br>
+**Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>
 
-Un satélite LEO a 550 km se mueve a 7,6 km/s. Desde ahí “ve” un disco de la Tierra, y debe repartir su potencia en haces que apuntan a zonas concretas. Este proyecto hace visible ese proceso: la órbita, la geometría de la huella, la fase de cada elemento del arreglo, la cobertura celular y el diseño de un haz conformado.
+![Vista general de BeamLab LEO](docs/img/01-general.jpg)
 
-![Vista general de BeamLab LEO](docs/img/02-satelite.jpg)
+BeamLab LEO muestra, en un globo 3D, cómo un satélite en órbita baja (LEO) ilumina la Tierra con haces directivos: la órbita y la huella visible, la fase de cada elemento del arreglo, la cobertura celular de un país y el diseño de un haz con forma de una ciudad. El presupuesto de enlace traduce esas decisiones de antena a C/N, MODCOD y Mbps.
 
-> Proyecto para el curso **Comunicaciones Móviles y Satelitales**. Parte de la idea del apunte *Estructura de un satélite*: cobertura global con bocina, haces puntuales con reflector, cobertura conformada con múltiples alimentadores y cobertura celular de las constelaciones LEO.
+## Contenido
 
----
+- **Órbita:** Kepler, corrección secular J2, GMST, ECI/ECEF, traza, huella y distancia oblicua.
+- **Arreglo en fase:** 4×4 a 32×32, separación en λ, taper Uniforme/Kaiser/Hann, mapa de fase, HPBW, SLL, directividad, lóbulos de difracción.
+- **Cobertura:** haz global, haz puntual, celdas fijas a Tierra con reutilización 3/4/7, selección de celda y fracción de cobertura.
+- **Haz conformado:** síntesis por mínimos cuadrados complejos con regularización y gradiente conjugado; muestreo sobre la superficie terrestre.
+- **Enlace:** EIRP, FSPL, atmósfera, margen de lluvia, G/T, C/N₀, C/N, tabla MODCOD DVB-S2X, outage, capacidad por haz, por usuario y agregada del sistema.
+- **Rendimiento:** límite de FPS (30–120/∞), calidad Alta/Media/Baja, texturas reales y shader de ganancia en el globo.
+- **Presentación:** guía de 8 pasos, teoría con ecuaciones y material de exposición.
 
-## Qué se puede hacer
+## Inicio rápido
 
-| Modo | Qué muestra | Qué enseña |
-|---|---|---|
-| **Global** | Una bocina de ~134° ilumina todo el disco visible | Un haz ancho cubre mucho, pero con muy poca ganancia (~5 dBi). La bocina de 17° del apunte cubre el disco **desde GEO**, no desde LEO. |
-| **Puntual** | Un haz de un arreglo 16×16 sigue a Lima | La fase por elemento inclina el frente de onda. El mapa de fase muestra la rampa; la huella se mueve con el satélite. |
-| **Celular** | ~287 haces pequeños sobre Perú, con 3 colores de reutilización | Las constelaciones LEO cubren con celdas. El satélite recalcula la fase de cada celda mientras la ve. |
-| **Conformada** | Síntesis de amplitud y fase para iluminar Lima (100 km) | Se resuelve `(AᴴA+λI)w = Aᴴd` para cubrir la zona y anular el exterior. Es la versión digital de un reflector multi-alimentado. |
-
-Además: presupuesto de enlace en vivo (EIRP, pérdida de espacio libre, C/N₀, capacidad), corte del patrón con HPBW y SLL, mapa de fase, y una **guía de presentación** de 8 pasos que configura todo automáticamente.
-
-![Cobertura celular sobre Perú](docs/img/04-celular.jpg)
-
----
-
-## Ejecutarlo
-
-Requiere **Node.js 20+**.
+Requisitos: Node.js ≥ 20.19.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Abre la URL que imprime Vite (por defecto `http://localhost:5173`).
-
-Para la versión de producción:
+Abre `http://localhost:5173`. Para producción:
 
 ```bash
 npm run build
 npm run preview
 ```
 
-Pruebas del motor:
+La app es estática; necesita servirse por HTTP. No abras `dist/index.html` con `file://`.
 
-```bash
-npm test
-```
+## Uso
 
-> El proyecto usa Three.js para el globo 3D, Vite + TypeScript para la app y KaTeX para las ecuaciones. No necesita conexión a internet una vez instalado.
-
-### Rendimiento
-
-La barra inferior tiene dos controles que se guardan en el navegador:
-
-- **FPS máx.**: 30, 45, **60 (por defecto)**, 75, 120 o ∞. Es un **máximo**: si la GPU no alcanza, el contador mostrará menos.
-- **Calidad**: **Alta** (bloom + 1,75×), **Media** (sin bloom + 1,25×) o **Baja** (sin bloom + 1×).
-
-Para una PC de laboratorio: **30 fps + Baja**. En una GPU dedicada: **60 fps + Alta**. El límite no acelera una PC que ya está por debajo; para eso baja la calidad, usa un arreglo más pequeño o desactiva capas (ganancia, haces 3D).
-
-> Las capturas de este README se tomaron con render por software (sin GPU), por eso el contador muestra pocos FPS. En una GPU real el mismo escenario sube bastante; el límite de 60 es un techo, no una promesa.
-
-## Publicarlo en internet
-
-Este proyecto ya está publicado en GitHub Pages:
-
-- **Demo:** <https://gcrownv-glitch.github.io/beamlab-leo/>
-- **Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>
-- **Workflow:** [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
-
-Cada `git push` a `main` instala, corre las 16 pruebas, compila y despliega. La app es estática: `npm run build` genera `dist/` y se puede publicar en cualquier hosting. Guía completa, con DNS y dominio propio: **[docs/DEPLOY.md](docs/DEPLOY.md)**.
-
-| Opción | URL gratuita | Cuándo |
-|---|---|---|
-| **Netlify Drop** | `beamlab-leo.netlify.app` | La clase es pronto; arrastras `dist` y listo. |
-| **GitHub Pages** | `gcrownv-glitch.github.io/beamlab-leo` | La opción de este proyecto; se actualiza con `git push`. |
-| **Vercel** | `beamlab-leo.vercel.app` | Panel sencillo y dominio propio fácil. |
-
-Para replicarlo en otra cuenta:
-
-```bash
-git remote add origin https://github.com/TU_USUARIO/beamlab-leo.git
-git branch -M main
-git push -u origin main
-```
-
-Luego activa **Settings → Pages → Source: GitHub Actions**.
-
-Un **dominio propio** (`beamlab.tudominio.com`) se compra aparte (~US$ 10–15/año) y se conecta con un CNAME o registros A; el certificado HTTPS lo emite el hosting. Los pasos exactos están en la guía.
+1. Elige una misión (Starlink, ISS, OneWeb, SSO) o ajusta altitud, inclinación, excentricidad y RAAN.
+2. Selecciona el modo: **Global**, **Puntual**, **Celular** o **Conformada**.
+3. Ajusta el arreglo (N×N, separación, frecuencia, taper, eficiencia) y la potencia por haz.
+4. En **Puntual**, haz clic en el globo para mover el haz. En **Celular**, haz clic para inspeccionar una celda. En **Conformada**, elige centro y radio y pulsa **Sintetizar cobertura**.
+5. Lee el presupuesto de enlace: EIRP, FSPL, C/N, MODCOD, margen, G/T, elevación y capacidad.
 
 ### Atajos
 
 | Tecla | Acción |
 |---|---|
 | `Espacio` | Reproducir / pausar |
-| `1` … `4` | Global, puntual, celular, conformada |
-| `G` | Mostrar / ocultar el mapa de ganancia |
-| `[` / `]` | Mostrar / ocultar el panel de órbita / antena |
-| `T` | Abrir la guía de presentación |
-| `H` | Abrir la teoría |
-| `P` | Descargar una captura |
-| `Esc` | Cerrar guía o teoría |
+| `1`–`4` | Global / Puntual / Celular / Conformada |
+| `T` | Guía de presentación |
+| `H` | Teoría y ecuaciones |
+| `P` | Captura PNG |
+| `G` | Mostrar/ocultar ganancia |
+| `[` / `]` | Contraer panel de órbita / antena |
 
-En el globo: arrastra para rotar, rueda para acercar y **haz clic** para apuntar el haz (o para centrar la zona conformada).
+## Modelo técnico
 
----
+### Órbita
 
-## La física en cinco ideas
+La posición se propaga con elementos keplerianos y deriva secular J2 de Ω, ω y M. La Tierra se modela como esfera de radio 6378,137 km. A 550 km:
 
-### 1. La órbita
+- velocidad orbital ≈ 7,59 km/s;
+- período ≈ 95,6 min;
+- horizonte a 67,0° de nadir;
+- casquete visible de 23,0° de ángulo central, **2.560 km de radio** (5.100 km de diámetro).
 
-Se propaga una órbita kepleriana con deriva secular **J2** (precesión del nodo y del perigeo). La posición pasa de ECI a ECEF con el tiempo sidéreo de Greenwich (GMST). La app muestra apogeo, perigeo, altitud, rapidez, período y la traza sobre el suelo.
+### Arreglo en fase
 
-### 2. El arreglo en fase
+El factor de arreglo es
 
-Un arreglo plano de `M×N` elementos separados `d` tiene un factor de arreglo
-
-```
+```text
 AF(u,v) = Σ_m Σ_n a_mn · exp[j k (x_m u + y_n v)]
 ```
 
-donde `u = sinθ cosφ`, `v = sinθ sinφ`, `k = 2π/λ` y `a_mn` son las excitaciones complejas. La potencia es `|AF|²` multiplicada por el patrón del elemento (`cos^q θ`).
+con `u = sinθ cosφ`, `v = sinθ sinφ`, `k = 2π/λ`. Para apuntar a `(u₀,v₀)`:
 
-### 3. Apuntar es poner una fase
-
-Para dirigir el máximo a `(u₀, v₀)`:
-
-```
+```text
 a_mn = w_m w_n · exp[−j k (x_m u₀ + y_n v₀)]
 ```
 
-No se mueve la antena: se inclina el frente de onda. El mapa de fase muestra esa rampa; el haz se puede seguir en Tierra sin partes móviles.
+El patrón del elemento es `g_e(θ) = cos^q θ` en campo y `cos^{2q} θ` en potencia. El simulador calcula directividad integrando el patrón en el hemisferio, HPBW por cruce de −3 dB, SLL y el aviso de grating lobes cuando `d > 0,5 λ`.
 
-### 4. De ángulo a huella
+### Haz conformado
 
-Un rayo desde el satélite corta la esfera terrestre. La huella a −3 dB es el conjunto de rayos dentro de ±HPBW/2. A nadir, `r ≈ h·tan(HPBW/2)`; al escanear, la huella se alarga y la distancia oblicua crece. Desde 550 km el horizonte está a 67° de nadir: un disco de ~4.500 km de radio.
+Se muestrea un círculo de radio `R` sobre la superficie terrestre, se mapea a direcciones `(u,v)` y se resuelve
 
-### 5. Del patrón al enlace
-
+```text
+min_w ||A w − d||² + λ||w||²
 ```
-EIRP = P_tx · G_tx
+
+con `d = 1` dentro de la zona y `0` fuera, transición coseno en el borde y gradiente conjugado. El tiempo se congela en este modo: es un **diseño estático**, no una simulación dinámica.
+
+### Enlace
+
+```text
+EIRP = P_tx + G_tx
 L_fs = 20 log10(4πd/λ)
+P_rx = EIRP − L_fs − L_atm − L_rain + G_rx
 C/N₀ = P_rx − N₀
+C/N  = C/N₀ − 10 log10(B)
 ```
 
-La ganancia del haz entra directo en el EIRP; la distancia oblicua entra en la pérdida. Un haz más estrecho da más C/N₀ pero cubre menos área: ese es el compromiso central del diseño satelital.
+La temperatura de sistema incluye antena (50 K) y receptor; se muestra `G/T`. La capacidad no usa Shannon como si fuera un módem: se selecciona el **MODCOD DVB-S2X** más alto cuyo umbral de C/N se cumple, con 1 dB de margen. Si ninguno cumple, hay **outage** y capacidad cero.
 
-La derivación completa, con las convenciones y los números de validación, está en **[docs/TEORIA.md](docs/TEORIA.md)**.
+Configuración por defecto:
 
----
+| Parámetro | Valor |
+|---|---|
+| Órbita | Starlink 550 km, 53° |
+| Arreglo | 16×16, 0,5 λ, Ku 12 GHz, Kaiser −30, η = 65 % |
+| P<sub>tx</sub> | 20 W por haz |
+| Canal | 100 MHz |
+| Terminal | VSAT 0,6 m, 34 dBi, NF 1,5 dB |
+| Usuarios/haz | 20 |
+| Resultado típico | C/N ≈ 29,6 dB, 64APSK 5/6, ≈500 Mbps/haz, ≈25 Mbps/usuario |
 
-## Cómo está hecho
+Con la antena isotrópica (0 dBi) el mismo enlace queda en outage: sirve para comparar y entender por qué la antena del usuario importa.
 
-```
+## Estructura
+
+```text
 src/
   core/
-    constants.ts   constantes (μ, R⊕, J2, c)
-    vec.ts         álgebra vectorial mínima
-    orbit.ts       Kepler, J2, GMST, ECI/ECEF, horizonte
-    geometry.ts    cosenos directores, rayos, anillos de huella
-    array.ts       factor de arreglo, taper, directividad, HPBW/SLL, mapas
+    constants.ts   constantes físicas
+    vec.ts         álgebra vectorial
+    orbit.ts       Kepler, J2, GMST, horizonte, ECI/ECEF
+    geometry.ts    cosenos directores, rayos, huellas
+    array.ts       factor de arreglo, taper, directividad, HPBW/SLL
     synthesis.ts   mínimos cuadrados complejos + gradiente conjugado
-    coverage.ts    celdas, haces visibles, apuntamiento a Tierra
-    regions.ts     polígonos, muestreo de regiones, celdas
+    coverage.ts    celdas, haces visibles, apuntamiento
+    regions.ts     polígonos, áreas, celdas, muestreo
     presets.ts     ISS, Starlink, OneWeb, SSO
-    link.ts        presupuesto de enlace
-  scene.ts          globo 3D, satélite, órbita, haces, shader de ganancia
-  engine.ts         estado → órbita → patrón → haces → mapa → enlace
-  charts.ts         mapa de fase y corte de patrón en canvas
-  ui.ts             controles, métricas, tour y teoría
-  main.ts           carga de texturas, bucle y manejadores
-  state.ts          estado y tipos derivados
-tests/              16 pruebas del motor
-docs/               teoría, guion y capturas
+    link.ts        EIRP, FSPL, G/T, MODCOD, capacidad
+  scene.ts          globo 3D, satélite, órbitas, haces, shader
+  engine.ts         estado → órbita → patrón → haces → enlace
+  charts.ts         mapa de fase y corte de patrón
+  ui.ts             controles, métricas, guía y teoría
+  main.ts           texturas, bucle y manejadores
+  state.ts          estado y tipos
 public/assets/      texturas de la Tierra
+tests/              22 pruebas
+docs/               teoría, despliegue y presentación
 ```
 
-El motor calcula un objeto `Derived` por cuadro: estado orbital, base de antena, patrón, métricas, haces, mapa de ganancia, fase y enlace. La escena 3D consume ese objeto y el shader del globo pinta la ganancia en la dirección de cada píxel.
+## Pruebas
 
-> **Detalle de implementación:** la base de la antena es **este/norte/nadir** en ECEF, mientras que el modelo 3D del satélite se orienta con la **velocidad** (a lo largo de la traza). Son bases distintas: el shader debe usar la primera, rotada por GMST. Mezclarlas produce un patrón rotado (y fue uno de los bugs que se corrigieron en el desarrollo).
+```bash
+npm test
+```
 
----
+22 pruebas cubren tiempo/GMST, órbita y J2, geometría del horizonte, base de antena, arreglo/fase/taper, síntesis y presupuesto de enlace (VSAT, isotrópica, lluvia y ancho de banda).
 
-## Guía de presentación
+## Despliegue
 
-El botón **Guía** (o `T`) recorre ocho pasos y configura la simulación sola:
+El repositorio publica en GitHub Pages con `.github/workflows/deploy.yml`: instala, prueba, compila y despliega en cada push a `main`. Guía completa, dominio propio y solución de problemas: **[docs/deploy.md](docs/deploy.md)**.
 
-1. Órbita LEO y parámetros.
-2. Huella visible y haz global.
-3. Haz puntual sobre Lima y fase.
-4. 4×4: haz ancho, poca ganancia.
-5. 16×16: haz estrecho, ~29 dBi.
-6. Cobertura celular de Perú y reutilización.
-7. Haz conformado sobre Lima (síntesis).
-8. Presupuesto de enlace y compromiso ganancia/cobertura.
+## Documentación
 
-El guion detallado, con tiempos y frases sugeridas, está en **[docs/GUION_EXPOSICION.md](docs/GUION_EXPOSICION.md)**. La **versión visual en PDF** (18 páginas, portada, glosario, números, Q&A y chuleta) está en **[docs/Guion_BeamLab_LEO.pdf](docs/Guion_BeamLab_LEO.pdf)**.
+- **[Teoría y ecuaciones](docs/teoria.md)**
+- **[Despliegue](docs/deploy.md)**
+- **[Guion de exposición](docs/presentacion/guion.md)** · **[PDF](docs/presentacion/guion-beamlab-leo.pdf)** · **[Checklist](docs/presentacion/checklist.md)**
+- **[Registro de cambios](CHANGELOG.md)** · **[Citación](CITATION.cff)**
 
-[![Portada del guion de exposición](docs/img/08-guion-portada.jpg)](docs/Guion_BeamLab_LEO.pdf)
+## Limitaciones
 
-![Guía de presentación](docs/img/06-guia.jpg)
+Modelo docente, no certificado:
 
----
+- Tierra esférica, sin elipsoide WGS-84 ni geoide.
+- Arreglo ideal: sin acoplamiento mutuo, cuantización de fase/amplitud, fallos de elementos ni errores de calibración.
+- Sin interferencia co-canal ni C/I por reutilización; la cobertura celular se limita a 2.500 celdas y muestra la fracción cubierta.
+- Sin uplink, feeder link ni handover entre satélites.
+- La lluvia es un margen seleccionable, no un modelo de disponibilidad.
+- El haz conformado es estático y se calcula para una posición orbital concreta.
 
-## Pruebas y validación
+## Autor
 
-`npm test` ejecuta 16 pruebas:
-
-- **Órbita:** GMST en J2000, período y rapidez de la ISS, paso sobre Lima, deriva J2, elevación.
-- **Arreglo:** bocina de 17° (21 dBi), 16×16 uniforme (≈29 dBi, HPBW 6,3°), efecto del taper, fase de apuntamiento, corte del patrón.
-- **Síntesis:** cobertura de una zona suave y, con geometría real desde 550 km, cobertura >90 % de una zona de 100 km sobre Lima con derrame < −12 dB.
-
----
-
-## Limitaciones (honestas)
-
-- Tierra esférica, sin elipsoide, relieve ni atmósfera.
-- Arreglo ideal: sin acoplamiento mutuo, errores de fase/cuantización ni pérdidas de alimentación. La eficiencia se aplica como factor global.
-- El patrón se evalúa en campo lejano; no hay enfoque de campo cercano.
-- En cobertura celular los haces son fijos a Tierra y se recalculan mientras el satélite los ve; no se modelan traspaso, interferencia entre celdas ni potencia adaptativa.
-- La síntesis conformada usa pesos complejos con regularización; los lóbulos laterales pueden quedar alrededor de −18 dB. La visualización del globo muestra el lóbulo principal (umbral −7 dB) para no tapar la Tierra con sidelobes.
-- El presupuesto de enlace es de espacio libre, sin lluvia, multitrayecto ni modulación concreta. La “capacidad” es una estimación tipo Shannon, no un cálculo de throughput real.
-- Las cifras son docentes y realistas, no certificadas para diseño de vuelo.
-
----
-
-## Créditos
-
-- Texturas de la Tierra: ejemplos de **Three.js** (NASA Visible Earth, dominio público). Ver [public/assets/CREDITS.md](public/assets/CREDITS.md).
-- [Three.js](https://threejs.org/) (MIT), [KaTeX](https://katex.org/) (MIT), [Vite](https://vitejs.dev/) (MIT).
-- Contexto conceptual: apunte *Comunicaciones por Satélite — Estructura de un satélite*, Ing. Jorge Luis Mogrovejo Carpio, PUCP.
-- Referencias: Balanis, *Antenna Theory*; Mailloux, *Phased Array Antenna Handbook*; Maral & Bousquet, *Satellite Communications Systems*; Vallado, *Fundamentals of Astrodynamics*; ITU-R S.580/S.465.
+**Jhorel Cornejo** — elaborado para el curso de Comunicaciones Móviles y Satelitales.
 
 ## Licencia
 
-MIT. Úsalo, modifícalo y preséntalo; si te sirve, menciona el proyecto.
+MIT. Ver [LICENSE](LICENSE).

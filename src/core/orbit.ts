@@ -212,7 +212,8 @@ export function slantRange(satEcef: Vec3, lat: number, lon: number): number {
  */
 export function antennaBasis(satEcef: Vec3): { x: Vec3; y: Vec3; z: Vec3 } {
   const z = normalize({ x: -satEcef.x, y: -satEcef.y, z: -satEcef.z });
-  let x = normalize(cross(v3(0, 0, 1), z));
+  // Este local = ẑ_Tierra × nadir. El producto anterior daba oeste.
+  let x = normalize(cross(z, v3(0, 0, 1)));
   if (len(x) < 1e-6) x = v3(1, 0, 0);
   const y = cross(z, x);
   return { x, y, z };

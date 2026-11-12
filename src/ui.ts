@@ -11,7 +11,7 @@ import { ORBIT_PRESETS } from './core/presets';
 import type { RegionId } from './core/regions';
 import { drawPatternChart, drawPhaseMap, type PatternPoint } from './charts';
 import { BEAM_HEX, REUSE_LABELS } from './palette';
-import type { CameraMode, Derived, Mode, PhaseView, Quality, SimState } from './state';
+import type { CameraMode, Derived, Mode, PhaseView, Quality, SimState, TerminalId } from './state';
 
 export type ToggleKey =
   | 'showOrbit'
@@ -43,6 +43,11 @@ export interface UIHandlers {
   setShapedRadius(km: number): void;
   synthesize(): void;
   setPtx(w: number): void;
+  setBandwidth(mhz: number): void;
+  setTerminal(id: TerminalId): void;
+  setRainMargin(db: number): void;
+  setUsers(n: number): void;
+  setCellTarget(lat: number, lon: number): void;
   screenshot(): void;
   setFpsCap(cap: number): void;
   setQuality(quality: Quality): void;
@@ -93,7 +98,7 @@ export class UI {
     },
     {
       title: '2 · La huella visible',
-      text: 'El anillo azul es el horizonte geométrico: desde 550 km se ve hasta 67° de nadir, un disco de ~4.500 km de radio. Un haz ancho (~134° en LEO) cubre casi todo el disco pero reparte poca potencia; la bocina de 17° del apunte cubre todo el disco solo desde GEO. Por eso LEO divide el disco en haces.',
+      text: 'El anillo azul es el horizonte geométrico: desde 550 km se ve hasta 67° de nadir; en la superficie, el casquete tiene ~23° de ángulo central, unos 2.560 km de radio (~5.100 km de diámetro). Un haz ancho (~134° en LEO) cubre casi todo el disco pero reparte poca potencia; la bocina de 17° del apunte cubre todo el disco solo desde GEO. Por eso LEO divide el disco en haces.',
       apply: (h) => {
         h.setMode('global');
         h.setToggle('showFootprint', true);
@@ -190,7 +195,19 @@ export class UI {
     bindRange('spacing', (v) => this.h.setAntenna({ dx: v, dy: v }));
     bindRange('efficiency', (v) => this.h.setAntenna({ efficiency: v }));
     bindRange('ptx', (v) => this.h.setPtx(v));
+    bindRange('bandwidth', (v) => this.h.setBandwidth(v));
+    bindRange('users-beam', (v) => {
+      $('users-val').textContent = String(v);
+      this.h.setUsers(v);
+    });
     bindRange('shape-radius', (v) => this.h.setShapedRadius(v));
+
+    ($('terminal-preset') as HTMLSelectElement).addEventListener('change', (e) => {
+      this.h.setTerminal((e.target as HTMLSelectElement).value as TerminalId);
+    });
+    ($('rain-margin') as HTMLSelectElement).addEventListener('change', (e) => {
+      this.h.setRainMargin(Number((e.target as HTMLSelectElement).value));
+    });
 
     $('epoch').addEventListener('change', () => {
       const v = ($('epoch') as HTMLInputElement).value;
@@ -399,6 +416,12 @@ export class UI {
       $('eff-val').textContent = `${Math.round(s.antenna.efficiency * 100)} %`;
       ($('ptx') as HTMLInputElement).value = String(s.ptxW);
       $('ptx-val').textContent = `${s.ptxW} W`;
+      ($('bandwidth') as HTMLInputElement).value = String(s.bandwidthMHz);
+      $('bw-val').textContent = `${s.bandwidthMHz} MHz`;
+      ($('terminal-preset') as HTMLSelectElement).value = s.terminalId;
+      ($('rain-margin') as HTMLSelectElement).value = String(s.rainMarginDb);
+      ($('users-beam') as HTMLInputElement).value = String(s.usersPerBeam);
+      $('users-val').textContent = String(s.usersPerBeam);
 
       const cfgs: [string, boolean][] = [
         ['tg-orbit', s.showOrbit],
@@ -432,8 +455,16 @@ export class UI {
       for (const b of document.querySelectorAll<HTMLButtonElement>('#speeds button')) {
         b.classList.toggle('active', Number(b.dataset.speed) === s.speed);
       }
-      $('status-text').textContent = s.playing ? 'simulando' : 'en pausa';
-      $('status-dot').classList.toggle('paused', !s.playing);
+      const timeLocked = s.mode === 'shaped';
+      ($('btn-play') as HTMLButtonElement).disabled = timeLocked;
+      ($('timeline') as HTMLInputElement).disabled = timeLocked;
+      for (const b of document.querySelectorAll<HTMLButtonElement>('#speeds button')) b.disabled = timeLocked;
+      $('status-text').textContent = timeLocked ? 'diseño estático' : s.playing ? 'simulando' : 'en pausa';
+      $('status-dot').classList.toggle('paused', timeLocked || !s.playing);
+      $('shape-lock').hidden = !timeLocked;
+      $('cell-selected').textContent = s.cellTarget
+        ? `Celda seleccionada: ${fmtLatLon(s.cellTarget.lat, s.cellTarget.lon)}`
+        : 'Haz clic en el globo para inspeccionar una celda.';
     } finally {
       this.syncing = false;
     }
@@ -485,8 +516,9 @@ export class UI {
     if (document.activeElement !== timeline) timeline.value = String(Math.round(phase));
     $('utc-clock').textContent = fmtTime(s.simTime);
     $('orbit-phase').textContent = `fase orbital ${(phase / 10).toFixed(0)} %`;
-    $('status-dot').classList.toggle('paused', !s.playing);
-    $('status-text').textContent = s.playing ? 'simulando' : 'en pausa';
+    const timeLocked = s.mode === 'shaped';
+    $('status-dot').classList.toggle('paused', timeLocked || !s.playing);
+    $('status-text').textContent = timeLocked ? 'diseño estático' : s.playing ? 'simulando' : 'en pausa';
     $('btn-play').classList.toggle('playing', s.playing);
   }
 
@@ -517,19 +549,51 @@ export class UI {
 
   private updateLink(s: SimState, d: Derived) {
     const $ = <T extends HTMLElement>(id: string) => this.el<T>(id);
-    $('link-badge').textContent = `${s.antenna.freqGHz} GHz · ${s.bandwidthMHz} MHz`;
     const l = d.link;
-    if (!l) return;
+    $('link-badge').textContent = `${s.antenna.freqGHz} GHz · ${s.bandwidthMHz} MHz`;
+    if (!l) {
+      $('link-badge').textContent = 'sin haz';
+      for (const id of ['lk-eirp', 'lk-fspl', 'lk-prx', 'lk-cn0', 'lk-cn', 'lk-modcod', 'lk-margin', 'lk-gt', 'lk-elev', 'lk-slant']) {
+        $(id).textContent = '—';
+      }
+      $('lk-throughput').textContent = 'sin enlace · no hay haz activo';
+      $('lk-range').textContent = '—';
+      $('cn0-meter').style.width = '0%';
+      $('cn0-meter').classList.remove('outage');
+      $('sys-power').textContent = '—';
+      $('sys-spectrum').textContent = '—';
+      $('sys-capacity').textContent = '—';
+      $('sys-coverage').textContent = '—';
+      return;
+    }
     $('lk-eirp').textContent = `${l.eirpDbW.toFixed(1)} dBW`;
     $('lk-fspl').textContent = `${l.fsplDb.toFixed(1)} dB`;
     $('lk-prx').textContent = `${l.rxPowerDbm.toFixed(1)} dBm`;
     $('lk-cn0').textContent = `${l.cn0DbHz.toFixed(1)} dBHz`;
-    const pct = Math.max(0, Math.min(100, ((l.cn0DbHz - 25) / 45) * 100));
+    $('lk-cn').textContent = `${l.cnDb.toFixed(1)} dB`;
+    $('lk-modcod').textContent = l.modcod;
+    $('lk-margin').textContent = `${l.marginDb >= 0 ? '+' : ''}${l.marginDb.toFixed(1)} dB`;
+    $('lk-gt').textContent = `${l.gtDbK.toFixed(1)} dB/K`;
+    $('lk-elev').textContent = `${l.elevationDeg.toFixed(0)}°`;
+    $('lk-slant').textContent = `${l.slantKm.toFixed(0)} km`;
+    const margin = l.outage ? -8 : Math.max(-8, Math.min(20, l.marginDb));
+    const pct = Math.max(0, Math.min(100, ((margin + 8) / 28) * 100));
     $('cn0-meter').style.width = `${pct}%`;
-    $('lk-throughput').textContent = `≈ ${l.throughputMbps.toFixed(0)} Mbps · ${s.bandwidthMHz} MHz`;
+    $('cn0-meter').classList.toggle('outage', l.outage);
+    $('lk-throughput').textContent = l.outage
+      ? 'sin enlace · C/N bajo el umbral'
+      : `≈ ${l.throughputMbps.toFixed(0)} Mbps/haz · ${l.userThroughputMbps.toFixed(1)} Mbps/usuario`;
     $('lk-range').textContent = d.activeBeam?.target
-      ? `${fmtLatLon(d.activeBeam.target.lat, d.activeBeam.target.lon)}`
+      ? fmtLatLon(d.activeBeam.target.lat, d.activeBeam.target.lon)
       : `${l.slantKm.toFixed(0)} km`;
+    const sys = d.system;
+    $('sys-power').textContent = sys.rfPowerW >= 1000 ? `${(sys.rfPowerW / 1000).toFixed(1)} kW` : `${sys.rfPowerW.toFixed(0)} W`;
+    $('sys-power').classList.toggle('warn', sys.rfPowerW > 6000);
+    $('sys-spectrum').textContent = `${sys.spectrumMHz.toFixed(0)} MHz`;
+    $('sys-capacity').textContent = sys.capacityMbps >= 1000
+      ? `${(sys.capacityMbps / 1000).toFixed(2)} Gbps`
+      : `${sys.capacityMbps.toFixed(0)} Mbps`;
+    $('sys-coverage').textContent = sys.coverageFraction == null ? '—' : `${(sys.coverageFraction * 100).toFixed(0)} %`;
   }
 
   private updateBeams(s: SimState, d: Derived) {

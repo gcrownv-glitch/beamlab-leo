@@ -56,9 +56,16 @@ class App {
       this.state.presetId = 'custom';
       this.engine.setOrbit({ ...this.state.orbit, ...p }, 'custom');
       this.refresh();
+      if (this.state.mode === 'shaped') {
+        this.ui.toast('Órbita modificada: vuelve a sintetizar el haz conformado.', true);
+      }
     },
     setEpoch: (ms) => {
       if (!Number.isFinite(ms)) return;
+      if (this.state.mode === 'shaped') {
+        this.ui.toast('Tiempo congelado en modo conformada. Vuelve a Puntual/Global para cambiar la época.', true);
+        return;
+      }
       this.state.simTime = ms;
       this.engine.setOrbit({ ...this.state.orbit, epoch: ms }, this.state.presetId);
       this.refresh();
@@ -75,14 +82,20 @@ class App {
       this.ui.syncControls(this.state);
     },
     play: () => {
+      if (this.state.mode === 'shaped') {
+        this.ui.toast('El haz conformado es un diseño estático: el tiempo está congelado.', true);
+        return;
+      }
       this.state.playing = !this.state.playing;
       this.ui.syncControls(this.state);
     },
     setSpeed: (s) => {
+      if (this.state.mode === 'shaped') return;
       this.state.speed = s;
       this.ui.syncControls(this.state);
     },
     setTime: (ms) => {
+      if (this.state.mode === 'shaped') return;
       this.state.simTime = ms;
       this.state.playing = false;
       this.engine.invalidateBeams();
@@ -146,6 +159,42 @@ class App {
       this.ui.syncControls(this.state);
       this.ui.update(this.state, this.engine.derived);
     },
+    setBandwidth: (mhz) => {
+      this.state.bandwidthMHz = mhz;
+      this.engine.update();
+      this.ui.syncControls(this.state);
+      this.ui.update(this.state, this.engine.derived);
+    },
+    setTerminal: (id) => {
+      const presets = {
+        vsat60: { gain: 34, nf: 1.5 },
+        vsat45: { gain: 32, nf: 1.6 },
+        isotropic: { gain: 0, nf: 2 },
+      };
+      this.state.terminalId = id;
+      this.state.rxGainDbi = presets[id].gain;
+      this.state.noiseFigureDb = presets[id].nf;
+      this.engine.update();
+      this.ui.syncControls(this.state);
+      this.ui.update(this.state, this.engine.derived);
+    },
+    setRainMargin: (db) => {
+      this.state.rainMarginDb = db;
+      this.engine.update();
+      this.ui.syncControls(this.state);
+      this.ui.update(this.state, this.engine.derived);
+    },
+    setUsers: (n) => {
+      this.state.usersPerBeam = Math.max(1, Math.min(50, Math.round(n)));
+      this.engine.update();
+      this.ui.syncControls(this.state);
+      this.ui.update(this.state, this.engine.derived);
+    },
+    setCellTarget: (lat, lon) => {
+      this.engine.setCellTarget(lat, lon);
+      this.refresh();
+      this.ui.toast(`Celda seleccionada a ${fmtLat(lat)} ${fmtLon(lon)}`);
+    },
     screenshot: () => {
       this.scene?.capture();
       this.ui.toast('Captura guardada.');
@@ -191,6 +240,8 @@ class App {
     }
     this.refresh();
     if (mode === 'shaped') {
+      this.state.playing = false;
+      this.ui.syncControls(this.state);
       this.ui.toast('Satélite colocado sobre la zona. Ajusta el radio y pulsa «Sintetizar cobertura».');
     }
   }
@@ -225,6 +276,10 @@ class App {
   }
 
   private now() {
+    if (this.state.mode === 'shaped') {
+      this.ui.toast('Tiempo congelado en modo conformada. Vuelve a Puntual/Global para usar «Ahora».', true);
+      return;
+    }
     const ms = Date.now();
     const p = presetById(this.state.presetId);
     let orbit: OrbitElements;
@@ -277,8 +332,9 @@ class App {
   private pick(lat: number, lon: number) {
     if (this.state.mode === 'shaped') {
       this.handlers.setShapedCenter(lat, lon);
+    } else if (this.state.mode === 'cellular') {
+      this.handlers.setCellTarget(lat, lon);
     } else {
-      if (this.state.mode === 'cellular') this.engine.setMode('spot');
       this.handlers.setSpotTarget(lat, lon);
     }
   }

@@ -486,7 +486,9 @@ export class UI {
     $('ant-d').textContent = `${d.metrics.directivityDb.toFixed(1)} dBi`;
     $('ant-g').textContent = `${d.metrics.gainDb.toFixed(1)} dBi`;
     $('ant-hpbw').textContent = `${d.metrics.hpbwDeg.toFixed(1)}°`;
-    $('ant-sll').textContent = d.metrics.sllDb < -90 ? '—' : `${d.metrics.sllDb.toFixed(1)} dB`;
+    $('ant-sll').textContent = d.source === 'synthesis'
+      ? '—'
+      : d.metrics.sllDb < -90 ? '—' : `${d.metrics.sllDb.toFixed(1)} dB`;
     $('ant-ap').textContent = d.metrics.apertureM < 1e-3
       ? '—'
       : d.metrics.apertureM >= 1

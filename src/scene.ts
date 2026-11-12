@@ -777,7 +777,7 @@ export class SceneView {
       const pt = activeGroundPoint(d);
       if (pt) {
         const up = new THREE.Vector3(pt.x, pt.y, pt.z).normalize();
-        const footKm = d.sat.alt * Math.tan((d.metrics.hpbwDeg * DEG) / 2);
+        const footKm = (d.link?.slantKm ?? d.sat.alt) * Math.tan((d.metrics.hpbwDeg * DEG) / 2);
         const rad = Math.max(0.004, footKm * KM * 1.05);
         this.activeDisc.position.copy(new THREE.Vector3(pt.x * KM, pt.y * KM, pt.z * KM)).addScaledVector(up, 0.002);
         this.activeDisc.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), up);

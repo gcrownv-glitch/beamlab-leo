@@ -4,7 +4,8 @@
 
 **Demo en vivo:** <https://gcrownv-glitch.github.io/beamlab-leo/>  
 **Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>  
-**Versión PDF (para imprimir o tablet):** [guion-beamlab-leo.pdf](guion-beamlab-leo.pdf)
+**Versión PDF (para imprimir o tablet):** [guion-beamlab-leo.pdf](guion-beamlab-leo.pdf)<br>
+**Elaborado por:** [Jhorel Kennedy Cornejo Cruz](https://github.com/gcrownv-glitch) · IET UCSP
 
 > **La idea en una frase:** un satélite en órbita baja no puede iluminar toda la Tierra con una sola antena; reparte su potencia en muchos haces pequeños y puede moverlos **sin mover nada**, solo cambiando el tiempo (la fase) con que emite cada antena.
 

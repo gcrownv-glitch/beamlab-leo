@@ -2,6 +2,14 @@
 
 Todas las modificaciones relevantes de BeamLab LEO.
 
+## [1.1.1] — 2026-11-12
+
+- Créditos con nombre completo: **Jhorel Kennedy Cornejo Cruz · IET UCSP**.
+- El nombre enlaza al perfil de GitHub <https://github.com/gcrownv-glitch>.
+- Actualización de README, LICENSE, package.json, CITATION.cff y PDF.
+- Nuevo informe de auditoría técnica y de producto en [`docs/auditoria.md`](docs/auditoria.md).
+- Sin cambios de comportamiento en el motor.
+
 ## [1.1.0] — 2026-11-12
 
 ### Enlace

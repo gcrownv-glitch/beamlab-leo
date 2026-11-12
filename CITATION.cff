@@ -1,11 +1,12 @@
 cff-version: 1.2.0
 message: "Si usas BeamLab LEO en un trabajo académico, cita el repositorio."
 title: "BeamLab LEO: simulador interactivo de beamforming satelital"
-version: 1.1.0
+version: 1.1.1
 date-released: "2026-11-12"
 authors:
-  - family-names: Cornejo
-    given-names: Jhorel
+  - family-names: Cornejo Cruz
+    given-names: Jhorel Kennedy
+    website: "https://github.com/gcrownv-glitch"
 url: "https://github.com/gcrownv-glitch/beamlab-leo"
 repository-code: "https://github.com/gcrownv-glitch/beamlab-leo"
 license: MIT

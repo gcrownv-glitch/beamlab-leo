@@ -170,6 +170,7 @@ El repositorio publica en GitHub Pages con `.github/workflows/deploy.yml`: insta
 - **[Despliegue](docs/deploy.md)**
 - **[Guion de exposición](docs/presentacion/guion.md)** · **[PDF](docs/presentacion/guion-beamlab-leo.pdf)** · **[Checklist](docs/presentacion/checklist.md)**
 - **[Registro de cambios](CHANGELOG.md)** · **[Citación](CITATION.cff)**
+- **[Auditoría técnica y de producto](docs/auditoria.md)**
 
 ## Limitaciones
 
@@ -184,7 +185,9 @@ Modelo docente, no certificado:
 
 ## Autor
 
-**Jhorel Cornejo** — elaborado para el curso de Comunicaciones Móviles y Satelitales.
+**Jhorel Kennedy Cornejo Cruz**<br>
+IET UCSP — Ingeniería Electrónica y Telecomunicaciones, Universidad Católica San Pablo<br>
+[github.com/gcrownv-glitch](https://github.com/gcrownv-glitch)
 
 ## Licencia
 

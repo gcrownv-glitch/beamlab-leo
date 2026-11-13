@@ -1,4 +1,4 @@
-import type { ArrayConfig, ArrayMetrics, Beam, GainMap, PatternGrid } from './core/array';
+import type { ArrayConfig, ArrayMetrics, Beam, GainMap, PatternCutPoint, PatternGrid } from './core/array';
 import type { AntennaFrame } from './core/geometry';
 import type { LinkResult } from './core/link';
 import type { OrbitElements, OrbitState } from './core/orbit';
@@ -9,6 +9,30 @@ export type Mode = 'global' | 'spot' | 'cellular' | 'shaped';
 export type CameraMode = 'earth' | 'sat' | 'follow';
 export type Quality = 'high' | 'medium' | 'low';
 export type TerminalId = 'vsat60' | 'vsat45' | 'isotropic';
+export type QuantMode = 'ideal' | 'realtime' | 'analysis';
+
+export interface QuantState {
+  mode: QuantMode;
+  phaseBits: number;
+  /** 0 = taper fijo; 3–6 = VGA con cuantización de amplitud. */
+  ampBits: number;
+  phaseRmsDeg: number;
+  ampRmsDb: number;
+  seed: number;
+}
+
+export interface QuantInfo {
+  mode: QuantMode;
+  resolution: number;
+  computeMs: number;
+  stale: boolean;
+  idealMetrics: ArrayMetrics | null;
+  idealPattern: PatternGrid | null;
+  activeCut: PatternCutPoint[] | null;
+  idealCut: PatternCutPoint[] | null;
+  pointingErrorDeg: number | null;
+  note: string;
+}
 
 export interface SystemInfo {
   activeBeams: number;
@@ -44,6 +68,9 @@ export interface Derived {
   gainMap: GainMap;
   phase: PhaseView;
   link: LinkResult | null;
+  activePattern: PatternGrid;
+  activeMetrics: ArrayMetrics;
+  quant: QuantInfo | null;
   beamSet: {
     visibleCells: number;
     totalCells: number;
@@ -85,6 +112,7 @@ export interface SimState {
   bandwidthMHz: number;
   rainMarginDb: number;
   usersPerBeam: number;
+  quant: QuantState;
   fpsCap: number;
   quality: Quality;
   tourStep: number;
@@ -144,6 +172,14 @@ export function defaultState(): SimState {
     bandwidthMHz: 100,
     rainMarginDb: 0,
     usersPerBeam: 20,
+    quant: {
+      mode: 'realtime',
+      phaseBits: 5,
+      ampBits: 4,
+      phaseRmsDeg: 2,
+      ampRmsDb: 0.2,
+      seed: 12345,
+    },
     fpsCap,
     quality,
     tourStep: 0,

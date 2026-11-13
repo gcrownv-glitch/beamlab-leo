@@ -195,6 +195,12 @@ class App {
       this.refresh();
       this.ui.toast(`Celda seleccionada a ${fmtLat(lat)} ${fmtLon(lon)}`);
     },
+    setQuant: (patch) => {
+      this.engine.setQuant(patch);
+      this.engine.update();
+      this.ui.syncControls(this.state);
+      this.ui.update(this.state, this.engine.derived);
+    },
     screenshot: () => {
       this.scene?.capture();
       this.ui.toast('Captura guardada.');

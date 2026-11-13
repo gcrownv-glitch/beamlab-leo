@@ -409,7 +409,8 @@ export function patternCut(
   return out;
 }
 
-/** Crea la grilla de patrón a partir de excitaciones complejas (síntesis). */export function patternFromWeights(
+/** Crea la grilla de patrón a partir de excitaciones complejas (síntesis). */
+export function patternFromWeights(
   cfg: ArrayConfig,
   re: Float32Array,
   im: Float32Array,
@@ -418,26 +419,44 @@ export function patternCut(
 ): PatternGrid {
   const step = (2 * half) / (size - 1);
   const power = new Float32Array(size * size);
+  const n = cfg.n;
+  const xm = new Float64Array(n);
+  const yn = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    xm[i] = (i - (n - 1) / 2) * cfg.dx;
+    yn[i] = (i - (n - 1) / 2) * cfg.dy;
+  }
+  // Bases trigonométricas por fila/columna: evita recalcular senos y cosenos
+  // para cada elemento en cada punto de la grilla.
+  const cx = new Float64Array(n);
+  const sx = new Float64Array(n);
+  const cy = new Float64Array(n);
+  const sy = new Float64Array(n);
   let max = 0;
   for (let iv = 0; iv < size; iv++) {
     const dv = -half + iv * step;
+    for (let iy = 0; iy < n; iy++) {
+      const phy = TWO_PI * yn[iy] * dv;
+      cy[iy] = Math.cos(phy);
+      sy[iy] = Math.sin(phy);
+    }
     const row = iv * size;
     for (let iu = 0; iu < size; iu++) {
       const du = -half + iu * step;
-      let pr = 0, pi = 0;
+      for (let ix = 0; ix < n; ix++) {
+        const phx = TWO_PI * xm[ix] * du;
+        cx[ix] = Math.cos(phx);
+        sx[ix] = Math.sin(phx);
+      }
+      let pr = 0;
+      let pi = 0;
       let idx = 0;
-      for (let iy = 0; iy < cfg.n; iy++) {
-        const yn = (iy - (cfg.n - 1) / 2) * cfg.dy;
-        const phy = TWO_PI * yn * dv;
-        const cy = Math.cos(phy), sy = Math.sin(phy);
-        for (let ix = 0; ix < cfg.n; ix++) {
-          const xm = (ix - (cfg.n - 1) / 2) * cfg.dx;
-          const phx = TWO_PI * xm * du;
-          const cx = Math.cos(phx), sx = Math.sin(phx);
-          // Fase total = fase_x + fase_y.
-          const c = cx * cy - sx * sy;
-          const s = sx * cy + cx * sy;
-          // (wre + j wim)(c + j s)
+      for (let iy = 0; iy < n; iy++) {
+        const cyv = cy[iy];
+        const syv = sy[iy];
+        for (let ix = 0; ix < n; ix++) {
+          const c = cx[ix] * cyv - sx[ix] * syv;
+          const s = sx[ix] * cyv + cx[ix] * syv;
           pr += re[idx] * c - im[idx] * s;
           pi += re[idx] * s + im[idx] * c;
           idx++;
@@ -494,7 +513,63 @@ export function gridDirectivity(grid: PatternGrid, q: number): number {
   return 10 * Math.log10(Math.max(4 * Math.PI / Math.max(integral, 1e-12), 1e-9));
 }
 
-/** Corte del patrón absoluto alrededor de una dirección (u0,v0). */
+/** Corte exacto del patrón a partir de pesos complejos, sin interpolar la grilla 2D. */
+export interface PatternCutPoint {
+  angle: number;
+  db: number;
+}
+
+export function cutFromWeights(
+  cfg: ArrayConfig,
+  re: Float32Array,
+  im: Float32Array,
+  beam: Beam,
+  q: number,
+  spanDeg = 30,
+  samples = 481,
+): PatternCutPoint[] {
+  const w0 = Math.sqrt(Math.max(0, 1 - beam.u * beam.u - beam.v * beam.v));
+  const d: [number, number, number] = [beam.u, beam.v, w0];
+  let axis: [number, number, number] = [beam.v, -beam.u, 0];
+  const al = Math.hypot(axis[0], axis[1], axis[2]);
+  axis = al > 1e-9 ? [axis[0] / al, axis[1] / al, 0] : [1, 0, 0];
+
+  const afAt = (u: number, v: number): number => {
+    const w2 = 1 - u * u - v * v;
+    if (w2 <= 1e-9) return 0;
+    let pr = 0;
+    let pi = 0;
+    let idx = 0;
+    for (let iy = 0; iy < cfg.n; iy++) {
+      const yn = (iy - (cfg.n - 1) / 2) * cfg.dy;
+      for (let ix = 0; ix < cfg.n; ix++) {
+        const xm = (ix - (cfg.n - 1) / 2) * cfg.dx;
+        const ph = TWO_PI * (xm * u + yn * v);
+        const c = Math.cos(ph);
+        const s = Math.sin(ph);
+        pr += re[idx] * c - im[idx] * s;
+        pi += re[idx] * s + im[idx] * c;
+        idx++;
+      }
+    }
+    return (pr * pr + pi * pi) * Math.pow(w2, q);
+  };
+
+  const peak = afAt(d[0], d[1]);
+  const span = (spanDeg * Math.PI) / 180;
+  const out: PatternCutPoint[] = [];
+  for (let i = 0; i < samples; i++) {
+    const delta = -span + (2 * span * i) / (samples - 1);
+    const r = rotateAround(d, axis, delta);
+    const p = afAt(r[0], r[1]);
+    out.push({
+      angle: (delta * 180) / Math.PI,
+      db: 10 * Math.log10(Math.max(p, 1e-12) / Math.max(peak, 1e-12)),
+    });
+  }
+  return out;
+}
+
 export function patternCutAt(
   grid: PatternGrid,
   u0: number,

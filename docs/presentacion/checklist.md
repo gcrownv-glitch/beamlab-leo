@@ -4,7 +4,7 @@
 
 - [ ] `npm install` funciona en la laptop que se llevará a clase.
 - [ ] `npm run build` termina sin errores.
-- [ ] `npm test` pasa las 22 pruebas.
+- [ ] `npm test` pasa las 26 pruebas.
 - [ ] Probar la demo completa con la **Guía** de principio a fin.
 - [ ] Guardar una copia del repositorio (USB o carpeta comprimida) y las capturas de `../img/`.
 

@@ -1,4 +1,4 @@
-# BeamLab LEO
+﻿# BeamLab LEO
 
 **Simulador interactivo de órbita, arreglos en fase y beamforming satelital.**
 
@@ -6,7 +6,7 @@
 [![Deploy](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml/badge.svg)](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-3da639?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20.19-339933?style=flat-square)](package.json)
-[![Tests](https://img.shields.io/badge/tests-22%20passing-22d3ee?style=flat-square)](tests)
+[![Tests](https://img.shields.io/badge/tests-26%20passing-22d3ee?style=flat-square)](tests)
 
 **Demo:** <https://gcrownv-glitch.github.io/beamlab-leo/><br>
 **Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>
@@ -19,6 +19,7 @@ BeamLab LEO muestra, en un globo 3D, cómo un satélite en órbita baja (LEO) il
 
 - **Órbita:** Kepler, corrección secular J2, GMST, ECI/ECEF, traza, huella y distancia oblicua.
 - **Arreglo en fase:** 4×4 a 32×32, separación en λ, taper Uniforme/Kaiser/Hann, mapa de fase, HPBW, SLL, directividad, lóbulos de difracción.
+- **Cuantización realista:** fase de 3–7 bits, amplitud de 3–5 bits o taper fijo, errores residuales de fase/amplitud, patrón exacto del haz activo y modos tiempo real/análisis.
 - **Cobertura:** haz global, haz puntual, celdas fijas a Tierra con reutilización 3/4/7, selección de celda y fracción de cobertura.
 - **Haz conformado:** síntesis por mínimos cuadrados complejos con regularización y gradiente conjugado; muestreo sobre la superficie terrestre.
 - **Enlace:** EIRP, FSPL, atmósfera, margen de lluvia, G/T, C/N₀, C/N, tabla MODCOD DVB-S2X, outage, capacidad por haz, por usuario y agregada del sistema.
@@ -90,6 +91,17 @@ a_mn = w_m w_n · exp[−j k (x_m u₀ + y_n v₀)]
 
 El patrón del elemento es `g_e(θ) = cos^q θ` en campo y `cos^{2q} θ` en potencia. El simulador calcula directividad integrando el patrón en el hemisferio, HPBW por cruce de −3 dB, SLL y el aviso de grating lobes cuando `d > 0,5 λ`.
 
+### Cuantización
+
+Un desfasador de `b` bits tiene `2^b` estados y un paso `Δφ = 2π/2^b`; un VGA de `a` bits cuantiza la amplitud. Sobre eso se añade un error residual gaussiano de calibración/temperatura.
+
+El haz activo se reconstruye con los pesos cuantizados y se calcula su patrón exacto. Para HPBW/SLL se usa un **corte directo de 481 puntos**, no una interpolación de la rejilla 2D. Hay dos modos:
+
+- **Tiempo real:** patrón 2D 65×65 y corte exacto, actualizado con throttle (~4 Hz).
+- **Análisis:** patrón 257×257 bajo demanda.
+
+Configuración por defecto: 5 bits de fase, 4 bits de amplitud, 2° RMS de fase y 0,2 dB RMS de amplitud. El botón **Ideal** desactiva cuantización y errores para comparar.
+
 ### Haz conformado
 
 Se muestrea un círculo de radio `R` sobre la superficie terrestre, se mapea a direcciones `(u,v)` y se resuelve
@@ -122,7 +134,7 @@ Configuración por defecto:
 | Canal | 100 MHz |
 | Terminal | VSAT 0,6 m, 34 dBi, NF 1,5 dB |
 | Usuarios/haz | 20 |
-| Resultado típico | C/N ≈ 29,6 dB, 64APSK 5/6, ≈500 Mbps/haz, ≈25 Mbps/usuario |
+| Resultado típico | C/N ≈ 30,3 dB, 64APSK 5/6, ≈500 Mbps/haz, ≈25 Mbps/usuario |
 
 Con la antena isotrópica (0 dBi) el mismo enlace queda en outage: sirve para comparar y entender por qué la antena del usuario importa.
 
@@ -148,7 +160,7 @@ src/
   main.ts           texturas, bucle y manejadores
   state.ts          estado y tipos
 public/assets/      texturas de la Tierra
-tests/              22 pruebas
+tests/              26 pruebas
 docs/               teoría, despliegue y presentación
 ```
 
@@ -158,7 +170,7 @@ docs/               teoría, despliegue y presentación
 npm test
 ```
 
-22 pruebas cubren tiempo/GMST, órbita y J2, geometría del horizonte, base de antena, arreglo/fase/taper, síntesis y presupuesto de enlace (VSAT, isotrópica, lluvia y ancho de banda).
+26 pruebas cubren tiempo/GMST, órbita y J2, geometría del horizonte, base de antena, arreglo/fase/taper, cuantización, síntesis y presupuesto de enlace (VSAT, isotrópica, lluvia y ancho de banda).
 
 ## Despliegue
 
@@ -177,7 +189,8 @@ El repositorio publica en GitHub Pages con `.github/workflows/deploy.yml`: insta
 Modelo docente, no certificado:
 
 - Tierra esférica, sin elipsoide WGS-84 ni geoide.
-- Arreglo ideal: sin acoplamiento mutuo, cuantización de fase/amplitud, fallos de elementos ni errores de calibración.
+- Arreglo ideal en lo relativo a acoplamiento mutuo, fallos de elementos y calibración perfecta; la cuantización y los errores residuales sí están modelados.
+- El patrón exacto se calcula para el **haz activo**; en celular el mapa multihaz sigue siendo ideal para mantener interacción.
 - Sin interferencia co-canal ni C/I por reutilización; la cobertura celular se limita a 2.500 celdas y muestra la fracción cubierta.
 - Sin uplink, feeder link ni handover entre satélites.
 - La lluvia es un margen seleccionable, no un modelo de disponibilidad.

@@ -5,12 +5,16 @@ import {
   type GainMap,
   type PatternGrid,
   beamPhaseMap,
+  compositePower,
   computeBasePattern,
   computeGainMap,
   computeMetrics,
   gridDirectivity,
   patternCutAt,
+  patternFromWeights,
   peakDirection,
+  cutFromWeights,
+  type PatternCutPoint,
   qForHpbw,
 } from './core/array';
 import { DEG, R_EARTH } from './core/constants';
@@ -20,6 +24,7 @@ import {
   type AntennaFrame,
 } from './core/geometry';
 import { linkBudget } from './core/link';
+import { quantizedBeamWeights, quantizedComplexWeights } from './core/quantization';
 import {
   antennaBasis,
   ecefToGeodetic,
@@ -43,7 +48,7 @@ import {
   type GroundCell,
 } from './core/regions';
 import { synthesizeCoverage, type SynthesisResult } from './core/synthesis';
-import type { Derived, Mode, PhaseView, ShapedInfo, SimState, SystemInfo } from './state';
+import type { Derived, Mode, PhaseView, QuantInfo, ShapedInfo, SimState, SystemInfo } from './state';
 
 const ZERO_BEAM: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 0 };
 const SHAPED_BEAM: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 1 };
@@ -64,10 +69,29 @@ export class Engine {
   private synth: SynthesisResult | null = null;
   private synthKey = '';
   private synthInfo: ShapedInfo | null = null;
+  private synthIdealMetrics: ArrayMetrics | null = null;
+  private synthIdealPattern: PatternGrid | null = null;
+  private synthMetrics: ArrayMetrics | null = null;
+  private synthCut: PatternCutPoint[] | null = null;
+  private synthIdealCut: PatternCutPoint[] | null = null;
+  private synthComputeMs = 0;
 
   private cells: GroundCell[] = [];
   private cellKey = '';
   private cellSpacing = 0;
+
+  private quantKey = '';
+  private quantPattern: PatternGrid | null = null;
+  private quantMetrics: ArrayMetrics | null = null;
+  private quantIdealMetrics: ArrayMetrics | null = null;
+  private quantIdealPattern: PatternGrid | null = null;
+  private quantCut: PatternCutPoint[] | null = null;
+  private quantIdealCut: PatternCutPoint[] | null = null;
+  private quantPointing = 0;
+  private quantPhases: Float64Array | null = null;
+  private quantAmps: Float64Array | null = null;
+  private quantMs = 0;
+  private lastQuantMs = 0;
 
   private patternDirty = true;
   private beamsDirty = true;
@@ -112,6 +136,7 @@ export class Engine {
     if (this.state.mode === mode) return;
     this.state.mode = mode;
     if (mode !== 'cellular') this.state.cellTarget = null;
+    this.resetQuant();
     this.beamsDirty = true;
     this.gainDirty = true;
   }
@@ -120,12 +145,18 @@ export class Engine {
     this.state.cellTarget = { lat, lon };
     this.cachedActive = null;
     this.cachedMetrics = null;
+    this.resetQuant();
   }
 
   private resetSynthesis() {
     this.synth = null;
     this.synthKey = '';
     this.synthInfo = null;
+    this.synthIdealMetrics = null;
+    this.synthIdealPattern = null;
+    this.synthMetrics = null;
+    this.synthCut = null;
+    this.synthIdealCut = null;
     this.cachedMetrics = null;
     this.cachedActive = null;
     this.cachedPhase = null;
@@ -133,9 +164,37 @@ export class Engine {
     this.gainDirty = true;
   }
 
+  private resetQuant() {
+    this.quantKey = '';
+    this.quantPattern = null;
+    this.quantMetrics = null;
+    this.quantIdealMetrics = null;
+    this.quantIdealPattern = null;
+    this.quantCut = null;
+    this.quantIdealCut = null;
+    this.quantPhases = null;
+    this.quantAmps = null;
+    this.quantPointing = 0;
+    this.quantMs = 0;
+    this.lastQuantMs = 0;
+  }
+
+  invalidateQuant() {
+    this.resetQuant();
+    this.gainDirty = true;
+  }
+
+  setQuant(patch: Partial<SimState['quant']>) {
+    Object.assign(this.state.quant, patch);
+    this.resetQuant();
+    if (this.state.mode === 'shaped') this.resetSynthesis();
+    this.gainDirty = true;
+  }
+
   setAntenna(patch: Partial<ArrayConfig>) {
     Object.assign(this.state.antenna, patch);
     this.resetSynthesis();
+    this.resetQuant();
     this.cellKey = '';
     this.patternDirty = true;
   }
@@ -144,6 +203,7 @@ export class Engine {
     this.state.antenna.freqGHz = freqGHz;
     this.hornCfg = { ...this.hornCfg, freqGHz };
     this.resetSynthesis();
+    this.resetQuant();
     this.patternDirty = true;
   }
 
@@ -152,6 +212,7 @@ export class Engine {
     if (presetId) this.state.presetId = presetId;
     this.cellKey = '';
     this.resetSynthesis();
+    this.resetQuant();
     this.lastBeamSat = { x: Infinity, y: Infinity, z: Infinity };
     this.beamsDirty = true;
   }
@@ -161,6 +222,7 @@ export class Engine {
     this.state.spotFixed = true;
     this.bodyBeam = null;
     this.beamsDirty = true;
+    this.resetQuant();
   }
 
   setSpotFixed(fixed: boolean) {
@@ -169,16 +231,19 @@ export class Engine {
     }
     this.state.spotFixed = fixed;
     this.beamsDirty = true;
+    this.resetQuant();
   }
 
   setShapedCenter(lat: number, lon: number) {
     this.state.shapedCenter = { lat, lon };
     this.resetSynthesis();
+    this.resetQuant();
   }
 
   setShapedRadius(km: number) {
     this.state.shapedRadiusKm = km;
     this.resetSynthesis();
+    this.resetQuant();
   }
 
   setRegion(region: SimState['region']) {
@@ -187,6 +252,7 @@ export class Engine {
     this.cellKey = '';
     this.beamsDirty = true;
     this.gainDirty = true;
+    this.resetQuant();
   }
 
   setReuse(reuse: number) {
@@ -194,6 +260,7 @@ export class Engine {
     this.state.cellTarget = null;
     this.beamsDirty = true;
     this.gainDirty = true;
+    this.resetQuant();
   }
 
   update(now = performance.now()) {
@@ -275,7 +342,7 @@ export class Engine {
 
     if (beamsChanged || !this.cachedMetrics || active !== this.cachedActive) {
       if (source === 'synthesis' && pattern.kind === 'synthesis') {
-        this.cachedMetrics = this.synthesisMetrics(pattern, patternQ);
+        this.cachedMetrics = this.patternMetrics(pattern, patternQ);
       } else {
         const cfg = source === 'horn' ? this.hornCfg : s.antenna;
         this.cachedMetrics = computeMetrics(cfg, pattern, active ?? ZERO_BEAM);
@@ -285,6 +352,94 @@ export class Engine {
     }
     const metrics = this.cachedMetrics;
     if (!metrics) throw new Error('sin métricas');
+
+    const quantEnabled = s.quant.mode !== 'ideal' && active !== null && source !== 'horn';
+    let activePattern: PatternGrid = pattern;
+    let activeMetrics: ArrayMetrics = metrics;
+    let quantInfo: QuantInfo | null = null;
+    let quantPhases: Float64Array | null = null;
+    let quantAmps: Float64Array | null = null;
+
+    if (quantEnabled && source === 'synthesis' && this.synth) {
+      activePattern = this.synth.grid;
+      activeMetrics = this.synthMetrics ?? this.patternMetrics(activePattern, s.antenna.q);
+      quantInfo = {
+        mode: s.quant.mode,
+        resolution: activePattern.size,
+        computeMs: this.synthComputeMs,
+        stale: false,
+        idealMetrics: this.synthIdealMetrics,
+        idealPattern: this.synthIdealPattern,
+        activeCut: this.synthCut,
+        idealCut: this.synthIdealCut,
+        pointingErrorDeg: active ? this.pointingError(activePattern, active) : null,
+        note: 'Síntesis conformada cuantizada',
+      };
+      if (activePattern.weightsRe && activePattern.weightsIm) {
+        const n = s.antenna.n;
+        const phases = new Float64Array(n * n);
+        const amps = new Float64Array(n * n);
+        for (let i = 0; i < n * n; i++) {
+          phases[i] = Math.atan2(activePattern.weightsIm[i], activePattern.weightsRe[i]);
+          amps[i] = Math.hypot(activePattern.weightsRe[i], activePattern.weightsIm[i]);
+        }
+        this.cachedPhase = { phases, amps, n };
+      }
+    } else if (quantEnabled && active) {
+      const key = [
+        s.quant.mode, s.quant.phaseBits, s.quant.ampBits, s.quant.phaseRmsDeg,
+        s.quant.ampRmsDb, s.quant.seed, active.u.toFixed(5), active.v.toFixed(5),
+        s.antenna.n, s.antenna.dx, s.antenna.dy, s.antenna.freqGHz, s.antenna.taper, s.antenna.q, source,
+      ].join('|');
+      const interval = s.quant.mode === 'analysis' ? 900 : 220;
+      const due = !this.quantPattern || (key !== this.quantKey && now - this.lastQuantMs >= interval);
+      if (due) {
+        const t0 = performance.now();
+        const size = s.quant.mode === 'analysis' ? 257 : 65;
+        const qw = quantizedBeamWeights(s.antenna, active, s.quant);
+        const qp = patternFromWeights(s.antenna, qw.re, qw.im, size, 1.35);
+        const idealWeights = quantizedBeamWeights(s.antenna, active, {
+          phaseBits: 0, ampBits: 0, phaseRmsDeg: 0, ampRmsDb: 0, seed: 0,
+        });
+        const idealPattern = patternFromWeights(s.antenna, idealWeights.re, idealWeights.im, size, 1.35);
+        const span = Math.min(60, Math.max(20, this.baseMetrics.hpbwDeg * 4));
+        const cut = cutFromWeights(s.antenna, qw.re, qw.im, active, s.antenna.q, span, 481);
+        const idealCut = cutFromWeights(s.antenna, idealWeights.re, idealWeights.im, active, s.antenna.q, span, 481);
+        this.quantPattern = qp;
+        this.quantMetrics = this.metricsFromCut(cut, gridDirectivity(qp, s.antenna.q));
+        this.quantIdealPattern = idealPattern;
+        this.quantCut = cut;
+        this.quantIdealCut = idealCut;
+        this.quantIdealMetrics = this.metricsFromCut(idealCut, gridDirectivity(idealPattern, s.antenna.q));
+        this.quantPhases = qw.phases;
+        this.quantAmps = qw.amps;
+        this.quantPointing = this.pointingError(qp, active);
+        this.quantMs = performance.now() - t0;
+        this.quantKey = key;
+        this.lastQuantMs = now;
+        this.cachedPhase = null;
+      }
+      if (this.quantPattern && this.quantMetrics) {
+        activePattern = this.quantPattern;
+        activeMetrics = this.quantMetrics;
+        quantPhases = this.quantPhases;
+        quantAmps = this.quantAmps;
+        quantInfo = {
+          mode: s.quant.mode,
+          resolution: this.quantPattern.size,
+          computeMs: this.quantMs,
+          stale: false,
+          idealMetrics: this.quantIdealMetrics,
+          idealPattern: this.quantIdealPattern,
+          activeCut: this.quantCut,
+          idealCut: this.quantIdealCut,
+          pointingErrorDeg: this.quantPointing,
+          note: s.mode === 'cellular'
+            ? 'Haz activo exacto; mapa multihaz ideal'
+            : 'Patrón exacto del haz activo',
+        };
+      }
+    }
 
     if (!this.cachedPhase) {
       if (source === 'synthesis' && pattern.weightsRe && pattern.weightsIm) {
@@ -296,6 +451,8 @@ export class Engine {
           amps[i] = Math.hypot(pattern.weightsRe[i], pattern.weightsIm[i]);
         }
         this.cachedPhase = { phases, amps, n };
+      } else if (quantPhases && quantAmps) {
+        this.cachedPhase = { phases: quantPhases, amps: quantAmps, n: s.antenna.n };
       } else if (active) {
         const cfg = source === 'horn' ? this.hornCfg : s.antenna;
         const map = beamPhaseMap(cfg, active);
@@ -313,6 +470,8 @@ export class Engine {
       const size = count > 1600 ? 128 : count > 800 ? 160 : count > 400 ? 192 : count > 180 ? 224 : count > 80 ? 256 : count > 30 ? 320 : 384;
       if (source === 'synthesis') {
         gainMap = computeGainMap(pattern, [SHAPED_BEAM], patternQ, size);
+      } else if (quantEnabled && s.mode !== 'cellular' && activePattern !== pattern && activePattern) {
+        gainMap = computeGainMap(activePattern, [SHAPED_BEAM], patternQ, size);
       } else {
         gainMap = computeGainMap(pattern, beams.length ? beams : [ZERO_BEAM], patternQ, size, s.mode === 'cellular' ? 'max' : 'sum');
       }
@@ -344,7 +503,7 @@ export class Engine {
           slantKm: rangeKm,
           freqGHz: s.antenna.freqGHz,
           txPowerW: s.ptxW,
-          txGainDbi: metrics.gainDb,
+          txGainDbi: activeMetrics.gainDb,
           rxGainDbi: s.rxGainDbi,
           noiseFigureDb: s.noiseFigureDb,
           bandwidthMHz: s.bandwidthMHz,
@@ -370,6 +529,9 @@ export class Engine {
       pattern,
       patternQ,
       metrics,
+      activePattern,
+      activeMetrics,
+      quant: quantInfo,
       beams,
       activeBeam: active,
       gainMap,
@@ -502,9 +664,10 @@ export class Engine {
     return best;
   }
 
-  private synthesisMetrics(pattern: PatternGrid, q: number): ArrayMetrics {
+  private patternMetrics(pattern: PatternGrid, q: number): ArrayMetrics {
     const peak = peakDirection(pattern);
-    const cut = patternCutAt(pattern, peak.u, peak.v, q, 60, 481);
+    const span = Math.min(60, Math.max(20, this.baseMetrics.hpbwDeg * 4));
+    const cut = patternCutAt(pattern, peak.u, peak.v, q, span, 481);
     let hpbw = 0;
     let mid = 0;
     for (let i = 0; i < cut.length; i++) {
@@ -537,6 +700,42 @@ export class Engine {
     };
   }
 
+  private metricsFromCut(cut: PatternCutPoint[], directivityDb: number): ArrayMetrics {
+    let mid = 0;
+    for (let i = 0; i < cut.length; i++) {
+      if (Math.abs(cut[i].angle) < Math.abs(cut[mid].angle)) mid = i;
+    }
+    let li = mid;
+    let ri = mid;
+    while (li > 0 && cut[li].db > -3) li--;
+    while (ri < cut.length - 1 && cut[ri].db > -3) ri++;
+    const hpbw = Math.abs(cut[ri].angle - cut[li].angle);
+    let sll = -100;
+    for (const p of cut) {
+      if (Math.abs(p.angle) < hpbw * 1.05) continue;
+      sll = Math.max(sll, p.db);
+    }
+    const ap = this.state.antenna;
+    return {
+      directivityDb,
+      gainDb: directivityDb + 10 * Math.log10(Math.max(ap.efficiency, 1e-6)),
+      hpbwDeg: hpbw,
+      sllDb: sll,
+      apertureM: this.baseMetrics.apertureM,
+      lambdaM: this.baseMetrics.lambdaM,
+      elementGainDb: this.baseMetrics.elementGainDb,
+      grating: this.baseMetrics.grating,
+    };
+  }
+
+  private pointingError(pattern: PatternGrid, beam: Beam): number {
+    const peak = peakDirection(pattern);
+    const w0 = Math.sqrt(Math.max(0, 1 - beam.u * beam.u - beam.v * beam.v));
+    const wp = Math.sqrt(Math.max(0, 1 - peak.u * peak.u - peak.v * peak.v));
+    const dot = Math.max(-1, Math.min(1, peak.u * beam.u + peak.v * beam.v + wp * w0));
+    return Math.acos(dot) * (180 / Math.PI);
+  }
+
   private synthesisKey(): string {
     const s = this.state;
     const a = s.antenna;
@@ -546,12 +745,14 @@ export class Engine {
       a.n, a.dx, a.dy, a.freqGHz, a.taper, a.q,
       s.simTime, o.a.toFixed(3), o.e.toFixed(6), o.i.toFixed(6), o.raan.toFixed(6),
       o.argp.toFixed(6), o.M0.toFixed(6), o.epoch,
+      s.quant.mode, s.quant.phaseBits, s.quant.ampBits, s.quant.phaseRmsDeg, s.quant.ampRmsDb, s.quant.seed,
     ].join('|');
   }
 
   /** Diseña la fase/amplitud para iluminar la zona circular seleccionada. */
   synthesizeShaped(): ShapedInfo {
     const s = this.state;
+    const t0 = performance.now();
     const sat = propagate(s.orbit, s.simTime, true);
     const frame = antennaBasis(sat.rEcef);
     const center = anglesForGroundPoint(sat.rEcef, frame, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG);
@@ -629,23 +830,51 @@ export class Engine {
     };
 
     const result = synthesizeCoverage(s.antenna, thin(inside, 900), thin(outside, 500), 1e-2);
-    const directivity = gridDirectivity(result.grid, s.antenna.q);
+    const centerBeam: Beam = { id: 0, u: center.u, v: center.v, amp: 1, color: 0 };
+    const span = Math.min(60, Math.max(20, this.baseMetrics.hpbwDeg * 4));
+    const idealCut = cutFromWeights(s.antenna, result.re, result.im, centerBeam, s.antenna.q, span, 481);
+    this.synthIdealPattern = result.grid;
+    this.synthIdealCut = idealCut;
+    this.synthIdealMetrics = this.metricsFromCut(idealCut, gridDirectivity(result.grid, s.antenna.q));
+    this.synthCut = idealCut;
+    this.synthMetrics = this.synthIdealMetrics;
+    let finalResult = result;
+    if (s.quant.mode !== 'ideal') {
+      const qw = quantizedComplexWeights(s.antenna, result.re, result.im, s.quant);
+      const qgrid = patternFromWeights(s.antenna, qw.re, qw.im);
+      const measured = this.measureSynthesis(qgrid, inside, outside, s.antenna.q);
+      const qCut = cutFromWeights(s.antenna, qw.re, qw.im, centerBeam, s.antenna.q, span, 481);
+      this.synthMetrics = this.metricsFromCut(qCut, gridDirectivity(qgrid, s.antenna.q));
+      this.synthCut = qCut;
+      finalResult = {
+        ...result,
+        re: qw.re,
+        im: qw.im,
+        grid: qgrid,
+        insideCoverage: measured.coverage,
+        insideMeanDb: measured.mean,
+        outsideMaxDb: measured.spill,
+        conditionNote: `${result.conditionNote} · cuantizado`,
+      };
+    }
+    const directivity = gridDirectivity(finalResult.grid, s.antenna.q);
     const dMax =
       10 * Math.log10(4 * Math.PI * (s.antenna.n * s.antenna.dx) * (s.antenna.n * s.antenna.dy));
     if (directivity > dMax + 1.5) {
       throw new Error('La síntesis no converge para esta geometría. Prueba otro radio o vuelve a intentar.');
     }
-    if (result.insideCoverage < 0.25) {
+    if (finalResult.insideCoverage < 0.25) {
       throw new Error('No se logró cubrir la zona. Reduce el radio o aumenta el número de elementos.');
     }
-    this.synth = result;
+    this.synth = finalResult;
+    this.synthComputeMs = performance.now() - t0;
     this.synthKey = this.synthesisKey();
     const info: ShapedInfo = {
-      coverage: result.insideCoverage,
-      spillDb: result.outsideMaxDb,
+      coverage: finalResult.insideCoverage,
+      spillDb: finalResult.outsideMaxDb,
       directivityDb: directivity,
       radiusKm: s.shapedRadiusKm,
-      meanDb: result.insideMeanDb,
+      meanDb: finalResult.insideMeanDb,
     };
     this.synthInfo = info;
     this.beamsDirty = true;
@@ -653,5 +882,35 @@ export class Engine {
     this.cachedPhase = null;
     this.cachedMetrics = null;
     return info;
+  }
+
+  private measureSynthesis(
+    grid: PatternGrid,
+    inside: DirectionSample[],
+    outside: DirectionSample[],
+    q: number,
+  ): { coverage: number; mean: number; spill: number } {
+    const beam: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 0 };
+    let covered = 0;
+    let count = 0;
+    let sum = 0;
+    for (const p of inside) {
+      if (!p.inside) continue;
+      count++;
+      const power = compositePower(grid, [beam], p.u, p.v, q);
+      const db = 10 * Math.log10(Math.max(power, 1e-12));
+      if (db >= -3) covered++;
+      sum += db;
+    }
+    let spill = -Infinity;
+    for (const p of outside) {
+      const power = compositePower(grid, [beam], p.u, p.v, q);
+      spill = Math.max(spill, 10 * Math.log10(Math.max(power, 1e-12)));
+    }
+    return {
+      coverage: covered / Math.max(1, count),
+      mean: sum / Math.max(1, count),
+      spill,
+    };
   }
 }

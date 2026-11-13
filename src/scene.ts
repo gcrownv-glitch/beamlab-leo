@@ -732,7 +732,7 @@ export class SceneView {
 
     for (let bi = 0; bi < ringCount; bi += stride) {
       const b = beams[bi];
-      const ring = footprintRing(satEcef, frame, b, (d.metrics.hpbwDeg * DEG) / 2, nSamples);
+      const ring = footprintRing(satEcef, frame, b, (d.activeMetrics.hpbwDeg * DEG) / 2, nSamples);
       if (ring.length < 3) continue;
       col.setHex(BEAM_COLORS[b.color % BEAM_COLORS.length]);
       for (let i = 0; i < ring.length; i++) {
@@ -762,7 +762,7 @@ export class SceneView {
 
     const active = d.activeBeam;
     if (active && beams.length > 0) {
-      const ring = footprintRing(satEcef, frame, active, (d.metrics.hpbwDeg * DEG) / 2, 96);
+      const ring = footprintRing(satEcef, frame, active, (d.activeMetrics.hpbwDeg * DEG) / 2, 96);
       const ar = this.activeRing.geometry.getAttribute('position') as THREE.BufferAttribute;
       if (ring.length >= 3) {
         for (let i = 0; i < ar.count; i++) {
@@ -777,7 +777,7 @@ export class SceneView {
       const pt = activeGroundPoint(d);
       if (pt) {
         const up = new THREE.Vector3(pt.x, pt.y, pt.z).normalize();
-        const footKm = (d.link?.slantKm ?? d.sat.alt) * Math.tan((d.metrics.hpbwDeg * DEG) / 2);
+        const footKm = (d.link?.slantKm ?? d.sat.alt) * Math.tan((d.activeMetrics.hpbwDeg * DEG) / 2);
         const rad = Math.max(0.004, footKm * KM * 1.05);
         this.activeDisc.position.copy(new THREE.Vector3(pt.x * KM, pt.y * KM, pt.z * KM)).addScaledVector(up, 0.002);
         this.activeDisc.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), up);

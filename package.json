@@ -1,7 +1,7 @@
 {
   "name": "beamlab-leo",
   "private": true,
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "Simulador interactivo de órbita, arreglos en fase y beamforming satelital en órbita LEO",
   "homepage": "https://gcrownv-glitch.github.io/beamlab-leo/",
   "repository": {

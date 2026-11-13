@@ -11,7 +11,7 @@ import { ORBIT_PRESETS } from './core/presets';
 import type { RegionId } from './core/regions';
 import { drawPatternChart, drawPhaseMap, type PatternPoint } from './charts';
 import { BEAM_HEX, REUSE_LABELS } from './palette';
-import type { CameraMode, Derived, Mode, PhaseView, Quality, SimState, TerminalId } from './state';
+import type { CameraMode, Derived, Mode, PhaseView, Quality, QuantMode, QuantState, SimState, TerminalId } from './state';
 
 export type ToggleKey =
   | 'showOrbit'
@@ -48,6 +48,7 @@ export interface UIHandlers {
   setRainMargin(db: number): void;
   setUsers(n: number): void;
   setCellTarget(lat: number, lon: number): void;
+  setQuant(patch: Partial<QuantState>): void;
   screenshot(): void;
   setFpsCap(cap: number): void;
   setQuality(quality: Quality): void;
@@ -207,6 +208,24 @@ export class UI {
     });
     ($('rain-margin') as HTMLSelectElement).addEventListener('change', (e) => {
       this.h.setRainMargin(Number((e.target as HTMLSelectElement).value));
+    });
+    ($('quant-mode') as HTMLSelectElement).addEventListener('change', (e) => {
+      this.h.setQuant({ mode: (e.target as HTMLSelectElement).value as QuantMode });
+    });
+    ($('quant-phase') as HTMLSelectElement).addEventListener('change', (e) => {
+      this.h.setQuant({ phaseBits: Number((e.target as HTMLSelectElement).value) });
+    });
+    ($('quant-amp') as HTMLSelectElement).addEventListener('change', (e) => {
+      this.h.setQuant({ ampBits: Number((e.target as HTMLSelectElement).value) });
+    });
+    ($('quant-phase-rms') as HTMLSelectElement).addEventListener('change', (e) => {
+      this.h.setQuant({ phaseRmsDeg: Number((e.target as HTMLSelectElement).value) });
+    });
+    ($('quant-amp-rms') as HTMLSelectElement).addEventListener('change', (e) => {
+      this.h.setQuant({ ampRmsDb: Number((e.target as HTMLSelectElement).value) });
+    });
+    $('quant-seed').addEventListener('click', () => {
+      this.h.setQuant({ seed: Math.floor(Math.random() * 2147483647) });
     });
 
     $('epoch').addEventListener('change', () => {
@@ -422,6 +441,11 @@ export class UI {
       ($('rain-margin') as HTMLSelectElement).value = String(s.rainMarginDb);
       ($('users-beam') as HTMLInputElement).value = String(s.usersPerBeam);
       $('users-val').textContent = String(s.usersPerBeam);
+      ($('quant-mode') as HTMLSelectElement).value = s.quant.mode;
+      ($('quant-phase') as HTMLSelectElement).value = String(s.quant.phaseBits);
+      ($('quant-amp') as HTMLSelectElement).value = String(s.quant.ampBits);
+      ($('quant-phase-rms') as HTMLSelectElement).value = String(s.quant.phaseRmsDeg);
+      ($('quant-amp-rms') as HTMLSelectElement).value = String(s.quant.ampRmsDb);
 
       const cfgs: [string, boolean][] = [
         ['tg-orbit', s.showOrbit],
@@ -483,26 +507,28 @@ export class UI {
     $('ro-ecc').textContent = s.orbit.e.toFixed(4);
     $('ro-raan').textContent = `${((((s.orbit.raan / DEG) % 360) + 360) % 360).toFixed(0)}°`;
 
-    $('ant-d').textContent = `${d.metrics.directivityDb.toFixed(1)} dBi`;
-    $('ant-g').textContent = `${d.metrics.gainDb.toFixed(1)} dBi`;
-    $('ant-hpbw').textContent = `${d.metrics.hpbwDeg.toFixed(1)}°`;
+    const m = d.activeMetrics;
+    $('ant-d').textContent = `${m.directivityDb.toFixed(1)} dBi`;
+    $('ant-g').textContent = `${m.gainDb.toFixed(1)} dBi`;
+    $('ant-hpbw').textContent = `${m.hpbwDeg.toFixed(1)}°`;
     $('ant-sll').textContent = d.source === 'synthesis'
       ? '—'
-      : d.metrics.sllDb < -90 ? '—' : `${d.metrics.sllDb.toFixed(1)} dB`;
-    $('ant-ap').textContent = d.metrics.apertureM < 1e-3
+      : m.sllDb < -90 ? '—' : `${m.sllDb.toFixed(1)} dB`;
+    $('ant-ap').textContent = m.apertureM < 1e-3
       ? '—'
-      : d.metrics.apertureM >= 1
-        ? `${d.metrics.apertureM.toFixed(2)} m`
-        : `${(d.metrics.apertureM * 100).toFixed(0)} cm`;
-    $('grating-warn').hidden = !d.metrics.grating;
+      : m.apertureM >= 1
+        ? `${m.apertureM.toFixed(2)} m`
+        : `${(m.apertureM * 100).toFixed(0)} cm`;
+    $('grating-warn').hidden = !m.grating;
 
     const sourceLabel = d.source === 'horn' ? 'bocina' : d.source === 'synthesis' ? 'síntesis' : 'arreglo';
-    $('phase-caption').textContent = `${d.phase.n}×${d.phase.n} · ${sourceLabel} · ${d.metrics.hpbwDeg.toFixed(1)}°`;
+    $('phase-caption').textContent = `${d.phase.n}×${d.phase.n} · ${sourceLabel} · ${m.hpbwDeg.toFixed(1)}°${d.quant ? ' · cuantizado' : ''}`;
 
     this.drawPhaseIfNeeded(d);
     this.updatePattern(d);
     this.updateLink(s, d);
     this.updateBeams(s, d);
+    this.updateQuant(d);
 
     $('cell-info').textContent = d.beamSet
       ? `${d.beamSet.totalCells} celdas · ${d.beamSet.visibleCells} visibles`
@@ -531,22 +557,29 @@ export class UI {
   }
 
   private updatePattern(d: Derived) {
-    const span = Math.min(110, Math.max(14, d.metrics.hpbwDeg * (d.source === 'horn' ? 0.95 : 3)));
+    const m = d.activeMetrics;
+    const pattern = d.activePattern;
+    const span = Math.min(110, Math.max(14, m.hpbwDeg * (d.source === 'horn' ? 0.95 : 3)));
     let cut: PatternPoint[] | null = null;
+    let idealCut: PatternPoint[] | null = null;
     let label = 'elevación · haz';
-    if (d.source === 'synthesis') {
-      const peak = peakDirection(d.pattern);
-      cut = patternCutAt(d.pattern, peak.u, peak.v, d.patternQ, span, 361);
+    if (d.quant?.activeCut) {
+      cut = d.quant.activeCut;
+      idealCut = d.quant.idealCut;
+      label = d.source === 'synthesis' ? 'síntesis · cuantizado' : 'cuantizado vs ideal';
+    } else if (d.source === 'synthesis') {
+      const peak = peakDirection(pattern);
+      cut = patternCutAt(pattern, peak.u, peak.v, d.patternQ, span, 361);
       label = 'síntesis · pico';
     } else if (d.activeBeam) {
-      cut = patternCut(d.pattern, d.activeBeam, d.patternQ, span, 361);
+      cut = patternCut(pattern, d.activeBeam, d.patternQ, span, 361);
       label = d.source === 'horn' ? 'bocina global' : 'elevación · haz';
     }
     this.el('cut-badge').textContent = label;
-    const key = `${label}|${span.toFixed(1)}|${cut?.length ?? 0}|${cut?.[0]?.db.toFixed(2) ?? ''}|${cut?.[cut.length - 1]?.db.toFixed(2) ?? ''}|${d.metrics.hpbwDeg.toFixed(1)}`;
+    const key = `${label}|${span.toFixed(1)}|${cut?.length ?? 0}|${cut?.[0]?.db.toFixed(2) ?? ''}|${cut?.[cut.length - 1]?.db.toFixed(2) ?? ''}|${m.hpbwDeg.toFixed(1)}|${d.quant?.resolution ?? 0}|${d.quant?.stale ? 1 : 0}`;
     if (key === this.lastPatternKey) return;
     this.lastPatternKey = key;
-    drawPatternChart(this.el<HTMLCanvasElement>('pattern-canvas'), cut, d.metrics.hpbwDeg, label);
+    drawPatternChart(this.el<HTMLCanvasElement>('pattern-canvas'), cut, m.hpbwDeg, label, idealCut);
   }
 
   private updateLink(s: SimState, d: Derived) {
@@ -611,6 +644,24 @@ export class UI {
       this.renderReuse(this.el('beam-colors'), s.mode === 'cellular' ? s.reuse : 0);
     }
     void d;
+  }
+
+  private updateQuant(d: Derived) {
+    const el = this.el('quant-info');
+    if (!d.quant) {
+      el.textContent = 'Cuantización desactivada: patrón ideal.';
+      return;
+    }
+    const ideal = d.quant.idealMetrics;
+    const q = d.activeMetrics;
+    const mode = d.source === 'synthesis' ? 'Síntesis' : d.quant.mode === 'analysis' ? 'Análisis' : 'Tiempo real';
+    const stale = d.quant.stale ? ' · actualizando' : '';
+    const deltaG = ideal ? q.gainDb - ideal.gainDb : 0;
+    const deltaS = ideal ? q.sllDb - ideal.sllDb : 0;
+    const idealTxt = ideal
+      ? `ideal G ${ideal.gainDb.toFixed(1)} / SLL ${ideal.sllDb.toFixed(1)} dB`
+      : 'ideal —';
+    el.textContent = `${mode} ${d.quant.resolution}×${d.quant.resolution} · ${d.quant.computeMs.toFixed(0)} ms${stale}\n${idealTxt} · cuant. G ${q.gainDb.toFixed(1)} / SLL ${q.sllDb.toFixed(1)} dB (ΔG ${deltaG >= 0 ? '+' : ''}${deltaG.toFixed(2)} / ΔSLL ${deltaS >= 0 ? '+' : ''}${deltaS.toFixed(2)} dB) · apunt. ${d.quant.pointingErrorDeg?.toFixed(2) ?? '—'}°\n${d.quant.note}`;
   }
 
   private renderReuse(container: HTMLElement, count: number) {

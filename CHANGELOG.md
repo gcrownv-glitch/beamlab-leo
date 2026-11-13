@@ -2,6 +2,21 @@
 
 Todas las modificaciones relevantes de BeamLab LEO.
 
+## [2.0.0] — 2026-11-12
+
+### Cuantización y patrones exactos
+
+- Desfasadores digitales de 3–7 bits y VGA de 3–5 bits (o taper fijo).
+- Errores residuales gaussianos de fase y amplitud, deterministas por semilla.
+- Patrón exacto del haz activo calculado desde los pesos cuantizados.
+- Corte exacto directo (481 puntos) para HPBW/SLL, sin artefactos de interpolación 2D.
+- Modo **Tiempo real**: patrón 2D 65×65 y corte exacto a ~4 Hz.
+- Modo **Análisis**: patrón 257×257 bajo demanda.
+- Comparación ideal vs cuantizado, ΔG/ΔSLL, error de apuntamiento y tiempo de cálculo.
+- Comparación visual en el corte del patrón.
+- Cuantización aplicada también a la síntesis conformada, con cobertura/derrame recalculados.
+- **26 pruebas** (4 nuevas de cuantización).
+
 ## [1.1.1] — 2026-11-12
 
 - Créditos con nombre completo: **Jhorel Kennedy Cornejo Cruz · IET UCSP**.

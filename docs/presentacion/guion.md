@@ -50,7 +50,7 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 
 - **550 km** de altura.
 - **~400 celdas** para cubrir Perú.
-- **100 %** de cobertura del haz conformado sobre Lima.
+- **98 %** de cobertura del haz conformado sobre Lima con cuantización 5/4 bits.
 
 ### Mapa de la exposición
 
@@ -180,6 +180,8 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 
 **Si preguntan “¿qué es SLL?”:** “El nivel de los lóbulos laterales. Es la luz que se escapa por los costados del haz. Uniforme ronda −13 dB; Kaiser −30 dB baja mucho más, a costa de ensanchar el haz principal.”
 
+**Si preguntan por la cuantización:** “El panel real no tiene fases continuas: tiene 5 bits de fase (paso 11,25°), 4 bits de amplitud y errores residuales de 2° y 0,2 dB. El simulador calcula el patrón exacto de esos pesos, no el ideal. En este arreglo la pérdida de ganancia y el SLL cambian poco, pero en el haz conformado la cobertura baja de 100 % a 98 % y el derrame empeora de −12,1 a −7,4 dB. Esa es la diferencia entre simular y creer.”
+
 ---
 
 ## Escena 5 · Cubrir un país: el panal
@@ -212,7 +214,7 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 - “Ahora no queremos un punto, queremos una zona: Lima metropolitana.”
 - “La antena no puede mover un reflector. Lo que hace es combinar la amplitud y la fase de los 256 elementos para que el haz tenga **forma de mancha**, no de círculo.”
 - “El software resuelve un problema de ajuste: que el campo valga 1 dentro de la zona y 0 fuera. Es como un ajuste de mínimos cuadrados, pero con ondas.”
-- “Resultado: 100 % de cobertura, derrame de −12,1 dB y 20,3 dBi. El haz se ensanchó a 16,2°, justo el tamaño de la zona.”
+- “Resultado con cuantización 5/4 bits: 98 % de cobertura, derrame de −7,4 dB y 20,3 dBi. Sin cuantizar, el ideal daba 100 % y −12,1 dB. El haz se ensancha a 16,2°, justo el tamaño de la zona; la cuantización reduce cobertura y empeora el derrame.”
 
 **La fórmula, con interpretación:**
 
@@ -244,8 +246,8 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 
 - “La ganancia del haz entra en el **EIRP**: la potencia efectiva que el satélite parece tener en esa dirección. Aquí son unos 39 dBW, equivalentes a unos 8 kW efectivos, pero concentrados en un haz.”
 - “La distancia juega en contra: la **pérdida de espacio libre** es de unos 170 dB a 611 km. La señal llega muy débil: del orden de −66 dBm en una terminal de 0,6 m.”
-- “El **C/N₀** compara la señal con el ruido: 109,6 dBHz. Pero C/N₀ solo no dice si el enlace sirve: con 100 MHz, eso equivale a **C/N = 29,6 dB**. Con 71 dBHz y 100 MHz tendríamos **−9 dB**, y no habría enlace. Por eso el medidor ahora muestra el **margen frente al umbral del MODCOD**, no C/N₀ a secas.”
-- “Con C/N 29,6 dB, el módem puede usar **64APSK 5/6**: 5 bits/s/Hz, es decir, unos **500 Mbps por haz**. Si repartimos ese haz entre 20 usuarios, son unos **25 Mbps por usuario**.”
+- “El **C/N₀** compara la señal con el ruido: 110,3 dBHz. Pero C/N₀ solo no dice si el enlace sirve: con 100 MHz, eso equivale a **C/N = 30,3 dB**. Con 71 dBHz y 100 MHz tendríamos **−9 dB**, y no habría enlace. Por eso el medidor ahora muestra el **margen frente al umbral del MODCOD**, no C/N₀ a secas.”
+- “Con C/N 30,3 dB, el módem puede usar **64APSK 5/6**: 5 bits/s/Hz, es decir, unos **500 Mbps por haz**. Si repartimos ese haz entre 20 usuarios, son unos **25 Mbps por usuario**.”
 - “Si llueve y perdemos 8 dB, el C/N baja a ~21,6 dB y el sistema elige un MODCOD más robusto. Si el C/N cae por debajo del umbral, la tarjeta dice **sin enlace** y la capacidad es cero.”
 
 **Las fórmulas, con interpretación:**
@@ -273,7 +275,7 @@ L_{fs}=20\log_{10}\!\left(\frac{4\pi d}{\lambda}\right)\qquad
 
 **Frase para recordar:** “C/N₀ solo no basta: el ancho de banda y el umbral del módem deciden si hay internet.”
 
-**Dato con interpretación:** 39 dBW ≈ 8 kW efectivos; 169,7 dB de FSPL a 611 km; C/N₀ 109,6 dBHz; C/N 29,6 dB; 64APSK 5/6; 500 Mbps/haz; 25 Mbps/usuario con 20 usuarios. Con antena isotrópica (0 dBi) el mismo enlace queda en outage: eso explica los antiguos 0–3 Mbps.
+**Dato con interpretación:** 39 dBW ≈ 8 kW efectivos; 169,7 dB de FSPL a 611 km; C/N₀ 110,3 dBHz; C/N 30,3 dB; 64APSK 5/6; 500 Mbps/haz; 25 Mbps/usuario con 20 usuarios. Con antena isotrópica (0 dBi) el mismo enlace queda en outage: eso explica los antiguos 0–3 Mbps.
 
 **Si preguntan “¿por qué no suben la potencia?”:** “Porque el satélite tiene límites de energía, calor y peso. Es más eficiente mejorar la antena y la cobertura que subir vatios. Además, ~400 haces a 20 W serían ~8 kW de RF: en un satélite real la potencia se comparte.”
 
@@ -332,14 +334,14 @@ L_{fs}=20\log_{10}\!\left(\frac{4\pi d}{\lambda}\right)\qquad
 | **7°** | ancho del haz puntual | huella de ~70 km a nadir |
 | **~400** | celdas para Perú | un panal de haces |
 | **100 km** | radio de la zona conformada | Lima metropolitana |
-| **100 %** | cobertura lograda | derrame −12,1 dB |
+| **98 %** | cobertura lograda con cuantización | derrame −7,4 dB |
 | **20,3 dBi** | directividad del haz conformado | ~150×; menos que ~29 dBi, pero cubre Lima |
 | **39 dBW** | EIRP del enlace | ~8 kW efectivos |
 | **169,7 dB** | pérdida de espacio libre a 611 km | atenuación enorme |
-| **109,6 dBHz** | C/N₀ del enlace | C/N 29,6 dB en 100 MHz |
+| **110,3 dBHz** | C/N₀ del enlace | C/N 30,3 dB en 100 MHz |
 | **64APSK 5/6** | MODCOD seleccionado | 5 bits/s/Hz |
 | **500 Mbps** | capacidad agregada por haz | 25 Mbps/usuario con 20 usuarios |
-| **−12,1 dB** | derrame fuera de la zona | ~6 % de la potencia |
+| **−7,4 dB** | derrame fuera de la zona con cuantización | ~18 % de la potencia |
 | **0,5 λ** | separación entre elementos | evita copias del haz |
 
 > **Para los que quieran el detalle:** \(G(\text{dBi})=10\log_{10}G\); \(D=4\pi A/\lambda^2\); \(HPBW\approx0{,}886\lambda/L\); \(EIRP=P_{tx}G_{tx}\); \(FSPL=20\log_{10}(4\pi d/\lambda)\); \(C/N_0=P_{rx}-N_0\). No hace falta recitarlas: cada una tiene su interpretación en la tabla.
@@ -412,7 +414,7 @@ Si el tiempo se acorta:
 
 **3 C:** cobertura · concentración · capacidad.
 
-**3 números:** 550 km · ~400 celdas · 100 %.
+**3 números:** 550 km · ~400 celdas · 98 %.
 
 **3 frases:**
 1. “El satélite no ve la Tierra; ve una ventana.”

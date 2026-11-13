@@ -216,6 +216,58 @@
           </div>
           <p class="warn" id="grating-warn" hidden>Separación &gt; 0.5 λ: aparecen lóbulos de difracción (grating lobes).</p>
 
+          <div class="section-title">Cuantización del arreglo</div>
+          <label class="field">
+            <span>Modo de cálculo</span>
+            <select id="quant-mode">
+              <option value="ideal">Ideal · sin cuantización</option>
+              <option value="realtime" selected>Tiempo real · 65×65</option>
+              <option value="analysis">Análisis · 257×257</option>
+            </select>
+          </label>
+          <div class="inline-field">
+            <label class="field grow"><span>Fase</span>
+              <select id="quant-phase">
+                <option value="3">3 bits · 45°</option>
+                <option value="4">4 bits · 22.5°</option>
+                <option value="5" selected>5 bits · 11.25°</option>
+                <option value="6">6 bits · 5.625°</option>
+                <option value="7">7 bits · 2.81°</option>
+              </select>
+            </label>
+            <label class="field grow"><span>Amplitud</span>
+              <select id="quant-amp">
+                <option value="0">Fija · sin VGA</option>
+                <option value="3">3 bits · 1 dB</option>
+                <option value="4" selected>4 bits · 0.5 dB</option>
+                <option value="5">5 bits · 0.25 dB</option>
+              </select>
+            </label>
+          </div>
+          <div class="inline-field">
+            <label class="field grow"><span>Error fase RMS</span>
+              <select id="quant-phase-rms">
+                <option value="0">0°</option>
+                <option value="1">1°</option>
+                <option value="2" selected>2°</option>
+                <option value="3">3°</option>
+                <option value="5">5°</option>
+              </select>
+            </label>
+            <label class="field grow"><span>Error amp RMS</span>
+              <select id="quant-amp-rms">
+                <option value="0">0 dB</option>
+                <option value="0.1">0.1 dB</option>
+                <option value="0.2" selected>0.2 dB</option>
+                <option value="0.5">0.5 dB</option>
+              </select>
+            </label>
+          </div>
+          <div class="inline-field">
+            <button class="btn small grow" id="quant-seed">Nueva semilla de errores</button>
+          </div>
+          <div class="info-row quant-info" id="quant-info">Cuantización desactivada: patrón ideal.</div>
+
           <div class="mode-block" id="block-spot">
             <div class="section-title">Haz puntual</div>
             <div class="target-row">
@@ -445,6 +497,7 @@
               <a href="#t-array">Arreglo en fase</a>
               <a href="#t-steer">Apuntamiento</a>
               <a href="#t-taper">Taper y lóbulos</a>
+              <a href="#t-quant">Cuantización</a>
               <a href="#t-foot">Huella en Tierra</a>
               <a href="#t-synth">Haz conformado</a>
               <a href="#t-link">Enlace</a>
@@ -469,21 +522,28 @@
                 <div class="math" data-tex="D=\frac{4\pi\,|AF|^2_{\max}}{\displaystyle\int |AF(\theta,\phi)|^2\sin\theta\,d\theta\,d\phi}"></div>
                 <p>El HPBW de una apertura uniforme se aproxima por <em>θ₃dB ≈ 0.886 λ/L</em>. Duplicar la apertura reduce el haz a la mitad.</p>
               </section>
+              <section id="t-quant">
+                <h3>4 · Cuantización y errores reales</h3>
+                <p>Un desfasador digital de <em>b</em> bits solo puede dar \(2^b\) fases; un VGA de amplitud, \(2^a\) niveles. El simulador cuantiza las excitaciones, añade un error residual gaussiano (calibración/temperatura) y calcula el <strong>patrón exacto del haz activo</strong> a partir de esos pesos, no una copia desplazada del patrón ideal.</p>
+                <div class="math" data-tex="\Delta_\phi=\frac{2\pi}{2^b},\qquad \sigma_\phi=\frac{\Delta_\phi}{\sqrt{12}},\qquad \sigma_{total}^2=\sigma_{cuant}^2+\sigma_{cal}^2"></div>
+                <p><strong>Tiempo real:</strong> patrón 2D 65×65 y corte exacto de 481 puntos, actualizado con throttle (~4 Hz). <strong>Análisis:</strong> patrón 257×257 bajo demanda. El corte directo evita que la interpolación de una rejilla gruesa invente lóbulos.</p>
+                <p>Por defecto: 5 bits de fase (11,25°), 4 bits de amplitud (0,5 dB), 2° RMS de fase y 0,2 dB RMS de amplitud. La opción <strong>Ideal</strong> desactiva cuantización y errores para comparar.</p>
+              </section>
               <section id="t-foot">
-                <h3>4 · De ángulo a huella</h3>
+                <h3>5 · De ángulo a huella</h3>
                 <p>Un rayo desde el satélite en dirección <em>d</em> corta la esfera terrestre en el punto <em>P</em>. La huella a −3 dB es el conjunto de rayos dentro de ±HPBW/2. A nadir el radio es <em>r ≈ h·tan(HPBW/2)</em>; al escanear, la huella se alarga y la distancia oblicua crece.</p>
                 <div class="math" data-tex="\sin\alpha_h=\frac{R_\oplus}{R_\oplus+h},\qquad \gamma=\arcsin\!\left(\frac{R_\oplus+h}{R_\oplus}\sin\alpha\right)-\alpha"></div>
                 <p>Desde 550 km el satélite ve hasta 67° de nadir: en la superficie, el casquete tiene ~23° de ángulo central, unos <strong>2.560 km de radio (~5.100 km de diámetro)</strong>. Por eso LEO necesita muchos haces pequeños.</p>
                 <p class="fine">Ojo con la escala: la bocina de 17° del apunte es de un satélite GEO, a 35.786 km. Desde LEO ese mismo haz solo ilumina ~160 km de diámetro; para cubrir el disco visible haría falta un haz de ~134°, con muy poca ganancia.</p>
               </section>
               <section id="t-synth">
-                <h3>5 · Haces conformados por síntesis</h3>
+                <h3>6 · Haces conformados por síntesis</h3>
                 <p>Para iluminar una zona (no un punto) se resuelve un problema de mínimos cuadrados complejos: encontrar <em>w</em> tal que el campo valga 1 en la zona y 0 fuera.</p>
                 <div class="math" data-tex="\min_{w}\;\|A w-d\|^2+\lambda\|w\|^2\;\;\Longrightarrow\;\;(A^H A+\lambda I)\,w=A^H d"></div>
                 <p><em>A</em> contiene las fases <em>e^{jk(x_m u_k+y_n v_k)}</em> evaluadas en cada punto de la Tierra. Es la versión digital de un reflector conformado con múltiples alimentadores: se ajustan amplitudes y fases para esculpir el diagrama.</p>
               </section>
               <section id="t-link">
-                <h3>6 · Del patrón al enlace</h3>
+                <h3>7 · Del patrón al enlace</h3>
                 <div class="math" data-tex="\mathrm{EIRP}=P_{tx}G_{tx},\qquad L_{fs}=20\log_{10}\!\frac{4\pi d}{\lambda},\qquad \frac{C}{N_0}=P_{rx}-N_0"></div>
                 <p>La ganancia del haz entra directo en el EIRP; la distancia oblicua entra en la pérdida de espacio libre. Un haz más estrecho concentra potencia (más C/N₀) pero cubre menos área: el compromiso central del diseño satelital.</p>
               </section>

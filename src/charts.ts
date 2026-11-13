@@ -75,6 +75,7 @@ export function drawPatternChart(
   cut: PatternPoint[] | null,
   hpbwDeg: number,
   label: string,
+  idealCut?: PatternPoint[] | null,
 ): void {
   const f = fit(canvas);
   if (!f) return;
@@ -166,6 +167,21 @@ export function drawPatternChart(
   ctx.shadowBlur = 8;
   ctx.stroke();
   ctx.shadowBlur = 0;
+
+  if (idealCut && idealCut.length > 1) {
+    ctx.beginPath();
+    for (let i = 0; i < idealCut.length; i++) {
+      const x = xOf(idealCut[i].angle);
+      const y = yOf(idealCut[i].db);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = 'rgba(251,191,36,0.8)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
   // Línea -3 dB
   const y3 = yOf(-3);

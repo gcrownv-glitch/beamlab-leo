@@ -232,6 +232,36 @@ $$
 
 de modo que se calculan dos sumas 1D y se hace un producto externo. La grilla base se guarda en $[-1{,}35,1{,}35]^2$ con 801 muestras por lado; ese recorte evita incluir la imagen periódica del arreglo ($u\pm2$) y es clave para que el mapa de celdas no se alias.
 
+### 2.7 Cuantización de fase y amplitud
+
+Un desfasador digital de $b$ bits solo puede entregar
+
+$$
+\Delta_\phi=\frac{2\pi}{2^b},\qquad
+\sigma_\phi=\frac{\Delta_\phi}{\sqrt{12}},
+$$
+
+y un VGA de $a$ bits cuantiza la amplitud en $2^a$ niveles. A eso se suma el error residual de calibración y temperatura:
+
+$$
+\sigma_{\phi,total}^2=\sigma_{\phi,cuant}^2+\sigma_{\phi,cal}^2+\sigma_{\phi,temp}^2.
+$$
+
+El simulador:
+
+1. Genera errores gaussianos deterministas por semilla.
+2. Cuantiza fase y amplitud de cada elemento.
+3. Reconstruye el patrón exacto del haz activo con esos pesos.
+4. Calcula HPBW y SLL con un **corte directo de 481 puntos** desde los pesos, no interpolando una rejilla 2D gruesa.
+5. Compara ideal vs cuantizado y reporta $\Delta G$, $\Delta SLL$, apuntamiento y tiempo de cálculo.
+
+Dos modos:
+
+- **Tiempo real:** patrón 2D $65\times65$ y corte directo, actualizado con throttle (~4 Hz).
+- **Análisis:** patrón 2D $257\times257$ bajo demanda.
+
+Por defecto: 5 bits de fase (11,25°), 4 bits de amplitud (0,5 dB), 2° RMS de fase y 0,2 dB RMS de amplitud. El modo **Ideal** desactiva todo para comparar.
+
 ---
 
 ## 3. De la dirección a la Tierra
@@ -344,7 +374,7 @@ $$
 - Fondo: resto del disco visible, $d=0$, peso 0,28.
 - Se limitan las muestras a ~720 internas y ~420 externas para que el cálculo sea interactivo.
 
-El resultado se evalúa con la cobertura a −3 dB de los puntos del núcleo y el derrame máximo fuera de la zona. Para Lima 100 km, $16\times16$, 12 GHz: cobertura ≈100 %, derrame ≈−12,1 dB, $D\approx20{,}3$ dBi. El haz se ensancha (~16,2° de HPBW) y pierde ganancia respecto del haz puntual: ese es el precio de cubrir una zona.
+El resultado se evalúa con la cobertura a −3 dB de los puntos del núcleo y el derrame máximo fuera de la zona. Para Lima 100 km, $16\times16$, 12 GHz: el diseño ideal da cobertura ≈100 %, derrame ≈−12,1 dB y $D\approx20{,}3$ dBi. Con cuantización 5/4 bits y errores residuales, la cobertura baja a ≈98 % y el derrame empeora a ≈−7,4 dB. El haz se ensancha (~16,2° de HPBW) y pierde ganancia respecto del haz puntual: ese es el precio de cubrir una zona.
 
 ### 4.4 Por qué se ve una “cruz” en el mapa de ganancia
 
@@ -399,12 +429,12 @@ Si ningún MODCOD cumple, el enlace queda en **outage**: capacidad cero y “sin
 
 ### 5.2 Ejemplo con la configuración por defecto
 
-Con 20 W por haz, $G=26{,}2$ dBi, terminal VSAT de 0,6 m ($G_{rx}=34$ dBi, NF 1,5 dB), 550 km y 12 GHz:
+Con 20 W por haz, $G\approx26{,}9$ dBi con el patrón cuantizado (26,2 dBi ideal), terminal VSAT de 0,6 m ($G_{rx}=34$ dBi, NF 1,5 dB), 550 km y 12 GHz:
 
 - EIRP ≈ 39,2 dBW.
 - $L_{fs}\approx169{,}7$ dB a 611 km.
 - $P_{rx}\approx-66{,}5$ dBm.
-- $C/N_0\approx109{,}6$ dBHz; $C/N\approx29{,}6$ dB en 100 MHz.
+- $C/N_0\approx110{,}3$ dBHz; $C/N\approx30{,}3$ dB en 100 MHz.
 - 64APSK 5/6; ≈500 Mbps por haz; ≈25 Mbps por usuario con 20 usuarios.
 
 Con una antena isotrópica de 0 dBi, el mismo enlace queda en $C/N\approx-8{,}6$ dB y **outage**. Ese era el origen de los “0–3 Mbps” de la versión anterior: no era un throughput realista, era un receptor isotrópico.
@@ -415,7 +445,7 @@ El modo global, con $G\approx3{,}5$ dBi, baja mucho el C/N₀: la misma potencia
 
 ## 6. Validación
 
-Las 22 pruebas de `npm test` comprueban, entre otras cosas:
+Las 26 pruebas de `npm test` comprueban, entre otras cosas:
 
 | Prueba | Resultado esperado |
 |---|---|
@@ -424,6 +454,8 @@ Las 22 pruebas de `npm test` comprueban, entre otras cosas:
 | `elementsOverPoint` | lat/lon de Lima con error < $10^{-6}$° |
 | Horizonte a 550 km | 67,0° de nadir; 23,0° central; radio 2.559 km |
 | Base de antena | +X este, +Z nadir |
+| Cuantización | fases en múltiplos del paso, amplitudes en niveles, semilla determinista |
+| Corte exacto | HPBW ideal a nadir dentro de ±1,5° del patrón base |
 | Bocina 17° | HPBW 17°, $D\approx21{,}05$ dBi |
 | 16×16 uniforme, 0,5λ | $D\approx29{,}1$ dBi, HPBW 6,35°, SLL ≈−13 dB |
 | Kaiser −30 dB | SLL al menos 5 dB menor que uniforme, haz más ancho |

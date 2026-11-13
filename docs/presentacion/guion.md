@@ -389,7 +389,7 @@ Si el tiempo se acorta:
 1. **0:00–0:45 · Gancho y órbita.** “Un satélite a 550 km se mueve a 7,6 km/s y solo ve un casquete de 2.560 km de radio.”
 2. **0:45–2:00 · Problema y beamforming.** Global vs puntual; dBi; “no movemos la antena, movemos el tiempo”; muestra el mapa de fase.
 3. **2:00–3:00 · El arreglo.** 4×4 vs 16×16; panel de 19 cm; ~29 dBi; taper y lóbulos.
-4. **3:00–4:15 · Cobertura.** Celular Perú (~400 celdas, 3 colores); conformada Lima (100 km, 100 %).
+4. **3:00–4:15 · Cobertura.** Celular Perú (~400 celdas, 3 colores); conformada Lima (100 km, 98 % con cuantización).
 5. **4:15–5:00 · Enlace y cierre.** EIRP/FSPL/C/N₀; las 3 C; URL.
 
 ---

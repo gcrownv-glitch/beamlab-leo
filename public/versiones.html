@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#04070d">
+<title>BeamLab LEO · versiones portables</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 50% 0, #0b2133, #04070d 55%); color: #dffaff; font: 15px/1.55 system-ui, -apple-system, Segoe UI, sans-serif; }
+  main { width: min(880px, 92vw); margin: 0 auto; padding: 52px 0 60px; }
+  h1 { margin: 0; font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.03em; }
+  h1 span { color: #22d3ee; }
+  .sub { color: #7f90a8; margin: 4px 0 28px; }
+  .card { display: block; padding: 16px 18px; margin: 10px 0; border: 1px solid #164e63; border-radius: 12px; background: rgba(6, 17, 30, 0.88); color: #bff8ff; text-decoration: none; }
+  .card:hover { border-color: #22d3ee; background: #0b2033; }
+  .row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .ver { font: 600 18px/1.2 "Cascadia Mono", Consolas, monospace; }
+  .latest { color: #fbbf24; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  .meta { color: #7f90a8; font-size: 12px; margin-top: 4px; }
+  .notes { color: #9fb3c8; margin-top: 8px; }
+  .hash { font: 11px/1.4 "Cascadia Mono", Consolas, monospace; color: #5f738a; word-break: break-all; }
+  .warn { padding: 12px 14px; margin: 16px 0; border-left: 2px solid #fbbf24; background: rgba(251, 191, 36, .06); color: #d8c9a4; font-size: 13px; }
+  footer { margin-top: 32px; color: #5f738a; font-size: 12px; }
+  a { color: #67e8f9; }
+</style>
+</head>
+<body>
+<main>
+  <h1>BeamLab <span>LEO</span></h1>
+  <p class="sub">Versiones portables · sin instalación · Windows, macOS y Linux con navegador</p>
+  <div class="warn">Cada versión es un archivo HTML independiente. Descárgala y ábrela con doble clic. Actualizar no borra las versiones anteriores: tú eliges cuál usar.</div>
+  <div id="list">Cargando versiones…</div>
+  <div class="warn" id="fallback" hidden>No se pudo leer el manifiesto. Descarga la versión desde <a href="https://github.com/gcrownv-glitch/beamlab-leo/releases">GitHub Releases</a>.</div>
+  <footer>Elaborado por Jhorel Kennedy Cornejo Cruz · IET UCSP · <a href="https://github.com/gcrownv-glitch/beamlab-leo">repositorio</a></footer>
+</main>
+<script>
+(async () => {
+  const list = document.getElementById('list');
+  try {
+    const r = await fetch('./versions.json', { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const m = await r.json();
+    const versions = [...(m.versions || [])].sort((a, b) => {
+      const pa = a.version.split('.').map(Number), pb = b.version.split('.').map(Number);
+      for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pb[i] || 0) - (pa[i] || 0);
+      return 0;
+    });
+    if (!versions.length) throw new Error('sin versiones');
+    list.innerHTML = versions.map((v, i) => `
+      <a class="card" href="${v.html}" download>
+        <div class="row"><span class="ver">${v.version}</span>${i === 0 ? '<span class="latest">más reciente</span>' : ''}</div>
+        <div class="meta">${(v.size / 1024 / 1024).toFixed(2)} MB · ${v.date || ''}</div>
+        ${v.notes ? `<div class="notes">${v.notes}</div>` : ''}
+        <div class="hash">SHA-256 ${v.sha256 || ''}</div>
+        ${v.zip ? `<div class="meta" style="margin-top:8px"><a href="${v.zip}" download>Descargar ZIP con launcher EXE</a></div>` : ''}
+      </a>`).join('');
+  } catch (e) {
+    list.hidden = true;
+    document.getElementById('fallback').hidden = false;
+  }
+})();
+</script>
+</body>
+</html>

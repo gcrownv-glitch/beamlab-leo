@@ -1,0 +1,26 @@
+BeamLab LEO · paquete portable
+================================
+
+No requiere instalación.
+
+1. Abre index.html para elegir una versión local.
+2. O abre directamente BeamLabLEO-<versión>.html.
+3. Para buscar una versión nueva, ejecuta Actualizar.cmd.
+4. Las versiones anteriores NO se borran: puedes abrir la que quieras.
+
+Requisitos
+----------
+- Windows 10/11, macOS o Linux con un navegador moderno (Edge, Chrome, Firefox, Safari).
+- WebGL habilitado.
+- No hace falta Node, Python, administrador ni conexión a internet para usar la app.
+- La primera vez que actualizas sí necesitas internet.
+
+Privacidad
+----------
+La app funciona localmente. No envía telemetría ni datos personales.
+El actualizador solo descarga HTML desde GitHub Pages y verifica su SHA-256.
+
+Autor
+-----
+Jhorel Kennedy Cornejo Cruz · IET UCSP
+https://github.com/gcrownv-glitch/beamlab-leo

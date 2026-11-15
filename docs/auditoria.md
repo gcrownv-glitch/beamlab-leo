@@ -1,4 +1,4 @@
-# Auditoría técnica y de producto — BeamLab LEO 2.1.0
+# Auditoría técnica y de producto — BeamLab LEO 2.2.0
 
 **Fecha:** 2026-11-12  
 **Auditor:** Jhorel Kennedy Cornejo Cruz — IET UCSP  
@@ -56,6 +56,7 @@ Se audita el simulador completo: órbita, arreglo en fase, modos de cobertura, p
 | 22 | Interferencia co-canal / C/I por reutilización | **No incluido** | Declarado en Limitaciones |
 | 23 | Polarización, Doppler y handover | **No incluido** | Declarado en Limitaciones |
 | 24 | Fallos de elementos, acoplamiento mutuo y calibración perfecta | **No incluido** | El arreglo sigue siendo ideal en esos aspectos; cuantización y residuales sí están |
+| 25 | Distribución sin tiendas: HTML, EXE launcher y actualización por versiones | **Cumple** | HTML verificado offline, launcher 48 KB, manifiesto SHA-256 y versiones conservadas |
 | 25 | Accesibilidad completa del canvas 3D | **Parcial** | `aria-label` y panel textual; sin alternativa completa para lector de pantalla |
 | 26 | Prueba E2E automatizada en CI | **Parcial** | Verificación manual con Playwright; el CI corre unitarias + build |
 
@@ -132,6 +133,7 @@ Con antena isotrópica (0 dBi): C/N ≈ −8,6 dB, **outage** y 0 Mbps. Esto sus
 - [x] La cuantización 5/4 bits y los errores residuales se calculan con patrón exacto.
 - [x] Los créditos con nombre completo y GitHub están visibles.
 - [x] 30 pruebas pasan.
+- [x] HTML portable de 3,6 MB abre sin servidor y conserva versiones.
 - [x] El build de producción compila.
 - [x] GitHub Pages publica el sitio.
 - [x] README, LICENSE, CHANGELOG, CITATION y PDF están actualizados.

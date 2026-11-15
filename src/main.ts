@@ -421,7 +421,7 @@ class App {
     const load = (file: string): Promise<THREE.Texture> =>
       new Promise((resolve, reject) => {
         loader.load(
-          `${base}assets/${file}`,
+          file.startsWith('data:') ? file : `${base}assets/${file}`,
           (t) => resolve(t),
           undefined,
           () => reject(new Error(`No se pudo cargar ${file}`)),

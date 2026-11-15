@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "latest": "2.2.0",
+  "versions": [
+    {
+      "version": "2.2.0",
+      "date": "2026-11-15",
+      "notes": "Enlace bidireccional, cuantización y guía de 10 pasos.",
+      "html": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.2.0.html",
+      "zip": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.2.0-portable.zip",
+      "size": 3744637,
+      "sha256": "09b690884bfa381d60ea86aa639aad3fdb0021a1cee860b1eb84dfb681f0d8d0"
+    },
+    {
+      "version": "2.1.0",
+      "date": "2026-11-15",
+      "notes": "Enlace bidireccional, cuantización y guía de 10 pasos.",
+      "html": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.1.0.html",
+      "size": 3741181,
+      "sha256": "b4a1a1924525699009ec33b3e8d4c69d3321e09ccb9ec93e8797ec56baabff83"
+    }
+  ]
+}

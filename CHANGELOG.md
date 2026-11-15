@@ -2,6 +2,18 @@
 
 Todas las modificaciones relevantes de BeamLab LEO.
 
+## [2.2.0] — 2026-11-15
+
+### Distribución portable y actualizaciones por versión
+
+- HTML autónomo de ~3,6 MB, sin servidor ni instalación, con texturas, CSS, JS y fuentes embebidas.
+- Launcher `.exe` de ~48 KB que abre la versión elegida con Edge/Chrome en modo app.
+- ZIP portable con app, launcher, selector de versiones y actualizador.
+- Actualizador `Actualizar.cmd` por HTTPS con verificación SHA-256.
+- Manifiesto `versions.json`, página `/versiones.html` y archivo histórico de versiones.
+- **No requiere Google Play ni App Store**; iOS queda cubierto por HTML/PWA.
+- 30 pruebas de la app; el empaquetado se valida aparte.
+
 ## [2.1.0] — 2026-11-14
 
 ### Enlace bidireccional

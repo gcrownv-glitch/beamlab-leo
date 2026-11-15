@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#04070d">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
 <title>BeamLab LEO · versiones portables</title>
 <style>
   :root { color-scheme: dark; }
@@ -13,10 +14,13 @@
   h1 { margin: 0; font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.03em; }
   h1 span { color: #22d3ee; }
   .sub { color: #7f90a8; margin: 4px 0 28px; }
-  .card { display: block; padding: 16px 18px; margin: 10px 0; border: 1px solid #164e63; border-radius: 12px; background: rgba(6, 17, 30, 0.88); color: #bff8ff; text-decoration: none; }
+  .card { padding: 16px 18px; margin: 10px 0; border: 1px solid #164e63; border-radius: 12px; background: rgba(6, 17, 30, 0.88); color: #bff8ff; }
   .card:hover { border-color: #22d3ee; background: #0b2033; }
   .row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
-  .ver { font: 600 18px/1.2 "Cascadia Mono", Consolas, monospace; }
+  .ver { color: #bff8ff; font: 600 18px/1.2 "Cascadia Mono", Consolas, monospace; text-decoration: none; }
+  .ver:hover { color: #67e8f9; }
+  .actions { margin-top: 9px; display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+  .actions a { color: #67e8f9; }
   .latest { color: #fbbf24; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
   .meta { color: #7f90a8; font-size: 12px; margin-top: 4px; }
   .notes { color: #9fb3c8; margin-top: 8px; }
@@ -49,13 +53,13 @@
     });
     if (!versions.length) throw new Error('sin versiones');
     list.innerHTML = versions.map((v, i) => `
-      <a class="card" href="${v.html}" download>
-        <div class="row"><span class="ver">${v.version}</span>${i === 0 ? '<span class="latest">más reciente</span>' : ''}</div>
+      <div class="card">
+        <div class="row"><a class="ver" href="${v.html}" download>${v.version}</a>${i === 0 ? '<span class="latest">más reciente</span>' : ''}</div>
         <div class="meta">${(v.size / 1024 / 1024).toFixed(2)} MB · ${v.date || ''}</div>
         ${v.notes ? `<div class="notes">${v.notes}</div>` : ''}
         <div class="hash">SHA-256 ${v.sha256 || ''}</div>
-        ${v.zip ? `<div class="meta" style="margin-top:8px"><a href="${v.zip}" download>Descargar ZIP con launcher EXE</a></div>` : ''}
-      </a>`).join('');
+        <div class="actions"><a href="${v.html}" download>Descargar HTML</a>${v.zip ? `<a href="${v.zip}" download>Descargar ZIP con launcher EXE</a>` : ''}</div>
+      </div>`).join('');
   } catch (e) {
     list.hidden = true;
     document.getElementById('fallback').hidden = false;

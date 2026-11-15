@@ -337,7 +337,7 @@
 
           <div class="section-title">Potencia</div>
           <div class="slider-row">
-            <div class="slider-label"><span>P<sub>tx</sub> por haz</span><b id="ptx-val">20 W</b></div>
+            <div class="slider-label"><span>P<sub>tx</sub> sat (bajada)</span><b id="ptx-val">20 W</b></div>
             <input id="ptx" type="range" min="1" max="60" step="1" value="20" />
           </div>
           <div class="slider-row">
@@ -371,19 +371,19 @@
             <div><span class="eyebrow">Enlace</span><h3>Presupuesto</h3></div>
             <span class="badge" id="link-badge">Ku · 100 MHz</span>
           </div>
-          <div class="link-grid">
-            <div><span>EIRP</span><b id="lk-eirp">—</b></div>
-            <div><span>FSPL</span><b id="lk-fspl">—</b></div>
-            <div><span>P<sub>rx</sub></span><b id="lk-prx">—</b></div>
-            <div><span>C/N₀</span><b id="lk-cn0">—</b></div>
+          <div class="link-direction" id="link-direction" role="group" aria-label="Dirección del enlace">
+            <button data-link="downlink" class="active">Bajada · satélite → VSAT</button>
+            <button data-link="uplink">Subida · VSAT → satélite</button>
           </div>
-          <div class="link-grid link-grid-secondary">
+          <div class="link-grid link-grid-compact">
+            <div><span id="lk-eirp-label">EIRP sat</span><b id="lk-eirp">—</b></div>
+            <div><span>FSPL</span><b id="lk-fspl">—</b></div>
+            <div><span id="lk-prx-label">P<sub>rx</sub> VSAT</span><b id="lk-prx">—</b></div>
+            <div><span>C/N₀</span><b id="lk-cn0">—</b></div>
             <div><span>C/N</span><b id="lk-cn">—</b></div>
             <div><span>MODCOD</span><b id="lk-modcod">—</b></div>
             <div><span>Margen</span><b id="lk-margin">—</b></div>
-            <div><span>G/T</span><b id="lk-gt">—</b></div>
-            <div><span>Elev.</span><b id="lk-elev">—</b></div>
-            <div><span>Oblicua</span><b id="lk-slant">—</b></div>
+            <div><span id="lk-gt-label">G/T VSAT</span><b id="lk-gt">—</b></div>
           </div>
           <div class="meter"><div class="meter-fill" id="cn0-meter"></div><span id="lk-throughput">—</span></div>
           <div class="link-controls">
@@ -401,15 +401,13 @@
                 <option value="8">Lluvia fuerte · +8 dB</option>
               </select>
             </label>
+          </div>
+          <div class="link-sliders">
             <label class="users-control"><span>Usuarios/haz</span><input id="users-beam" type="range" min="1" max="50" step="1" value="20" /><b id="users-val">20</b></label>
+            <label class="users-control"><span>P<sub>tx</sub> terminal</span><input id="uplink-power" type="range" min="1" max="20" step="1" value="4" /><b id="uplink-power-val">4 W</b></label>
           </div>
-          <div class="link-system">
-            <div><span>RF total</span><b id="sys-power">—</b></div>
-            <div><span>Espectro</span><b id="sys-spectrum">—</b></div>
-            <div><span>Cap. sistema</span><b id="sys-capacity">—</b></div>
-            <div><span>Cobertura</span><b id="sys-coverage">—</b></div>
-          </div>
-          <div class="link-foot"><span>haz activo</span><b id="lk-range">—</b></div>
+          <div class="link-balance" id="link-balance">—</div>
+          <div class="link-foot"><span>haz · <b id="lk-elev">—</b> · <b id="lk-slant">—</b></span><b id="lk-range">—</b></div>
         </article>
 
         <article class="card beams-card">
@@ -423,6 +421,13 @@
             <div><span>Celdas visibles</span><b id="beam-visible">—</b></div>
           </div>
           <div class="reuse-legend" id="beam-colors"></div>
+          <div class="section-title">Sistema</div>
+          <div class="link-system beams-system">
+            <div><span>RF sat</span><b id="sys-power">—</b></div>
+            <div><span>Espectro</span><b id="sys-spectrum">—</b></div>
+            <div><span>Cap. sistema</span><b id="sys-capacity">—</b></div>
+            <div><span>Cobertura</span><b id="sys-coverage">—</b></div>
+          </div>
         </article>
       </section>
 
@@ -545,7 +550,8 @@
               <section id="t-link">
                 <h3>7 · Del patrón al enlace</h3>
                 <div class="math" data-tex="\mathrm{EIRP}=P_{tx}G_{tx},\qquad L_{fs}=20\log_{10}\!\frac{4\pi d}{\lambda},\qquad \frac{C}{N_0}=P_{rx}-N_0"></div>
-                <p>La ganancia del haz entra directo en el EIRP; la distancia oblicua entra en la pérdida de espacio libre. Un haz más estrecho concentra potencia (más C/N₀) pero cubre menos área: el compromiso central del diseño satelital.</p>
+                <p><strong>Bajada:</strong> el satélite transmite a 12 GHz con 20 W y el VSAT recibe con 34 dBi. <strong>Subida:</strong> el VSAT transmite a 14 GHz con 4 W y el satélite recibe con su ganancia de haz. El balance muestra ambos C/N y qué lado limita; la capacidad de sistema usa el mínimo.</p>
+                <p>La ganancia del haz entra directo en el EIRP; la distancia oblicua entra en la pérdida de espacio libre. Un haz más estrecho concentra potencia (más C/N₀) pero cubre menos área: el compromiso central del diseño satelital. El modelo usa apertura fija y no modela duplexores ni planes de frecuencia de un operador.</p>
               </section>
               <section id="t-refs">
                 <h3>Referencias</h3>
@@ -556,7 +562,7 @@
                   <li>ITU-R S.580 / S.465: patrones de referencia de antenas.</li>
                   <li>Vallado, D. A. <em>Fundamentals of Astrodynamics and Applications</em>.</li>
                 </ul>
-                <p class="fine">Modelo docente: esfera terrestre, órbita kepleriana con deriva J2 secular, arreglo ideal sin acoplamiento mutuo ni errores de fase. Las cifras son realistas, no certificadas. Elaborado por Jhorel Kennedy Cornejo Cruz · IET UCSP.</p>
+                <p class="fine">Modelo docente: esfera terrestre, órbita kepleriana con deriva J2 secular, arreglo con cuantización y errores residuales, sin acoplamiento mutuo ni fallos de elementos. Las cifras son realistas, no certificadas. Elaborado por Jhorel Kennedy Cornejo Cruz · IET UCSP.</p>
               </section>
             </div>
           </div>

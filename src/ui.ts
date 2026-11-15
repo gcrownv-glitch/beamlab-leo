@@ -11,7 +11,7 @@ import { ORBIT_PRESETS } from './core/presets';
 import type { RegionId } from './core/regions';
 import { drawPatternChart, drawPhaseMap, type PatternPoint } from './charts';
 import { BEAM_HEX, REUSE_LABELS } from './palette';
-import type { CameraMode, Derived, Mode, PhaseView, Quality, QuantMode, QuantState, SimState, TerminalId } from './state';
+import type { CameraMode, Derived, LinkDirection, Mode, PhaseView, Quality, QuantMode, QuantState, SimState, TerminalId } from './state';
 
 export type ToggleKey =
   | 'showOrbit'
@@ -43,6 +43,8 @@ export interface UIHandlers {
   setShapedRadius(km: number): void;
   synthesize(): void;
   setPtx(w: number): void;
+  setUplinkPower(w: number): void;
+  setLinkDirection(dir: LinkDirection): void;
   setBandwidth(mhz: number): void;
   setTerminal(id: TerminalId): void;
   setRainMargin(db: number): void;
@@ -134,7 +136,16 @@ export class UI {
       },
     },
     {
-      title: '6 · Cobertura celular y reutilización',
+      title: '6 · El panel real no es ideal',
+      text: 'Un desfasador de 5 bits solo tiene 32 fases (paso 11,25°); el VGA de 4 bits, 16 niveles. Añadimos errores residuales de 2° y 0,2 dB y calculamos el patrón exacto del haz activo. Cambia a 3 bits o pulsa “Nueva semilla” y observa el apuntamiento y el corte; en el haz conformado la cobertura baja de 100 % a 98 %.',
+      apply: (h) => {
+        h.setMode('spot');
+        h.setQuant({ mode: 'realtime', phaseBits: 5, ampBits: 4, phaseRmsDeg: 2, ampRmsDb: 0.2 });
+        h.setToggle('showGain', true);
+      },
+    },
+    {
+      title: '7 · Cobertura celular y reutilización',
       text: 'Para cubrir Perú se despliegan cientos de haces pequeños, como celdas. Los colores son la reutilización de frecuencia: celdas del mismo color usan el mismo canal. El satélite recalcula la fase de cada celda mientras la ve.',
       apply: (h) => {
         h.setMode('cellular');
@@ -145,7 +156,7 @@ export class UI {
       },
     },
     {
-      title: '7 · Un haz conformado sobre Lima',
+      title: '8 · Un haz conformado sobre Lima',
       text: 'Ahora no iluminamos un punto sino una zona. La síntesis resuelve (AᴴA+λI)w=Aᴴd para que el campo valga 1 dentro y 0 fuera: ajusta amplitud y fase de los 256 elementos. Es la versión digital de un reflector con múltiples alimentadores.',
       apply: (h) => {
         h.setMode('shaped');
@@ -156,9 +167,20 @@ export class UI {
       },
     },
     {
-      title: '8 · Del patrón al enlace',
+      title: '9 · Del patrón al enlace',
       text: 'La ganancia del haz entra en el EIRP y la distancia oblicua en la pérdida de espacio libre. Un haz más estrecho da más C/N₀ pero cubre menos: ese es el compromiso de diseño. Revisa el presupuesto de enlace abajo.',
       apply: (h) => {
+        h.setMode('spot');
+        h.setToggle('showGain', true);
+      },
+    },
+    {
+      title: '10 · Bajada y subida',
+      text: 'Bajada: satélite → VSAT, 12 GHz, 20 W y G/T del terminal. Subida: VSAT → satélite, 14 GHz, 4 W y G/T del satélite. El balance muestra ambos C/N y qué lado limita; la capacidad de sistema usa el mínimo. Baja la potencia del terminal a 1 W y verás cómo la subida pasa a 32APSK y recorta la capacidad.',
+      apply: (h) => {
+        h.setMode('spot');
+        h.setLinkDirection('downlink');
+        h.setUplinkPower(4);
         h.setToggle('showGain', true);
       },
     },
@@ -196,6 +218,7 @@ export class UI {
     bindRange('spacing', (v) => this.h.setAntenna({ dx: v, dy: v }));
     bindRange('efficiency', (v) => this.h.setAntenna({ efficiency: v }));
     bindRange('ptx', (v) => this.h.setPtx(v));
+    bindRange('uplink-power', (v) => this.h.setUplinkPower(v));
     bindRange('bandwidth', (v) => this.h.setBandwidth(v));
     bindRange('users-beam', (v) => {
       $('users-val').textContent = String(v);
@@ -209,6 +232,11 @@ export class UI {
     ($('rain-margin') as HTMLSelectElement).addEventListener('change', (e) => {
       this.h.setRainMargin(Number((e.target as HTMLSelectElement).value));
     });
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('#link-direction button')) {
+      btn.addEventListener('click', () => {
+        this.h.setLinkDirection((btn.dataset.link as LinkDirection) ?? 'downlink');
+      });
+    }
     ($('quant-mode') as HTMLSelectElement).addEventListener('change', (e) => {
       this.h.setQuant({ mode: (e.target as HTMLSelectElement).value as QuantMode });
     });
@@ -435,6 +463,11 @@ export class UI {
       $('eff-val').textContent = `${Math.round(s.antenna.efficiency * 100)} %`;
       ($('ptx') as HTMLInputElement).value = String(s.ptxW);
       $('ptx-val').textContent = `${s.ptxW} W`;
+      ($('uplink-power') as HTMLInputElement).value = String(s.uplinkPowerW);
+      $('uplink-power-val').textContent = `${s.uplinkPowerW} W`;
+      for (const btn of document.querySelectorAll<HTMLButtonElement>('#link-direction button')) {
+        btn.classList.toggle('active', btn.dataset.link === s.linkDirection);
+      }
       ($('bandwidth') as HTMLInputElement).value = String(s.bandwidthMHz);
       $('bw-val').textContent = `${s.bandwidthMHz} MHz`;
       ($('terminal-preset') as HTMLSelectElement).value = s.terminalId;
@@ -585,13 +618,18 @@ export class UI {
   private updateLink(s: SimState, d: Derived) {
     const $ = <T extends HTMLElement>(id: string) => this.el<T>(id);
     const l = d.link;
-    $('link-badge').textContent = `${s.antenna.freqGHz} GHz · ${s.bandwidthMHz} MHz`;
+    const uplink = s.linkDirection === 'uplink';
+    const dirLabel = uplink ? 'Subida' : 'Bajada';
+    $('lk-eirp-label').textContent = uplink ? 'EIRP VSAT' : 'EIRP sat';
+    $('lk-prx-label').textContent = uplink ? 'P_rx sat' : 'P_rx VSAT';
+    $('lk-gt-label').textContent = uplink ? 'G/T sat' : 'G/T VSAT';
     if (!l) {
       $('link-badge').textContent = 'sin haz';
       for (const id of ['lk-eirp', 'lk-fspl', 'lk-prx', 'lk-cn0', 'lk-cn', 'lk-modcod', 'lk-margin', 'lk-gt', 'lk-elev', 'lk-slant']) {
         $(id).textContent = '—';
       }
       $('lk-throughput').textContent = 'sin enlace · no hay haz activo';
+      $('link-balance').textContent = 'Sin haz activo: no hay balance DL/UL.';
       $('lk-range').textContent = '—';
       $('cn0-meter').style.width = '0%';
       $('cn0-meter').classList.remove('outage');
@@ -601,6 +639,7 @@ export class UI {
       $('sys-coverage').textContent = '—';
       return;
     }
+    $('link-badge').textContent = `${dirLabel} · ${l.freqGHz.toFixed(0)} GHz · ${s.bandwidthMHz} MHz`;
     $('lk-eirp').textContent = `${l.eirpDbW.toFixed(1)} dBW`;
     $('lk-fspl').textContent = `${l.fsplDb.toFixed(1)} dB`;
     $('lk-prx').textContent = `${l.rxPowerDbm.toFixed(1)} dBm`;
@@ -621,6 +660,16 @@ export class UI {
     $('lk-range').textContent = d.activeBeam?.target
       ? fmtLatLon(d.activeBeam.target.lat, d.activeBeam.target.lon)
       : `${l.slantKm.toFixed(0)} km`;
+
+    const dl = d.links.downlink;
+    const ul = d.links.uplink;
+    if (dl && ul) {
+      const limit = d.system.limitingLink === 'uplink' ? 'subida' : d.system.limitingLink === 'downlink' ? 'bajada' : '—';
+      $('link-balance').textContent = `DL ${dl.cnDb.toFixed(1)} dB · ${dl.throughputMbps.toFixed(0)} Mbps   |   UL ${ul.cnDb.toFixed(1)} dB · ${ul.throughputMbps.toFixed(0)} Mbps   |   limita ${limit}`;
+    } else {
+      $('link-balance').textContent = 'Balance DL/UL no disponible.';
+    }
+
     const sys = d.system;
     $('sys-power').textContent = sys.rfPowerW >= 1000 ? `${(sys.rfPowerW / 1000).toFixed(1)} kW` : `${sys.rfPowerW.toFixed(0)} W`;
     $('sys-power').classList.toggle('warn', sys.rfPowerW > 6000);

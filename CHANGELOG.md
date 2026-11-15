@@ -2,6 +2,18 @@
 
 Todas las modificaciones relevantes de BeamLab LEO.
 
+## [2.1.0] — 2026-11-14
+
+### Enlace bidireccional
+
+- **Bajada:** satélite → VSAT, 12 GHz Ku (20 GHz K), potencia de satélite y G/T del terminal.
+- **Subida:** VSAT → satélite, 14 GHz Ku (30 GHz K), potencia del terminal y G/T del satélite.
+- Selector de dirección, potencia de terminal (1–20 W) y balance DL/UL.
+- Capacidad de sistema limitada por `min(bajada, subida)` y aviso de qué lado limita.
+- Frecuencias emparejadas y ganancia de apertura fija; modelo declarado sin duplexores.
+- Guía, tour de 10 pasos, ayuda y PDF actualizados.
+- **30 pruebas** (4 nuevas de enlace bidireccional).
+
 ## [2.0.0] — 2026-11-12
 
 ### Cuantización y patrones exactos

@@ -23,7 +23,7 @@ import {
   beamGroundPoint,
   type AntennaFrame,
 } from './core/geometry';
-import { linkBudget } from './core/link';
+import { linkBudget, uplinkFrequencyGHz } from './core/link';
 import { quantizedBeamWeights, quantizedComplexWeights } from './core/quantization';
 import {
   antennaBasis,
@@ -498,7 +498,11 @@ export class Engine {
       }
     }
 
-    const link = active
+    const upFreqGHz = uplinkFrequencyGHz(s.antenna.freqGHz);
+    const upGainScale = 20 * Math.log10(upFreqGHz / s.antenna.freqGHz);
+    const terminalUpGain = s.rxGainDbi > 0 ? s.rxGainDbi + upGainScale : s.rxGainDbi;
+    const satUpGain = activeMetrics.gainDb + upGainScale;
+    const downlink = active
       ? linkBudget({
           slantKm: rangeKm,
           freqGHz: s.antenna.freqGHz,
@@ -512,15 +516,40 @@ export class Engine {
           usersPerBeam: s.usersPerBeam,
         })
       : null;
+    const uplink = active
+      ? linkBudget({
+          slantKm: rangeKm,
+          freqGHz: upFreqGHz,
+          txPowerW: s.uplinkPowerW,
+          txGainDbi: terminalUpGain,
+          rxGainDbi: satUpGain,
+          noiseFigureDb: s.noiseFigureDb,
+          bandwidthMHz: s.bandwidthMHz,
+          elevationDeg,
+          rainMarginDb: s.rainMarginDb,
+          usersPerBeam: s.usersPerBeam,
+        })
+      : null;
+    const link = s.linkDirection === 'uplink' ? uplink : downlink;
 
     const colors = s.mode === 'cellular' ? s.reuse : 1;
+    const downMbps = downlink?.throughputMbps ?? 0;
+    const upMbps = uplink?.throughputMbps ?? 0;
+    const perBeamMbps = active ? Math.min(downMbps, upMbps) : 0;
+    let limitingLink: 'downlink' | 'uplink' | null = null;
+    if (active) {
+      if (downMbps < upMbps) limitingLink = 'downlink';
+      else if (upMbps < downMbps) limitingLink = 'uplink';
+      else if (downlink && uplink) limitingLink = downlink.cnDb <= uplink.cnDb ? 'downlink' : 'uplink';
+    }
     const system: SystemInfo = {
       activeBeams: beams.length,
       rfPowerW: beams.length * s.ptxW,
       spectrumMHz: colors * s.bandwidthMHz,
-      capacityMbps: colors * (link?.throughputMbps ?? 0),
-      perUserMbps: link?.userThroughputMbps ?? 0,
+      capacityMbps: colors * perBeamMbps,
+      perUserMbps: perBeamMbps / Math.max(1, s.usersPerBeam),
       coverageFraction: beamSet?.coverageFraction ?? (s.mode === 'shaped' ? (this.synthInfo?.coverage ?? null) : null),
+      limitingLink,
     };
 
     return {
@@ -537,6 +566,7 @@ export class Engine {
       gainMap,
       phase: this.cachedPhase,
       link,
+      links: { downlink, uplink },
       beamSet,
       shaped: this.synthInfo,
       system,

@@ -408,7 +408,20 @@ $$
 \frac{C}{N}=\frac{C/N_0}{B}.
 $$
 
-### 5.1 MODCOD y umbral
+### 5.1 Bajada y subida
+
+El mismo presupuesto se evalúa en dos direcciones:
+
+- **Bajada:** $P_{tx}=P_{sat}$, $G_{tx}=G_{haz}$, $G_{rx}=G_{VSAT}$, frecuencia de bajada (12 GHz en Ku).
+- **Subida:** $P_{tx}=P_{VSAT}$, $G_{tx}=G_{VSAT}$, $G_{rx}=G_{haz}$, frecuencia de subida (14 GHz en Ku).
+
+Se emparejan 12/14 GHz en Ku y 20/30 GHz en K/Ka. Para una apertura fija, la ganancia de cada extremo se escala como $G(f)=G_0+20\log_{10}(f/f_0)$; es una aproximación de primer orden, no un modelo de duplexor. La capacidad de sistema se limita por el menor de los dos enlaces:
+
+$$
+C_{sistema}=N_{colores}\cdot\min(C_{DL},C_{UL}).
+$$
+
+### 5.2 MODCOD y umbral
 
 No se usa Shannon como si fuera un módem real. El simulador elige el **MODCOD DVB-S2X** más alto cuyo umbral de C/N se cumple, con 1 dB de margen de implementación. La tabla es orientativa:
 
@@ -427,15 +440,13 @@ No se usa Shannon como si fuera un módem real. El simulador elige el **MODCOD D
 
 Si ningún MODCOD cumple, el enlace queda en **outage**: capacidad cero y “sin enlace” en la interfaz. La capacidad es agregada por haz: `C = B · η_espectral`; por usuario se divide entre el número de usuarios del haz.
 
-### 5.2 Ejemplo con la configuración por defecto
+### 5.3 Ejemplo con la configuración por defecto
 
-Con 20 W por haz, $G\approx26{,}9$ dBi con el patrón cuantizado (26,2 dBi ideal), terminal VSAT de 0,6 m ($G_{rx}=34$ dBi, NF 1,5 dB), 550 km y 12 GHz:
+Con 20 W por haz en bajada, 4 W en el terminal y $G\approx26{,}9$ dBi con el patrón cuantizado (26,2 dBi ideal), terminal VSAT de 0,6 m ($G_{rx}=34$ dBi, NF 1,5 dB), 550 km, Ku 12/14 GHz:
 
-- EIRP ≈ 39,2 dBW.
-- $L_{fs}\approx169{,}7$ dB a 611 km.
-- $P_{rx}\approx-66{,}5$ dBm.
-- $C/N_0\approx110{,}3$ dBHz; $C/N\approx30{,}3$ dB en 100 MHz.
-- 64APSK 5/6; ≈500 Mbps por haz; ≈25 Mbps por usuario con 20 usuarios.
+- **Bajada:** EIRP ≈ 39,2 dBW; $L_{fs}\approx169{,}7$ dB; $P_{rx}\approx-66{,}5$ dBm; $C/N_0\approx110{,}3$ dBHz; $C/N\approx30{,}3$ dB en 100 MHz.
+- **Subida:** EIRP del terminal ≈ 41,3 dBW; $L_{fs}\approx171{,}0$ dB; $C/N_0\approx104{,}7$ dBHz; $C/N\approx24{,}7$ dB en 100 MHz. El MODCOD sigue siendo 64APSK 5/6, pero con menos margen; a 1 W la subida cae a ≈18,4 dB y baja a 32APSK 4/5, con ≈400 Mbps.
+- Capacidad por haz ≈500 Mbps; ≈25 Mbps por usuario con 20 usuarios. El sistema usa el mínimo de bajada y subida.
 
 Con una antena isotrópica de 0 dBi, el mismo enlace queda en $C/N\approx-8{,}6$ dB y **outage**. Ese era el origen de los “0–3 Mbps” de la versión anterior: no era un throughput realista, era un receptor isotrópico.
 
@@ -445,7 +456,7 @@ El modo global, con $G\approx3{,}5$ dBi, baja mucho el C/N₀: la misma potencia
 
 ## 6. Validación
 
-Las 26 pruebas de `npm test` comprueban, entre otras cosas:
+Las 30 pruebas de `npm test` comprueban, entre otras cosas:
 
 | Prueba | Resultado esperado |
 |---|---|
@@ -456,6 +467,7 @@ Las 26 pruebas de `npm test` comprueban, entre otras cosas:
 | Base de antena | +X este, +Z nadir |
 | Cuantización | fases en múltiplos del paso, amplitudes en niveles, semilla determinista |
 | Corte exacto | HPBW ideal a nadir dentro de ±1,5° del patrón base |
+| Enlace bidireccional | 12/14 GHz, subida responde a la potencia del terminal, capacidad = mínimo DL/UL |
 | Bocina 17° | HPBW 17°, $D\approx21{,}05$ dBi |
 | 16×16 uniforme, 0,5λ | $D\approx29{,}1$ dBi, HPBW 6,35°, SLL ≈−13 dB |
 | Kaiser −30 dB | SLL al menos 5 dB menor que uniforme, haz más ancho |

@@ -1,4 +1,4 @@
-﻿# BeamLab LEO
+# BeamLab LEO
 
 **Simulador interactivo de órbita, arreglos en fase y beamforming satelital.**
 
@@ -6,7 +6,7 @@
 [![Deploy](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml/badge.svg)](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-3da639?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20.19-339933?style=flat-square)](package.json)
-[![Tests](https://img.shields.io/badge/tests-26%20passing-22d3ee?style=flat-square)](tests)
+[![Tests](https://img.shields.io/badge/tests-30%20passing-22d3ee?style=flat-square)](tests)
 
 **Demo:** <https://gcrownv-glitch.github.io/beamlab-leo/><br>
 **Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>
@@ -22,9 +22,9 @@ BeamLab LEO muestra, en un globo 3D, cómo un satélite en órbita baja (LEO) il
 - **Cuantización realista:** fase de 3–7 bits, amplitud de 3–5 bits o taper fijo, errores residuales de fase/amplitud, patrón exacto del haz activo y modos tiempo real/análisis.
 - **Cobertura:** haz global, haz puntual, celdas fijas a Tierra con reutilización 3/4/7, selección de celda y fracción de cobertura.
 - **Haz conformado:** síntesis por mínimos cuadrados complejos con regularización y gradiente conjugado; muestreo sobre la superficie terrestre.
-- **Enlace:** EIRP, FSPL, atmósfera, margen de lluvia, G/T, C/N₀, C/N, tabla MODCOD DVB-S2X, outage, capacidad por haz, por usuario y agregada del sistema.
+- **Enlace bidireccional:** bajada y subida, balance DL/UL, potencia de terminal, EIRP, FSPL, atmósfera, lluvia, G/T, C/N₀, C/N, MODCOD DVB-S2X, outage y capacidad limitada por el peor enlace.
 - **Rendimiento:** límite de FPS (30–120/∞), calidad Alta/Media/Baja, texturas reales y shader de ganancia en el globo.
-- **Presentación:** guía de 8 pasos, teoría con ecuaciones y material de exposición.
+- **Presentación:** guía de 10 pasos, teoría con ecuaciones y material de exposición.
 
 ## Inicio rápido
 
@@ -50,7 +50,7 @@ La app es estática; necesita servirse por HTTP. No abras `dist/index.html` con 
 2. Selecciona el modo: **Global**, **Puntual**, **Celular** o **Conformada**.
 3. Ajusta el arreglo (N×N, separación, frecuencia, taper, eficiencia) y la potencia por haz.
 4. En **Puntual**, haz clic en el globo para mover el haz. En **Celular**, haz clic para inspeccionar una celda. En **Conformada**, elige centro y radio y pulsa **Sintetizar cobertura**.
-5. Lee el presupuesto de enlace: EIRP, FSPL, C/N, MODCOD, margen, G/T, elevación y capacidad.
+5. Lee el presupuesto de enlace: EIRP, FSPL, C/N, MODCOD, margen, G/T, elevación y capacidad; alterna **bajada/subida** y cambia la potencia del terminal.
 
 ### Atajos
 
@@ -124,17 +124,20 @@ C/N  = C/N₀ − 10 log10(B)
 
 La temperatura de sistema incluye antena (50 K) y receptor; se muestra `G/T`. La capacidad no usa Shannon como si fuera un módem: se selecciona el **MODCOD DVB-S2X** más alto cuyo umbral de C/N se cumple, con 1 dB de margen. Si ninguno cumple, hay **outage** y capacidad cero.
 
+En **bajada** transmiten el satélite (20 W, ganancia del haz) y recibe el VSAT (34 dBi). En **subida** transmite el VSAT (4 W configurables, 34 dBi) y recibe el satélite (ganancia del haz). Se emparejan 12/14 GHz en Ku y 20/30 GHz en K/Ka, con ganancia de apertura fija; no se modelan duplexores ni planes de frecuencia de un operador. La capacidad de sistema usa `min(bajada, subida)` y la interfaz indica qué lado limita.
+
 Configuración por defecto:
 
 | Parámetro | Valor |
 |---|---|
 | Órbita | Starlink 550 km, 53° |
 | Arreglo | 16×16, 0,5 λ, Ku 12 GHz, Kaiser −30, η = 65 % |
-| P<sub>tx</sub> | 20 W por haz |
+| P<sub>tx</sub> satélite (bajada) | 20 W por haz |
+| P<sub>tx</sub> terminal (subida) | 4 W |
 | Canal | 100 MHz |
 | Terminal | VSAT 0,6 m, 34 dBi, NF 1,5 dB |
 | Usuarios/haz | 20 |
-| Resultado típico | C/N ≈ 30,3 dB, 64APSK 5/6, ≈500 Mbps/haz, ≈25 Mbps/usuario |
+| Resultado típico | Bajada C/N ≈ 30 dB · Subida C/N ≈ 24 dB · 64APSK 5/6 · ≈500 Mbps/haz · ≈25 Mbps/usuario |
 
 Con la antena isotrópica (0 dBi) el mismo enlace queda en outage: sirve para comparar y entender por qué la antena del usuario importa.
 
@@ -160,7 +163,7 @@ src/
   main.ts           texturas, bucle y manejadores
   state.ts          estado y tipos
 public/assets/      texturas de la Tierra
-tests/              26 pruebas
+tests/              30 pruebas
 docs/               teoría, despliegue y presentación
 ```
 
@@ -170,7 +173,7 @@ docs/               teoría, despliegue y presentación
 npm test
 ```
 
-26 pruebas cubren tiempo/GMST, órbita y J2, geometría del horizonte, base de antena, arreglo/fase/taper, cuantización, síntesis y presupuesto de enlace (VSAT, isotrópica, lluvia y ancho de banda).
+30 pruebas cubren tiempo/GMST, órbita y J2, geometría del horizonte, base de antena, arreglo/fase/taper, cuantización, síntesis, enlace bidireccional y presupuesto (VSAT, isotrópica, lluvia y ancho de banda).
 
 ## Despliegue
 
@@ -183,6 +186,7 @@ El repositorio publica en GitHub Pages con `.github/workflows/deploy.yml`: insta
 - **[Guion de exposición](docs/presentacion/guion.md)** · **[PDF](docs/presentacion/guion-beamlab-leo.pdf)** · **[Checklist](docs/presentacion/checklist.md)**
 - **[Registro de cambios](CHANGELOG.md)** · **[Citación](CITATION.cff)**
 - **[Auditoría técnica y de producto](docs/auditoria.md)**
+- **[Plan web, Android e iOS](docs/movil.md)**
 
 ## Limitaciones
 
@@ -192,7 +196,8 @@ Modelo docente, no certificado:
 - Arreglo ideal en lo relativo a acoplamiento mutuo, fallos de elementos y calibración perfecta; la cuantización y los errores residuales sí están modelados.
 - El patrón exacto se calcula para el **haz activo**; en celular el mapa multihaz sigue siendo ideal para mantener interacción.
 - Sin interferencia co-canal ni C/I por reutilización; la cobertura celular se limita a 2.500 celdas y muestra la fracción cubierta.
-- Sin uplink, feeder link ni handover entre satélites.
+- Sin **feeder link**, handover entre satélites ni constelación completa.
+- El enlace bidireccional usa apertura fija y frecuencias emparejadas; no modela duplexores, planes de frecuencia del operador ni control de potencia adaptativo.
 - La lluvia es un margen seleccionable, no un modelo de disponibilidad.
 - El haz conformado es estático y se calcula para una posición orbital concreta.
 

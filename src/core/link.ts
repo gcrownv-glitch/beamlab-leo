@@ -33,8 +33,21 @@ export const MODCODS = [
   { name: '64APSK 5/6', minCnDb: 19.5, spectralEfficiency: 5.00 },
 ] as const;
 
+/**
+ * Frecuencia de subida emparejada para el modelo docente. En Ku se usa
+ * 14 GHz para subir y 12 GHz para bajar; en banda K/Ka, 30/20 GHz. Las bandas
+ * L y S se mantienen iguales. No modela duplexores ni planes de frecuencia
+ * de un operador concreto.
+ */
+export function uplinkFrequencyGHz(downlinkGHz: number): number {
+  if (downlinkGHz >= 11.5 && downlinkGHz <= 12.5) return 14;
+  if (downlinkGHz >= 19 && downlinkGHz <= 21) return 30;
+  return downlinkGHz;
+}
+
 export interface LinkResult {
   fsplDb: number;
+  freqGHz: number;
   eirpDbW: number;
   pfdDbWm2: number;
   rxPowerDbm: number;
@@ -102,6 +115,7 @@ export function linkBudget(p: LinkParams): LinkResult {
 
   return {
     fsplDb,
+    freqGHz: p.freqGHz,
     eirpDbW,
     pfdDbWm2,
     rxPowerDbm,

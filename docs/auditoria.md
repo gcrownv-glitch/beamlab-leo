@@ -1,4 +1,4 @@
-# Auditoría técnica y de producto — BeamLab LEO 2.0.0
+# Auditoría técnica y de producto — BeamLab LEO 2.1.0
 
 **Fecha:** 2026-11-12  
 **Auditor:** Jhorel Kennedy Cornejo Cruz — IET UCSP  
@@ -12,7 +12,7 @@ Se audita el simulador completo: órbita, arreglo en fase, modos de cobertura, p
 ## 2. Método
 
 - Revisión estática de `src/core` y de los flujos de `engine.ts`, `ui.ts` y `main.ts`.
-- Ejecución de **26 pruebas** (`npm test`).
+- Ejecución de **30 pruebas** (`npm test`).
 - Compilación de producción (`npm run build`).
 - Verificación en navegador real (Edge headless) sobre la app publicada: carga 3D, texturas, modos, enlace, créditos y consola.
 - Revisión del workflow de GitHub Actions y del estado HTTP del sitio.
@@ -24,7 +24,7 @@ Se audita el simulador completo: órbita, arreglo en fase, modos de cobertura, p
 
 - El sistema **cumple** los requisitos funcionales centrales: órbita, beamforming, cobertura, enlace, UI, despliegue y documentación.
 - **No hay defectos bloqueantes** para presentarlo.
-- Quedan limitaciones de alcance (interferencia, uplink, handover, accesibilidad total y asignación térmica de potencia) que están **declaradas** y no forman parte del objetivo actual. La cuantización de fase/amplitud y los errores residuales **ya están implementados**.
+- Quedan limitaciones de alcance (interferencia, feeder link, handover, accesibilidad total y asignación térmica de potencia) que están **declaradas** y no forman parte del objetivo actual. La cuantización y el **enlace bidireccional** ya están implementados.
 
 ## 4. Matriz de requisitos
 
@@ -41,19 +41,20 @@ Se audita el simulador completo: órbita, arreglo en fase, modos de cobertura, p
 | 8 | Celdas con reutilización 3/4/7, cobertura y selección de celda | **Cumple** | 404 celdas, 98 %, clic en celda |
 | 9 | Haz conformado con muestreo en Tierra y control de derrame | **Cumple** | Cuantizado: 98 %, −7,4 dB, D 20,3 dBi; ideal: 100 %, −12,1 dB |
 | 10 | Presupuesto de enlace: EIRP, FSPL, atmósfera, lluvia, G/T, C/N₀, C/N | **Cumple** | Panel de enlace |
+| 10b | Enlace bidireccional bajada/subida, potencia de terminal y balance | **Cumple** | 12/14 GHz, 20 W/4 W, capacidad = mínimo DL/UL |
 | 11 | MODCOD DVB-S2X, margen y outage | **Cumple** | 64APSK 5/6; isotrópica → outage |
 | 12 | Capacidad por haz, por usuario y de sistema; potencia y espectro | **Cumple** | 500 Mbps/haz, 25/usuario, 1,5 Gbps, 8,1 kW |
 | 13 | Estado “sin haz” y no mostrar cifras falsas | **Cumple** | Tarjeta “sin enlace” |
 | 14 | Controles de rendimiento (FPS, calidad) | **Cumple** | 30–120/∞, Alta/Media/Baja |
 | 15 | Teoría, guía, ayuda y atajos | **Cumple** | Modal de teoría, tour de 8 pasos |
 | 16 | Créditos con nombre completo, IET UCSP y enlace a GitHub | **Cumple** | Esquina superior izquierda y PDF |
-| 17 | Pruebas automatizadas y build | **Cumple** | 26/26 y build correcto |
+| 17 | Pruebas automatizadas y build | **Cumple** | 30/30 y build correcto |
 | 18 | CI y despliegue público | **Cumple** | GitHub Actions y HTTP 200 |
 | 19 | README, LICENSE, CHANGELOG, CITATION, docs | **Cumple** | Repositorio organizado |
 | 20 | Guion y PDF de exposición | **Cumple** | 20 páginas, portada/contraportada |
 | 21 | Asignación de potencia por haz y modelo térmico | **Parcial** | Se muestra el total y un aviso; no se reparte potencia |
 | 22 | Interferencia co-canal / C/I por reutilización | **No incluido** | Declarado en Limitaciones |
-| 23 | Polarización, Doppler, uplink y handover | **No incluido** | Declarado en Limitaciones |
+| 23 | Polarización, Doppler y handover | **No incluido** | Declarado en Limitaciones |
 | 24 | Fallos de elementos, acoplamiento mutuo y calibración perfecta | **No incluido** | El arreglo sigue siendo ideal en esos aspectos; cuantización y residuales sí están |
 | 25 | Accesibilidad completa del canvas 3D | **Parcial** | `aria-label` y panel textual; sin alternativa completa para lector de pantalla |
 | 26 | Prueba E2E automatizada en CI | **Parcial** | Verificación manual con Playwright; el CI corre unitarias + build |
@@ -68,8 +69,11 @@ Se audita el simulador completo: órbita, arreglo en fase, modos de cobertura, p
 | EIRP | 39,2 dBW |
 | FSPL a 611 km | 169,7 dB |
 | P<sub>rx</sub> | −66,7 dBm |
-| C/N₀ | 110,3 dBHz |
-| C/N en 100 MHz | 30,3 dB |
+| C/N₀ bajada | 110,3 dBHz |
+| C/N bajada en 100 MHz | 30,3 dB |
+| C/N₀ subida | 104,7 dBHz |
+| C/N subida en 100 MHz | 24,7 dB |
+| Capacidad por haz | min(DL, UL) = 500 Mbps |
 | MODCOD | 64APSK 5/6 |
 | Capacidad | ≈500 Mbps/haz · 25 Mbps/usuario con 20 usuarios |
 
@@ -101,7 +105,7 @@ Con antena isotrópica (0 dBi): C/N ≈ −8,6 dB, **outage** y 0 Mbps. Esto sus
 1. **Potencia y térmica:** se muestra la potencia RF total, pero no se reparte entre haces ni se modela el balance térmico. El aviso de 8,1 kW evita interpretarlo como diseño real.
 2. **Interferencia:** la reutilización 3/4/7 se pinta, pero no se calcula C/I. La capacidad es una cota optimista.
 3. **Arreglo:** cuantización y errores residuales implementados; faltan acoplamiento mutuo, fallos de elementos y calibración medida.
-4. **Enlace:** sin polarización, Doppler, uplink, feeder ni handover.
+4. **Enlace:** con apertura fija y frecuencias emparejadas, sin duplexores, polarización, Doppler, feeder ni handover.
 5. **Cobertura celular:** límite de 2.500 celdas; en regiones grandes se muestra la fracción cubierta.
 6. **Accesibilidad:** el canvas 3D tiene etiqueta, pero no una descripción textual completa.
 7. **E2E:** la verificación de navegador es manual; conviene automatizarla en CI.
@@ -113,7 +117,7 @@ Con antena isotrópica (0 dBi): C/N ≈ −8,6 dB, **outage** y 0 Mbps. Esto sus
 2. Modelar asignación de potencia y un límite térmico simple.
 3. Incorporar Playwright al CI para un smoke test de la app publicada.
 4. Mejorar accesibilidad: resumen textual de métricas y navegación por teclado en el canvas.
-5. Añadir Doppler, polarización y uplink si el alcance crece.
+5. Añadir Doppler, polarización y feeder link si el alcance crece.
 6. Evaluar un dominio propio para la presentación.
 
 ## 8. Checklist de aceptación
@@ -121,12 +125,13 @@ Con antena isotrópica (0 dBi): C/N ≈ −8,6 dB, **outage** y 0 Mbps. Esto sus
 - [x] La app carga en un navegador real sin errores de consola.
 - [x] Los cuatro modos funcionan.
 - [x] El enlace por defecto es realista y el caso isotrópico queda en outage.
+- [x] Bajada y subida se calculan por separado y la capacidad usa el mínimo.
 - [x] La geometría de 550 km está corregida.
 - [x] La cobertura celular muestra celdas, reutilización y fracción.
 - [x] El haz conformado cubre Lima y no deriva.
 - [x] La cuantización 5/4 bits y los errores residuales se calculan con patrón exacto.
 - [x] Los créditos con nombre completo y GitHub están visibles.
-- [x] 26 pruebas pasan.
+- [x] 30 pruebas pasan.
 - [x] El build de producción compila.
 - [x] GitHub Pages publica el sitio.
 - [x] README, LICENSE, CHANGELOG, CITATION y PDF están actualizados.

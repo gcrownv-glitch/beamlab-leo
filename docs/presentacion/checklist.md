@@ -1,10 +1,10 @@
-﻿# Checklist para la exposición
+# Checklist para la exposición
 
 ## Una semana antes
 
 - [ ] `npm install` funciona en la laptop que se llevará a clase.
 - [ ] `npm run build` termina sin errores.
-- [ ] `npm test` pasa las 26 pruebas.
+- [ ] `npm test` pasa las 30 pruebas.
 - [ ] Probar la demo completa con la **Guía** de principio a fin.
 - [ ] Guardar una copia del repositorio (USB o carpeta comprimida) y las capturas de `../img/`.
 
@@ -21,7 +21,8 @@
 
 - [ ] `npm run dev` (o `npm run preview` con la versión de producción).
 - [ ] Confirmar que el globo, el satélite y los paneles cargan.
-- [ ] Pulsar **Guía**, avanzar un paso y cerrar; así se comprueba que la tarjeta funciona.
+- [ ] Pulsar **Guía**, avanzar un paso y cerrar; así se comprueba que la tarjeta funciona (10 pasos).
+- [ ] Probar **Bajada/Subida** y bajar la potencia del terminal a 1 W; confirmar que la subida cambia de MODCOD.
 - [ ] Dejar la app en el modo **Puntual** y en **10×**.
 - [ ] Tener abierto `guion.md` en otra ventana o en el móvil.
 

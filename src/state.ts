@@ -10,6 +10,7 @@ export type CameraMode = 'earth' | 'sat' | 'follow';
 export type Quality = 'high' | 'medium' | 'low';
 export type TerminalId = 'vsat60' | 'vsat45' | 'isotropic';
 export type QuantMode = 'ideal' | 'realtime' | 'analysis';
+export type LinkDirection = 'downlink' | 'uplink';
 
 export interface QuantState {
   mode: QuantMode;
@@ -41,6 +42,7 @@ export interface SystemInfo {
   capacityMbps: number;
   perUserMbps: number;
   coverageFraction: number | null;
+  limitingLink: LinkDirection | null;
 }
 
 export interface PhaseView {
@@ -68,6 +70,7 @@ export interface Derived {
   gainMap: GainMap;
   phase: PhaseView;
   link: LinkResult | null;
+  links: { downlink: LinkResult | null; uplink: LinkResult | null };
   activePattern: PatternGrid;
   activeMetrics: ArrayMetrics;
   quant: QuantInfo | null;
@@ -107,6 +110,8 @@ export interface SimState {
   cellTarget: { lat: number; lon: number } | null;
   terminalId: TerminalId;
   ptxW: number;
+  uplinkPowerW: number;
+  linkDirection: LinkDirection;
   rxGainDbi: number;
   noiseFigureDb: number;
   bandwidthMHz: number;
@@ -167,6 +172,8 @@ export function defaultState(): SimState {
     cellTarget: null,
     terminalId: 'vsat60',
     ptxW: 20,
+    uplinkPowerW: 4,
+    linkDirection: 'downlink',
     rxGainDbi: 34,
     noiseFigureDb: 1.5,
     bandwidthMHz: 100,

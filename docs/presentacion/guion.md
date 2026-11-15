@@ -237,18 +237,19 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 
 ---
 
-## Escena 7 · ¿Llega la señal? El presupuesto de enlace
+## Escena 7 · ¿Llega la señal? Bajada y subida
 
 **Tiempo:** 9:45–11:00  
-**Muestra:** tarjeta **Presupuesto** (EIRP, FSPL, P<sub>rx</sub>, C/N₀, C/N, MODCOD, margen, G/T, elevación, oblicua, capacidad).
+**Muestra:** tarjeta **Presupuesto**; alterna **Bajada / Subida**, cambia la potencia del terminal y observa el balance DL/UL.
 
 **Di algo así:**
 
-- “La ganancia del haz entra en el **EIRP**: la potencia efectiva que el satélite parece tener en esa dirección. Aquí son unos 39 dBW, equivalentes a unos 8 kW efectivos, pero concentrados en un haz.”
-- “La distancia juega en contra: la **pérdida de espacio libre** es de unos 170 dB a 611 km. La señal llega muy débil: del orden de −66 dBm en una terminal de 0,6 m.”
-- “El **C/N₀** compara la señal con el ruido: 110,3 dBHz. Pero C/N₀ solo no dice si el enlace sirve: con 100 MHz, eso equivale a **C/N = 30,3 dB**. Con 71 dBHz y 100 MHz tendríamos **−9 dB**, y no habría enlace. Por eso el medidor ahora muestra el **margen frente al umbral del MODCOD**, no C/N₀ a secas.”
-- “Con C/N 30,3 dB, el módem puede usar **64APSK 5/6**: 5 bits/s/Hz, es decir, unos **500 Mbps por haz**. Si repartimos ese haz entre 20 usuarios, son unos **25 Mbps por usuario**.”
-- “Si llueve y perdemos 8 dB, el C/N baja a ~21,6 dB y el sistema elige un MODCOD más robusto. Si el C/N cae por debajo del umbral, la tarjeta dice **sin enlace** y la capacidad es cero.”
+- “La ganancia del haz entra en el **EIRP**: en bajada el satélite transmite 20 W y el VSAT recibe con 34 dBi; en subida el VSAT transmite 4 W y el satélite recibe con su haz. Son dos presupuestos distintos, no uno.”
+- “La distancia juega en contra: la **pérdida de espacio libre** es de unos 170 dB a 611 km en bajada y 171 dB en subida. La señal llega muy débil: del orden de −66 dBm en la terminal.”
+- “El **C/N₀** de bajada es 110,3 dBHz; con 100 MHz equivale a **C/N = 30,3 dB**. La subida tiene 104,7 dBHz y **C/N = 24,7 dB**: llega más justa. El balance muestra ambos y dice **limita subida**.”
+- “Con C/N 30/24 dB, el módem puede usar **64APSK 5/6** en ambos sentidos: unos **500 Mbps por haz** y **25 Mbps por usuario** con 20 usuarios. Si bajo la potencia del terminal a 1 W, la subida cae a 18,4 dB, baja a **32APSK 4/5** y el sistema se limita a **400 Mbps**.”
+- “Si llueve y perdemos 8 dB, la bajada baja a ~22 dB y la subida a ~17 dB; el MODCOD se hace más robusto. Si el C/N cae por debajo del umbral, la tarjeta dice **sin enlace** y la capacidad es cero.”
+- “La capacidad de sistema no es la de bajada ni la de subida: es el **mínimo** de las dos. Un enlace es tan fuerte como su lado más débil.”
 
 **Las fórmulas, con interpretación:**
 
@@ -259,7 +260,7 @@ L_{fs}=20\log_{10}\!\left(\frac{4\pi d}{\lambda}\right)\qquad
 \frac{C}{N}=\frac{C/N_0}{B}
 \]
 
-- **EIRP:** potencia del transmisor + ganancia de la antena. “Lo que el satélite ‘parece’ tener en esa dirección.”
+- **EIRP:** potencia del transmisor + ganancia de la antena. “Lo que el satélite o el VSAT ‘parece’ tener en esa dirección.”
 - **Pérdida de espacio libre:** la señal se diluye con la distancia. “Como una lámpara que ilumina menos cuanto más lejos.”
 - **C/N₀:** señal frente a ruido por hertz. “Qué tan fuerte es la música frente al ruido de fondo.”
 - **C/N:** C/N₀ repartido en el ancho de banda. “El mismo ruido, escuchado con una ventana más ancha, empeora.”
@@ -273,11 +274,11 @@ L_{fs}=20\log_{10}\!\left(\frac{4\pi d}{\lambda}\right)\qquad
 - 20 dB = 100 veces.
 - 24 dB ≈ 250 veces.
 
-**Frase para recordar:** “C/N₀ solo no basta: el ancho de banda y el umbral del módem deciden si hay internet.”
+**Frase para recordar:** “C/N₀ solo no basta: el ancho de banda, el umbral del módem y el peor de los dos sentidos deciden si hay internet.”
 
-**Dato con interpretación:** 39 dBW ≈ 8 kW efectivos; 169,7 dB de FSPL a 611 km; C/N₀ 110,3 dBHz; C/N 30,3 dB; 64APSK 5/6; 500 Mbps/haz; 25 Mbps/usuario con 20 usuarios. Con antena isotrópica (0 dBi) el mismo enlace queda en outage: eso explica los antiguos 0–3 Mbps.
+**Dato con interpretación:** bajada 39 dBW, 169,7 dB de FSPL, C/N₀ 110,3 dBHz, C/N 30,3 dB; subida 41,3 dBW, 171,0 dB, C/N₀ 104,7 dBHz, C/N 24,7 dB; 64APSK 5/6; 500 Mbps/haz; 25 Mbps/usuario. Con antena isotrópica ambos sentidos quedan en outage.
 
-**Si preguntan “¿por qué no suben la potencia?”:** “Porque el satélite tiene límites de energía, calor y peso. Es más eficiente mejorar la antena y la cobertura que subir vatios. Además, ~400 haces a 20 W serían ~8 kW de RF: en un satélite real la potencia se comparte.”
+**Si preguntan “¿por qué no suben la potencia?”:** “Porque el satélite tiene límites de energía, calor y peso; y el terminal no puede transmitir sin límites. Es más eficiente mejorar antena, MODCOD y cobertura que subir vatios. Además, ~400 haces a 20 W serían ~8 kW de RF: en un satélite real la potencia se comparte.”
 
 ---
 
@@ -336,11 +337,11 @@ L_{fs}=20\log_{10}\!\left(\frac{4\pi d}{\lambda}\right)\qquad
 | **100 km** | radio de la zona conformada | Lima metropolitana |
 | **98 %** | cobertura lograda con cuantización | derrame −7,4 dB |
 | **20,3 dBi** | directividad del haz conformado | ~150×; menos que ~29 dBi, pero cubre Lima |
-| **39 dBW** | EIRP del enlace | ~8 kW efectivos |
-| **169,7 dB** | pérdida de espacio libre a 611 km | atenuación enorme |
-| **110,3 dBHz** | C/N₀ del enlace | C/N 30,3 dB en 100 MHz |
-| **64APSK 5/6** | MODCOD seleccionado | 5 bits/s/Hz |
-| **500 Mbps** | capacidad agregada por haz | 25 Mbps/usuario con 20 usuarios |
+| **39 / 41 dBW** | EIRP de bajada / subida | satélite / terminal |
+| **169,7 / 171 dB** | pérdida de espacio libre a 611 km | atenuación enorme |
+| **110,3 / 104,7 dBHz** | C/N₀ de bajada / subida | C/N 30,3 / 24,7 dB en 100 MHz |
+| **64APSK 5/6** | MODCOD seleccionado en ambos sentidos | 5 bits/s/Hz |
+| **500 Mbps** | capacidad agregada por haz (mínimo DL/UL) | 25 Mbps/usuario con 20 usuarios |
 | **−7,4 dB** | derrame fuera de la zona con cuantización | ~18 % de la potencia |
 | **0,5 λ** | separación entre elementos | evita copias del haz |
 
@@ -390,7 +391,7 @@ Si el tiempo se acorta:
 2. **0:45–2:00 · Problema y beamforming.** Global vs puntual; dBi; “no movemos la antena, movemos el tiempo”; muestra el mapa de fase.
 3. **2:00–3:00 · El arreglo.** 4×4 vs 16×16; panel de 19 cm; ~29 dBi; taper y lóbulos.
 4. **3:00–4:15 · Cobertura.** Celular Perú (~400 celdas, 3 colores); conformada Lima (100 km, 98 % con cuantización).
-5. **4:15–5:00 · Enlace y cierre.** EIRP/FSPL/C/N₀; las 3 C; URL.
+5. **4:15–5:00 · Enlace y cierre.** Bajada/subida, EIRP/FSPL/C/N₀, balance y mínimo DL/UL; las 3 C; URL.
 
 ---
 

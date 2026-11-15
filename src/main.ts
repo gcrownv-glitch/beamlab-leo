@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Engine } from './engine';
 import { SceneView, type Textures } from './scene';
 import { UI, type ToggleKey, type UIHandlers } from './ui';
-import { defaultState, type CameraMode, type Mode, type Quality, type SimState } from './state';
+import { defaultState, type CameraMode, type LinkDirection, type Mode, type Quality, type SimState } from './state';
 import { elementsOverPoint, presetById } from './core/presets';
 import { DEG, R_EARTH } from './core/constants';
 import { anglesForGroundPoint } from './core/geometry';
@@ -155,6 +155,18 @@ class App {
     synthesize: () => this.synthesize(),
     setPtx: (w) => {
       this.state.ptxW = w;
+      this.engine.update();
+      this.ui.syncControls(this.state);
+      this.ui.update(this.state, this.engine.derived);
+    },
+    setUplinkPower: (w) => {
+      this.state.uplinkPowerW = w;
+      this.engine.update();
+      this.ui.syncControls(this.state);
+      this.ui.update(this.state, this.engine.derived);
+    },
+    setLinkDirection: (dir) => {
+      this.state.linkDirection = dir;
       this.engine.update();
       this.ui.syncControls(this.state);
       this.ui.update(this.state, this.engine.derived);

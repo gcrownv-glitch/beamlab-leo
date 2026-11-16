@@ -1,6 +1,8 @@
-﻿# BeamLab LEO portable y actualizaciones por versiones
+# BeamLab LEO portable y actualizaciones por versiones
 
 **Fecha:** 2026-11-15  
+**Actualización 2.3:** la vía principal de escritorio es **Tauri** ([tauri.md](tauri.md)). El HTML autónomo y el ZIP quedan como respaldo universal y para equipos sin instalación; el ZIP no es la entrega principal.
+
 **Objetivo:** distribuir la app sin Google Play, sin App Store y sin instalador.
 
 ---

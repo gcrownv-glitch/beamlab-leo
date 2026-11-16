@@ -1,6 +1,8 @@
 # BeamLab LEO en web, Android e iOS
 
 **Fecha:** 2026-11-14  
+**Actualización 2.3:** para escritorio se eligió **Tauri**, no Capacitor. Ver [tauri.md](tauri.md). Este documento conserva la comparación y el plan móvil; Android/iOS quedan fuera del alcance inmediato.
+
 **Estado:** plan técnico, no implementado todavía  
 **Objetivo:** que la misma app funcione en navegador, Android e iOS sin reescribir la simulación.
 

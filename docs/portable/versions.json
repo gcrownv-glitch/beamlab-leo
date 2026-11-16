@@ -5,7 +5,7 @@
     {
       "version": "2.3.1",
       "date": "2026-11-16",
-      "notes": "Laboratorio, Tauri y actualizaciones opcionales.",
+      "notes": "Corrige pinch, cobertura, exportaciones y rendimiento Tauri.",
       "html": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.1.html",
       "zip": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.1-portable.zip",
       "release": "https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.1",
@@ -16,8 +16,8 @@
         "linuxDeb": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.1/BeamLab.LEO_2.3.1_amd64.deb",
         "macDmg": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.1/BeamLab.LEO_2.3.1_aarch64.dmg"
       },
-      "size": 4564387,
-      "sha256": "598eee9588721a40a40cc4873a72199beb6be66505a2d3cfa65f0e7bb699de36"
+      "size": 4564506,
+      "sha256": "8b70591d733acaa92e07e805606cb4bce9cbeea348fcb47aca57cecf0a29dcf4"
     }
   ]
 }

@@ -137,6 +137,13 @@ export function defaultState(): SimState {
     }
     const rawQuality = localStorage.getItem('beamlab:quality');
     if (rawQuality === 'high' || rawQuality === 'medium' || rawQuality === 'low') quality = rawQuality;
+    // Tauri usa el compositor del sistema: una sola migración a un perfil
+    // más frío. Después se respeta lo que el usuario elija.
+    if (isTauri && !localStorage.getItem('beamlab:tauri-perf-v2')) {
+      fpsCap = 45;
+      quality = 'medium';
+      localStorage.setItem('beamlab:tauri-perf-v2', '1');
+    }
   } catch {
     // almacenamiento no disponible (modo privado, etc.)
   }

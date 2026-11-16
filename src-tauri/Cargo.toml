@@ -1,6 +1,6 @@
 [package]
 name = "beamlab-leo"
-version = "2.3.0"
+version = "2.3.1"
 description = "BeamLab LEO: simulador de beamforming satelital LEO"
 authors = ["Jhorel Kennedy Cornejo Cruz <https://github.com/gcrownv-glitch>"]
 license = "MIT"
@@ -21,3 +21,5 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.12.5" }
 tauri-plugin-log = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"

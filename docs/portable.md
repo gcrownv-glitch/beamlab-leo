@@ -1,4 +1,4 @@
-# BeamLab LEO portable y actualizaciones por versiones
+﻿# BeamLab LEO portable y actualizaciones por versiones
 
 **Fecha:** 2026-11-15  
 **Actualización 2.3:** la vía principal de escritorio es **Tauri** ([tauri.md](tauri.md)). El HTML autónomo y el ZIP quedan como respaldo universal y para equipos sin instalación; el ZIP no es la entrega principal.
@@ -15,16 +15,16 @@ Se entregan tres formatos:
 
 | Formato | Tamaño | Requisitos | Uso |
 |---|---:|---|---|
-| **HTML autónomo** | ~4,3 MB | Navegador moderno | Windows, macOS, Linux, Android, iPhone |
+| **HTML autónomo** | ~4,4 MB | Navegador moderno | Windows, macOS, Linux, Android, iPhone |
 | **Launcher `.exe`** | ~48 KB | Edge/Chrome instalado | Un doble clic en Windows |
-| **ZIP portable** | ~6,8 MB | Descomprimir | Paquete completo con launcher, versiones y actualizador |
+| **ZIP portable** | ~9,2 MB | Descomprimir | Paquete completo con launcher, versiones y actualizador |
 
 El HTML lleva **todo dentro**: JavaScript, CSS, texturas y fuentes. No necesita servidor, Node, Python ni internet.
 
 Descargas:
 
-- App: <https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.0.html>
-- ZIP con launcher: <https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.0-portable.zip>
+- App: <https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.1.html>
+- ZIP con launcher: <https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.1-portable.zip>
 - Selector: <https://gcrownv-glitch.github.io/beamlab-leo/versiones.html>
 
 El `.exe` **no es un navegador embebido**: es un lanzador mínimo que abre el HTML con Edge en modo app (`--app=...`). Si no encuentra Edge, prueba Chrome y, si tampoco, abre el navegador predeterminado. No instala nada.
@@ -34,8 +34,8 @@ El `.exe` **no es un navegador embebido**: es un lanzador mínimo que abre el HT
 ## 2. Lo que ya está probado
 
 - HTML autónomo abierto desde `file://` con Edge headless: `window.__beamlab` activo, canvas 1600×1000, texturas cargadas, **sin errores**.
-- Tamaño: **4.556.435 bytes**.
-- ZIP: **6.818.559 bytes** (incluye 2.1.0, 2.2.0 y 2.3.0).
+- Tamaño: **4.564.387 bytes**.
+- ZIP: **9.244.154 bytes** (incluye 2.1.0, 2.2.0 y 2.3.1).
 - Launcher: **48 KB**, compilado con .NET Framework 4.8 (`csc`), sin runtime extra.
 - 30 pruebas de la app pasan.
 - El HTML funciona sin conexión después de descargarlo.
@@ -50,7 +50,7 @@ El `.exe` **no es un navegador embebido**: es un lanzador mínimo que abre el HT
 BeamLabLEO-portable/
   BeamLabLEO.exe              ← launcher opcional
   index.html                  ← selector de versiones
-  BeamLabLEO-2.3.0.html       ← app completa
+  BeamLabLEO-2.3.1.html       ← app completa
   BeamLabLEO-2.1.1.html       ← versión futura, se conserva
   Actualizar.cmd              ← buscar/descargar otra versión
   Actualizar.ps1
@@ -73,13 +73,13 @@ No hay servidor propio. Se usa GitHub Pages + un manifiesto JSON.
 ```json
 {
   "schema": 1,
-  "latest": "2.3.0",
+  "latest": "2.3.1",
   "versions": [
     {
-      "version": "2.3.0",
+      "version": "2.3.1",
       "date": "2026-11-15",
       "notes": "Enlace bidireccional, cuantización y guía de 10 pasos.",
-      "html": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.0.html",
+      "html": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.1.html",
       "size": 3574637,
       "sha256": "..."
     }

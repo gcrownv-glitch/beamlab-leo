@@ -18,6 +18,7 @@ import {
   qForHpbw,
 } from './core/array';
 import { DEG, R_EARTH } from './core/constants';
+import type { Vec3 } from './core/vec';
 import {
   anglesForGroundPoint,
   beamGroundPoint,
@@ -44,6 +45,7 @@ import {
   buildGroundCells,
   regionAreaKm2,
   regionPolygon,
+  pointInPolygon,
   type DirectionSample,
   type GroundCell,
 } from './core/regions';
@@ -474,6 +476,9 @@ export class Engine {
         gainMap = computeGainMap(activePattern, [SHAPED_BEAM], patternQ, size);
       } else {
         gainMap = computeGainMap(pattern, beams.length ? beams : [ZERO_BEAM], patternQ, size, s.mode === 'cellular' ? 'max' : 'sum');
+      }
+      if (s.mode === 'cellular' || s.mode === 'shaped') {
+        this.maskGainMap(gainMap, sat.rEcef, frame, s);
       }
       this.gainDirty = false;
       this.lastGainMs = now;
@@ -912,6 +917,45 @@ export class Engine {
     this.cachedPhase = null;
     this.cachedMetrics = null;
     return info;
+  }
+
+  private maskGainMap(map: GainMap, sat: Vec3, frame: AntennaFrame, s: SimState) {
+    const size = map.size;
+    const poly = s.mode === 'cellular' ? regionPolygon(s.region) : null;
+    const shapedLat = s.shapedCenter.lat * DEG;
+    const shapedLon = s.shapedCenter.lon * DEG;
+    const shapedRadius = (s.shapedRadiusKm * 1.06) / R_EARTH;
+    for (let iv = 0; iv < size; iv++) {
+      const v = -1 + (2 * (iv + 0.5)) / size;
+      for (let iu = 0; iu < size; iu++) {
+        const u = -1 + (2 * (iu + 0.5)) / size;
+        const idx = iv * size + iu;
+        if (u * u + v * v > 1) {
+          map.data[idx] = 0;
+          map.rgba[idx * 4 + 3] = 0;
+          continue;
+        }
+        const pt = beamGroundPoint(sat, frame, { id: 0, u, v, amp: 1, color: 0 });
+        if (!pt) {
+          map.data[idx] = 0;
+          map.rgba[idx * 4 + 3] = 0;
+          continue;
+        }
+        const geo = ecefToGeodetic(pt);
+        let inside = true;
+        if (poly) {
+          inside = pointInPolygon(geo.lat / DEG, geo.lon / DEG, poly);
+        } else if (s.mode === 'shaped') {
+          const cosD = Math.sin(geo.lat) * Math.sin(shapedLat)
+            + Math.cos(geo.lat) * Math.cos(shapedLat) * Math.cos(geo.lon - shapedLon);
+          inside = Math.acos(Math.max(-1, Math.min(1, cosD))) <= shapedRadius;
+        }
+        if (!inside) {
+          map.data[idx] = 0;
+          map.rgba[idx * 4 + 3] = 0;
+        }
+      }
+    }
   }
 
   private measureSynthesis(

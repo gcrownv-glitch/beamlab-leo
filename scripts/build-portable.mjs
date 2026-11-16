@@ -75,6 +75,13 @@ const entry = {
   html: `${baseUrl}/BeamLabLEO-${version}.html`,
   zip: `${baseUrl}/BeamLabLEO-${version}-portable.zip`,
   release: `https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v${version}`,
+  downloads: {
+    windowsPortable: `https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v${version}/beamlab-leo.exe`,
+    windowsInstaller: `https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v${version}/BeamLab.LEO_${version}_x64-setup.exe`,
+    linuxAppImage: `https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v${version}/BeamLab.LEO_${version}_amd64.AppImage`,
+    linuxDeb: `https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v${version}/BeamLab.LEO_${version}_amd64.deb`,
+    macDmg: `https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v${version}/BeamLab.LEO_${version}_aarch64.dmg`,
+  },
   size: Buffer.byteLength(html),
   sha256,
 };

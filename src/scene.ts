@@ -5,6 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { DEG, EARTH_UNITS, R_EARTH } from './core/constants';
+import { saveBlob, type SaveResult } from './save';
 import type { Derived, Quality, SimState } from './state';
 import { footprintRing, type AntennaFrame } from './core/geometry';
 import { groundTrack, maxCentralAngle, orbitPathEci } from './core/orbit';
@@ -192,6 +193,9 @@ export class SceneView {
       if (hit) this.onHover(hit.lat, hit.lon, e.clientX, e.clientY);
       else this.onHover(null, null, e.clientX, e.clientY);
     });
+    // WebView2/Tauri entrega el pinch del trackpad como Ctrl+wheel; si se
+    // deja pasar, el webview hace zoom de página en vez de acercar la cámara.
+    canvas.addEventListener('wheel', this.onPinchWheel, { passive: false, capture: true });
     canvas.addEventListener('pointerleave', () => this.onHover(null, null, 0, 0));
   }
 
@@ -910,6 +914,18 @@ export class SceneView {
     };
   }
 
+  private onPinchWheel = (e: WheelEvent): void => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const dist = this.camera.position.distanceTo(this.controls.target);
+    const factor = Math.exp(e.deltaY * 0.0025);
+    const next = Math.min(this.controls.maxDistance, Math.max(this.controls.minDistance, dist * factor));
+    const dir = this.camera.position.clone().sub(this.controls.target).normalize();
+    this.camera.position.copy(this.controls.target).addScaledVector(dir, next);
+    this.controls.update();
+  };
+
   private onResize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -931,7 +947,12 @@ export class SceneView {
   /** Ajusta resolución de render y bloom según la potencia de la GPU. */
   setQuality(quality: Quality): void {
     const dpr = window.devicePixelRatio || 1;
-    const ratio = quality === 'high' ? Math.min(dpr, 1.75) : quality === 'medium' ? Math.min(dpr, 1.25) : 1;
+    const tauri = '__TAURI_INTERNALS__' in window;
+    const ratio = quality === 'high'
+      ? Math.min(dpr, tauri ? 1.25 : 1.75)
+      : quality === 'medium'
+        ? Math.min(dpr, tauri ? 1 : 1.25)
+        : (tauri ? 0.85 : 1);
     this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.composer.setPixelRatio(ratio);
@@ -948,16 +969,18 @@ export class SceneView {
     this.controls.update();
   }
 
-  capture(): void {
+  capture(): Promise<SaveResult> {
     this.composer.render();
-    this.renderer.domElement.toBlob((blob) => {
-      if (!blob) return;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `beamlab-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-    }, 'image/png');
+    return new Promise((resolve) => {
+      this.renderer.domElement.toBlob((blob) => {
+        if (!blob) {
+          resolve({ saved: false, error: 'No se pudo generar la captura.' });
+          return;
+        }
+        const name = `beamlab-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
+        void saveBlob(blob, name, true).then(resolve);
+      }, 'image/png');
+    });
   }
 
   captureCanvas(): HTMLCanvasElement {

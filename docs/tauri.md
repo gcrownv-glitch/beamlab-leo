@@ -1,6 +1,6 @@
-# Tauri: escritorio sin Chromium
+﻿# Tauri: escritorio sin Chromium
 
-**Versión:** 2.3.0  
+**Versión:** 2.3.1  
 **Objetivo:** Windows, Ubuntu y macOS Apple Silicon sin empaquetar Chromium.
 
 ## 1. Decisión
@@ -75,11 +75,11 @@ Los artefactos quedan en `src-tauri/target/<target>/release/bundle/`.
 
 Se dispara con un tag `v*` o manualmente. Los artefactos se descargan desde GitHub Actions y, en el tag, se publican en **GitHub Releases**.
 
-Artefactos de v2.3.0:
+Artefactos de v2.3.1:
 
-- Windows: `beamlab-leo.exe` (directo) y `BeamLab.LEO_2.3.0_x64-setup.exe` (NSIS).
-- Ubuntu: `BeamLab.LEO_2.3.0_amd64.deb` y `.AppImage`.
-- macOS Apple Silicon: `BeamLab.LEO_2.3.0_aarch64.dmg`.
+- Windows: `beamlab-leo.exe` (directo) y `BeamLab.LEO_2.3.1_x64-setup.exe` (NSIS).
+- Ubuntu: `BeamLab.LEO_2.3.1_amd64.deb` y `.AppImage`.
+- macOS Apple Silicon: `BeamLab.LEO_2.3.1_aarch64.dmg`.
 
 **No están firmados.** macOS mostrará “desarrollador no identificado”; se abre con clic derecho → Abrir. Windows puede mostrar SmartScreen. No se paga Apple Developer ni certificado Windows.
 
@@ -101,6 +101,16 @@ La actualización en sitio se hace instalando la versión nueva sobre la anterio
 - AppImage/EXE directo: se descarga el archivo nuevo y se reemplaza manualmente.
 
 No se instalan dos versiones en paralelo. Para reproducir una práctica antigua, la muestra guarda versión/configuración y el release histórico queda descargable.
+
+### Desinstalación
+
+- **Windows instalador:** Configuración → Aplicaciones → BeamLab LEO → Desinstalar, o `uninstall.exe` en la carpeta de instalación.
+- **Windows portable:** borrar el `.exe`.
+- **Ubuntu .deb:** `sudo apt remove beamlab-leo`.
+- **Ubuntu AppImage:** borrar el archivo.
+- **macOS:** arrastrar `BeamLab LEO.app` a la Papelera.
+
+El instalador NSIS de Tauri incluye el desinstalador. El EXE portable no instala nada y no deja desinstalador.
 
 En una fase posterior se puede integrar el updater de Tauri con firma minisign (gratuita) para descargar e instalar automáticamente, conservando un rollback. No se implementa todavía.
 

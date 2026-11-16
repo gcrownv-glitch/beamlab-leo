@@ -218,19 +218,12 @@ class App {
       this.scene?.capture();
       this.ui.toast('Captura guardada.');
     },
-    exportScene: () => {
-      this.scene?.capture();
-      this.ui.toast('Escena exportada.');
-    },
+    exportScene: () => this.scene?.capture() ?? Promise.resolve({ saved: false, error: 'La escena todavía no está lista.' }),
     exportLabSheet: (format, session, sample) => {
-      if (!this.scene) return;
+      if (!this.scene) return Promise.resolve({ saved: false, error: 'La escena todavía no está lista.' });
       const sheet = buildLabSheet(this.state, this.engine.derived, session, this.scene.captureCanvas(), sample);
       const name = sheetFilename(sample?.id ?? 'ficha', format);
-      if (format === 'pdf') {
-        exportPdf(sheet, name);
-      } else {
-        exportPng(sheet, name);
-      }
+      return format === 'pdf' ? exportPdf(sheet, name) : exportPng(sheet, name);
     },
     setFpsCap: (cap) => this.setFpsCap(cap),
     setQuality: (q) => this.setQuality(q),

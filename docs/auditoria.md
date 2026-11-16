@@ -1,4 +1,4 @@
-# Auditoría técnica y de producto — BeamLab LEO 2.3.0
+﻿# Auditoría técnica y de producto — BeamLab LEO 2.3.1
 
 **Fecha:** 2026-11-12  
 **Auditor:** Jhorel Kennedy Cornejo Cruz — IET UCSP  
@@ -57,7 +57,7 @@ Se audita el simulador completo: órbita, arreglo en fase, modos de cobertura, p
 | 23 | Polarización, Doppler y handover | **No incluido** | Declarado en Limitaciones |
 | 24 | Fallos de elementos, acoplamiento mutuo y calibración perfecta | **No incluido** | El arreglo sigue siendo ideal en esos aspectos; cuantización y residuales sí están |
 | 25 | Distribución sin tiendas: HTML, EXE launcher y actualización por versiones | **Cumple** | HTML verificado offline, launcher 48 KB, manifiesto SHA-256 y versiones conservadas |
-| 26 | Tauri para Windows, Ubuntu y macOS ARM, sin Chromium embebido | **Cumple** | `src-tauri`, builds CI y release v2.3.0 con exe/AppImage/deb/dmg |
+| 26 | Tauri para Windows, Ubuntu y macOS ARM, sin Chromium embebido | **Cumple** | `src-tauri`, builds CI y release v2.3.1 con exe/AppImage/deb/dmg |
 | 27 | Ficha de laboratorio PNG/PDF con escena y paneles | **Cumple** | Exportación compuesta verificada a 1600×1000 |
 | 28 | Sesiones y muestras JSON/CSV con respaldo local | **Cumple** | LabStore, CSV de 56 columnas, importación JSON |
 | 29 | Panel de nueva versión opcional | **Cumple** | Modal con continuar/no avisar/ver versiones |

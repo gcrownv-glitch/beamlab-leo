@@ -16,6 +16,7 @@ import { buildSample, type LabSample, type LabSession } from './core/lab';
 import { LabStore } from './lab-store';
 import { checkForUpdate, skipVersion, type UpdateInfo } from './update';
 import type { SheetFormat } from './lab-sheet';
+import type { SaveResult } from './save';
 
 export type ToggleKey =
   | 'showOrbit'
@@ -55,8 +56,8 @@ export interface UIHandlers {
   setUsers(n: number): void;
   setCellTarget(lat: number, lon: number): void;
   setQuant(patch: Partial<QuantState>): void;
-  exportLabSheet(format: SheetFormat, session: LabSession, sample: LabSample | null): void;
-  exportScene(): void;
+  exportLabSheet(format: SheetFormat, session: LabSession, sample: LabSample | null): Promise<SaveResult>;
+  exportScene(): Promise<SaveResult>;
   screenshot(): void;
   setFpsCap(cap: number): void;
   setQuality(quality: Quality): void;
@@ -348,11 +349,11 @@ export class UI {
     $('btn-lab').addEventListener('click', () => this.openLab());
     $('lab-close').addEventListener('click', () => this.closeLab());
     $('lab-sample').addEventListener('click', () => this.takeSample());
-    $('lab-png').addEventListener('click', () => this.exportSheet('png'));
-    $('lab-pdf').addEventListener('click', () => this.exportSheet('pdf'));
-    $('lab-scene').addEventListener('click', () => this.h.exportScene());
-    $('lab-csv').addEventListener('click', () => this.lab.exportCsv());
-    $('lab-json').addEventListener('click', () => this.lab.exportJson());
+    $('lab-png').addEventListener('click', () => void this.exportSheet('png'));
+    $('lab-pdf').addEventListener('click', () => void this.exportSheet('pdf'));
+    $('lab-scene').addEventListener('click', () => void this.exportScene());
+    $('lab-csv').addEventListener('click', () => void this.exportCsv());
+    $('lab-json').addEventListener('click', () => void this.exportJson());
     $('lab-reset').addEventListener('click', () => this.resetLab());
     ($('lab-import') as HTMLInputElement).addEventListener('change', (e) => this.importLab(e));
     for (const el of ['lab-title', 'lab-course', 'lab-author', 'lab-notes']) {
@@ -776,11 +777,41 @@ export class UI {
     this.toast(`Muestra ${sample.id} guardada`);
   }
 
-  private exportSheet(format: SheetFormat) {
+  private async exportSheet(format: SheetFormat) {
     if (!this.latestState || !this.latestDerived) return;
-    const sample = this.labSample ?? buildSample(this.latestState, this.latestDerived, this.lab.session.notes);
-    this.labSample = sample;
-    this.h.exportLabSheet(format, this.lab.session, sample);
+    if (!this.labSample) {
+      this.labSample = buildSample(this.latestState, this.latestDerived, this.lab.session.notes);
+      this.lab.addSample(this.labSample);
+      this.renderLab();
+    }
+    const result = await this.h.exportLabSheet(format, this.lab.session, this.labSample);
+    this.notifySave(result, format === 'pdf' ? 'Ficha PDF' : 'Ficha PNG');
+  }
+
+  private async exportScene() {
+    const result = await this.h.exportScene();
+    this.notifySave(result, 'Escena PNG');
+  }
+
+  private async exportCsv() {
+    const result = await this.lab.exportCsv();
+    this.notifySave(result, 'CSV');
+  }
+
+  private async exportJson() {
+    const result = await this.lab.exportJson();
+    this.notifySave(result, 'Sesión JSON');
+  }
+
+  private notifySave(result: SaveResult, label: string) {
+    if (result.saved) {
+      const where = result.path && result.path !== 'Descargas' ? ` en ${result.path}` : ' en Descargas';
+      this.toast(`${label} guardado${where}`);
+    } else if (result.error) {
+      this.toast(`${label}: ${result.error}`, true);
+    } else {
+      this.toast(`${label}: exportación cancelada`);
+    }
   }
 
   private resetLab() {
@@ -795,6 +826,10 @@ export class UI {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
+    if (this.lab.session.samples.length && !confirm('Cargar esta sesión reemplazará la sesión actual. ¿Continuar?')) {
+      input.value = '';
+      return;
+    }
     try {
       const session = await this.lab.importJson(file);
       this.labSample = session.samples.at(-1) ?? null;

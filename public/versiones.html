@@ -21,6 +21,10 @@
   .ver:hover { color: #67e8f9; }
   .actions { margin-top: 9px; display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
   .actions a { color: #67e8f9; }
+  .downloads { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 10px; }
+  .downloads a { display: inline-flex; gap: 4px; align-items: center; padding: 5px 8px; border: 1px solid #164e63; border-radius: 6px; font-size: 11px; color: #bff8ff; text-decoration: none; }
+  .downloads a:hover { border-color: #22d3ee; background: rgba(34, 211, 238, .08); }
+  .downloads a small { color: #7f90a8; font-size: 9px; }
   .latest { color: #fbbf24; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
   .meta { color: #7f90a8; font-size: 12px; margin-top: 4px; }
   .notes { color: #9fb3c8; margin-top: 8px; }
@@ -35,6 +39,7 @@
   <h1>BeamLab <span>LEO</span></h1>
   <p class="sub">Versiones portables · sin instalación · Windows, macOS y Linux con navegador</p>
   <div class="warn">Cada versión es un archivo HTML independiente. Descárgala y ábrela con doble clic. Actualizar no borra las versiones anteriores: tú eliges cuál usar.</div>
+  <div class="warn">Windows: el <b>instalador</b> se desinstala desde Configuración → Aplicaciones (o su <code>uninstall.exe</code>); el <b>portable</b> se borra como cualquier archivo. Ubuntu: <code>sudo apt remove beamlab-leo</code> para el .deb; el AppImage se borra. macOS: arrastra la app a la Papelera.</div>
   <div id="list">Cargando versiones…</div>
   <div class="warn" id="fallback" hidden>No se pudo leer el manifiesto. Descarga la versión desde <a href="https://github.com/gcrownv-glitch/beamlab-leo/releases">GitHub Releases</a>.</div>
   <footer>Elaborado por Jhorel Kennedy Cornejo Cruz · IET UCSP · <a href="https://github.com/gcrownv-glitch/beamlab-leo">repositorio</a></footer>
@@ -58,7 +63,14 @@
         <div class="meta">${(v.size / 1024 / 1024).toFixed(2)} MB · ${v.date || ''}</div>
         ${v.notes ? `<div class="notes">${v.notes}</div>` : ''}
         <div class="hash">SHA-256 ${v.sha256 || ''}</div>
-        <div class="actions"><a href="${v.html}" download>Descargar HTML</a>${v.zip ? `<a href="${v.zip}" download>Descargar ZIP con launcher EXE</a>` : ''}${v.release ? `<a href="${v.release}" target="_blank" rel="noopener">Windows · Linux · macOS</a>` : ''}</div>
+        <div class="actions"><a href="${v.html}" download>Descargar HTML</a>${v.zip ? `<a href="${v.zip}" download>Descargar ZIP portable</a>` : ''}${v.release ? `<a href="${v.release}" target="_blank" rel="noopener">Release / notas</a>` : ''}</div>
+        ${v.downloads ? `<div class="downloads">
+          <a href="${v.downloads.windowsInstaller}" download>Windows · instalador <small>con desinstalador</small></a>
+          <a href="${v.downloads.windowsPortable}" download>Windows · portable <small>sin instalar</small></a>
+          <a href="${v.downloads.linuxAppImage}" download>Ubuntu · AppImage <small>portable</small></a>
+          <a href="${v.downloads.linuxDeb}" download>Ubuntu · .deb <small>paquete</small></a>
+          <a href="${v.downloads.macDmg}" download>macOS ARM64 · .dmg <small>Apple Silicon</small></a>
+        </div>` : ''}
       </div>`).join('');
   } catch (e) {
     list.hidden = true;

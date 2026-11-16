@@ -126,8 +126,9 @@ export interface SimState {
 export function defaultState(): SimState {
   const epoch = Math.floor(Date.now() / 1000) * 1000;
   const orbit = elementsOverPoint(550, 53, -12.05, -77.04, epoch, 2.5, 0.0001);
-  let fpsCap = 60;
-  let quality: Quality = 'high';
+  const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+  let fpsCap = isTauri ? 45 : 60;
+  let quality: Quality = isTauri ? 'medium' : 'high';
   try {
     const rawCap = localStorage.getItem('beamlab:fpsCap');
     if (rawCap !== null) {

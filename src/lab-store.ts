@@ -1,4 +1,5 @@
 import { createSession, LAB_SCHEMA, samplesToCsv, type LabSession } from './core/lab';
+import { saveText, type SaveResult } from './save';
 
 const STORAGE_KEY = 'beamlab:lab:session:v1';
 
@@ -51,19 +52,21 @@ export class LabStore {
     this.save();
   }
 
-  exportJson(): void {
-    downloadText(
+  exportJson(): Promise<SaveResult> {
+    return saveText(
       JSON.stringify(this.session, null, 2),
       `beamlab-${this.session.title.replace(/[^\w-]+/g, '-').slice(0, 40)}-${stamp()}.json`,
       'application/json',
+      false,
     );
   }
 
-  exportCsv(): void {
-    downloadText(
+  exportCsv(): Promise<SaveResult> {
+    return saveText(
       samplesToCsv(this.session),
       `beamlab-${stamp()}.csv`,
       'text/csv;charset=utf-8',
+      false,
     );
   }
 
@@ -80,16 +83,3 @@ export class LabStore {
 }
 
 const stamp = (): string => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-
-export function downloadText(text: string, filename: string, type: string): void {
-  const blob = new Blob([text], { type });
-  downloadBlob(blob, filename);
-}
-
-export function downloadBlob(blob: Blob, filename: string): void {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-}

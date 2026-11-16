@@ -2,6 +2,20 @@
 
 Todas las modificaciones relevantes de BeamLab LEO.
 
+## [2.3.1] — 2026-11-16
+
+### Correcciones de uso y rendimiento
+
+- Pinch del trackpad en Tauri/WebView2 ahora acerca la cámara y no la página.
+- Tauri inicia en calidad media, 45 FPS y menor pixel ratio; menos GPU y calor.
+- La cobertura celular y conformada se recorta a la región/huella real: no pinta todo el globo.
+- La ficha PNG/PDF crea una muestra si no existe; muestra confirmación y abre el archivo.
+- Guardado nativo en Tauri con diálogo, ruta visible y apertura del archivo.
+- CSV/JSON también usan guardado nativo en Tauri.
+- Página de versiones con descargas separadas: instalador, portable, AppImage, .deb y .dmg.
+- Instrucciones de desinstalación para cada paquete.
+- 33 pruebas.
+
 ## [2.3.0] — 2026-11-16
 
 ### Tauri, laboratorio y actualizaciones

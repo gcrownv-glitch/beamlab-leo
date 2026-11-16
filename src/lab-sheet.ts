@@ -2,6 +2,7 @@ import type { Derived, SimState } from './state';
 import type { LabSample, LabSession } from './core/lab';
 import { APP_VERSION } from './version';
 import { jsPDF } from 'jspdf';
+import { saveBlob, type SaveResult } from './save';
 
 export type SheetFormat = 'png' | 'pdf';
 
@@ -192,14 +193,19 @@ function drawContain(
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
-export function exportPng(canvas: HTMLCanvasElement, filename: string): void {
-  canvas.toBlob((blob) => {
-    if (!blob) return;
-    download(blob, filename);
-  }, 'image/png');
+export function exportPng(canvas: HTMLCanvasElement, filename: string): Promise<SaveResult> {
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        resolve({ saved: false, error: 'No se pudo generar el PNG.' });
+        return;
+      }
+      void saveBlob(blob, filename, true).then(resolve);
+    }, 'image/png');
+  });
 }
 
-export function exportPdf(canvas: HTMLCanvasElement, filename: string): void {
+export function exportPdf(canvas: HTMLCanvasElement, filename: string): Promise<SaveResult> {
   const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'px',
@@ -207,15 +213,7 @@ export function exportPdf(canvas: HTMLCanvasElement, filename: string): void {
     hotfixes: ['px_scaling'],
   });
   pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, canvas.width, canvas.height);
-  pdf.save(filename);
-}
-
-export function download(blob: Blob, filename: string): void {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  return saveBlob(pdf.output('blob'), filename, true);
 }
 
 export function sheetFilename(prefix: string, ext: string): string {

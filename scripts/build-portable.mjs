@@ -74,6 +74,7 @@ const entry = {
   notes: process.env.PORTABLE_NOTES ?? 'Laboratorio, Tauri y actualizaciones opcionales.',
   html: `${baseUrl}/BeamLabLEO-${version}.html`,
   zip: `${baseUrl}/BeamLabLEO-${version}-portable.zip`,
+  release: `https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v${version}`,
   size: Buffer.byteLength(html),
   sha256,
 };

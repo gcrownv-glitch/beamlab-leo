@@ -58,7 +58,7 @@
         <div class="meta">${(v.size / 1024 / 1024).toFixed(2)} MB · ${v.date || ''}</div>
         ${v.notes ? `<div class="notes">${v.notes}</div>` : ''}
         <div class="hash">SHA-256 ${v.sha256 || ''}</div>
-        <div class="actions"><a href="${v.html}" download>Descargar HTML</a>${v.zip ? `<a href="${v.zip}" download>Descargar ZIP con launcher EXE</a>` : ''}</div>
+        <div class="actions"><a href="${v.html}" download>Descargar HTML</a>${v.zip ? `<a href="${v.zip}" download>Descargar ZIP con launcher EXE</a>` : ''}${v.release ? `<a href="${v.release}" target="_blank" rel="noopener">Windows · Linux · macOS</a>` : ''}</div>
       </div>`).join('');
   } catch (e) {
     list.hidden = true;

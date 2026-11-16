@@ -8,6 +8,7 @@
       "notes": "Laboratorio, Tauri y actualizaciones opcionales.",
       "html": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.0.html",
       "zip": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.0-portable.zip",
+      "release": "https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.0",
       "size": 4556435,
       "sha256": "485b06136af81472c29928f11f9faaefe56563b8c2d2746a45554bdf48f37f1b"
     },

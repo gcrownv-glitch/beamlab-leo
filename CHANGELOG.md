@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 Todas las modificaciones relevantes de BeamLab LEO.
 
@@ -13,7 +13,7 @@ Todas las modificaciones relevantes de BeamLab LEO.
 - Exportación **CSV** y **JSON**; carga de sesión y backup.
 - Panel de **nueva versión** no bloqueante: continuar, no avisar o ver versiones.
 - Workflow de escritorio para Linux, macOS ARM y Windows.
-- 30 pruebas de la app; el empaquetado Tauri se valida en CI.
+- 33 pruebas de la app; el empaquetado Tauri se valida en CI.
 
 ## [2.2.0] — 2026-11-15
 
@@ -25,7 +25,7 @@ Todas las modificaciones relevantes de BeamLab LEO.
 - Actualizador `Actualizar.cmd` por HTTPS con verificación SHA-256.
 - Manifiesto `versions.json`, página `/versiones.html` y archivo histórico de versiones.
 - **No requiere Google Play ni App Store**; iOS queda cubierto por HTML/PWA.
-- 30 pruebas de la app; el empaquetado se valida aparte.
+- 33 pruebas de la app; el empaquetado se valida aparte.
 
 ## [2.1.0] — 2026-11-14
 
@@ -37,7 +37,7 @@ Todas las modificaciones relevantes de BeamLab LEO.
 - Capacidad de sistema limitada por `min(bajada, subida)` y aviso de qué lado limita.
 - Frecuencias emparejadas y ganancia de apertura fija; modelo declarado sin duplexores.
 - Guía, tour de 10 pasos, ayuda y PDF actualizados.
-- **30 pruebas** (4 nuevas de enlace bidireccional).
+- **33 pruebas** (4 nuevas de enlace bidireccional).
 
 ## [2.0.0] — 2026-11-12
 

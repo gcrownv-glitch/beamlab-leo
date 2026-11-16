@@ -1,4 +1,4 @@
-# Auditoría técnica y de producto — BeamLab LEO 2.3.0
+﻿# Auditoría técnica y de producto — BeamLab LEO 2.3.0
 
 **Fecha:** 2026-11-12  
 **Auditor:** Jhorel Kennedy Cornejo Cruz — IET UCSP  
@@ -12,7 +12,7 @@ Se audita el simulador completo: órbita, arreglo en fase, modos de cobertura, p
 ## 2. Método
 
 - Revisión estática de `src/core` y de los flujos de `engine.ts`, `ui.ts` y `main.ts`.
-- Ejecución de **30 pruebas** (`npm test`).
+- Ejecución de **33 pruebas** (`npm test`).
 - Compilación de producción (`npm run build`).
 - Verificación en navegador real (Edge headless) sobre la app publicada: carga 3D, texturas, modos, enlace, créditos y consola.
 - Revisión del workflow de GitHub Actions y del estado HTTP del sitio.
@@ -48,7 +48,7 @@ Se audita el simulador completo: órbita, arreglo en fase, modos de cobertura, p
 | 14 | Controles de rendimiento (FPS, calidad) | **Cumple** | 30–120/∞, Alta/Media/Baja |
 | 15 | Teoría, guía, ayuda y atajos | **Cumple** | Modal de teoría, tour de 8 pasos |
 | 16 | Créditos con nombre completo, IET UCSP y enlace a GitHub | **Cumple** | Esquina superior izquierda y PDF |
-| 17 | Pruebas automatizadas y build | **Cumple** | 30/30 y build correcto |
+| 17 | Pruebas automatizadas y build | **Cumple** | 33/33 y build correcto |
 | 18 | CI y despliegue público | **Cumple** | GitHub Actions y HTTP 200 |
 | 19 | README, LICENSE, CHANGELOG, CITATION, docs | **Cumple** | Repositorio organizado |
 | 20 | Guion y PDF de exposición | **Cumple** | 20 páginas, portada/contraportada |
@@ -57,7 +57,7 @@ Se audita el simulador completo: órbita, arreglo en fase, modos de cobertura, p
 | 23 | Polarización, Doppler y handover | **No incluido** | Declarado en Limitaciones |
 | 24 | Fallos de elementos, acoplamiento mutuo y calibración perfecta | **No incluido** | El arreglo sigue siendo ideal en esos aspectos; cuantización y residuales sí están |
 | 25 | Distribución sin tiendas: HTML, EXE launcher y actualización por versiones | **Cumple** | HTML verificado offline, launcher 48 KB, manifiesto SHA-256 y versiones conservadas |
-| 26 | Tauri para Windows, Ubuntu y macOS ARM, sin Chromium embebido | **Cumple** | `src-tauri`, workflow desktop y bundles sin firma |
+| 26 | Tauri para Windows, Ubuntu y macOS ARM, sin Chromium embebido | **Cumple** | `src-tauri`, builds CI y release v2.3.0 con exe/AppImage/deb/dmg |
 | 27 | Ficha de laboratorio PNG/PDF con escena y paneles | **Cumple** | Exportación compuesta verificada a 1600×1000 |
 | 28 | Sesiones y muestras JSON/CSV con respaldo local | **Cumple** | LabStore, CSV de 56 columnas, importación JSON |
 | 29 | Panel de nueva versión opcional | **Cumple** | Modal con continuar/no avisar/ver versiones |
@@ -136,7 +136,7 @@ Con antena isotrópica (0 dBi): C/N ≈ −8,6 dB, **outage** y 0 Mbps. Esto sus
 - [x] El haz conformado cubre Lima y no deriva.
 - [x] La cuantización 5/4 bits y los errores residuales se calculan con patrón exacto.
 - [x] Los créditos con nombre completo y GitHub están visibles.
-- [x] 30 pruebas pasan.
+- [x] 33 pruebas pasan.
 - [x] HTML portable de 3,6 MB abre sin servidor y conserva versiones.
 - [x] Ficha de laboratorio PNG/PDF y muestras CSV/JSON exportadas.
 - [x] Tauri configurado para Ubuntu, macOS ARM y Windows; builds en CI.

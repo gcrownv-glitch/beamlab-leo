@@ -22,7 +22,7 @@ No se elige Electron: funciona, pero pesa 100–340 MB y el usuario pidió evita
 | Ubuntu | `x86_64-unknown-linux-gnu` | `.deb` + `.AppImage` |
 | macOS Apple Silicon | `aarch64-apple-darwin` | `.dmg` |
 
-No se soporta macOS Intel por ahora; el runner `macos-14` es ARM64.
+No se soporta macOS Intel por ahora; el binario se compila para `aarch64-apple-darwin` con target cruzado desde un runner macOS.
 
 ## 3. Webview por sistema
 
@@ -70,10 +70,16 @@ Los artefactos quedan en `src-tauri/target/<target>/release/bundle/`.
 `.github/workflows/desktop.yml` compila en:
 
 - `ubuntu-22.04` → `.deb` y `.AppImage`.
-- `macos-14` → `.dmg` ARM64.
+- `macos-latest` → `.dmg` ARM64 (target cruzado).
 - `windows-latest` → NSIS y `.exe`.
 
-Se dispara con un tag `v*` o manualmente. Los artefactos se descargan desde GitHub Actions.
+Se dispara con un tag `v*` o manualmente. Los artefactos se descargan desde GitHub Actions y, en el tag, se publican en **GitHub Releases**.
+
+Artefactos de v2.3.0:
+
+- Windows: `beamlab-leo.exe` (directo) y `BeamLab.LEO_2.3.0_x64-setup.exe` (NSIS).
+- Ubuntu: `BeamLab.LEO_2.3.0_amd64.deb` y `.AppImage`.
+- macOS Apple Silicon: `BeamLab.LEO_2.3.0_aarch64.dmg`.
 
 **No están firmados.** macOS mostrará “desarrollador no identificado”; se abre con clic derecho → Abrir. Windows puede mostrar SmartScreen. No se paga Apple Developer ni certificado Windows.
 

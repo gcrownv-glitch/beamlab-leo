@@ -6,7 +6,7 @@
 [![Deploy](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml/badge.svg)](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-3da639?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20.19-339933?style=flat-square)](package.json)
-[![Tests](https://img.shields.io/badge/tests-30%20passing-22d3ee?style=flat-square)](tests)
+[![Tests](https://img.shields.io/badge/tests-33%20passing-22d3ee?style=flat-square)](tests)
 
 **Demo:** <https://gcrownv-glitch.github.io/beamlab-leo/><br>
 **Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>
@@ -166,7 +166,7 @@ src/
   main.ts           texturas, bucle y manejadores
   state.ts          estado y tipos
 public/assets/      texturas de la Tierra
-tests/              30 pruebas
+tests/              33 pruebas
 docs/               teoría, despliegue y presentación
 ```
 
@@ -176,7 +176,7 @@ docs/               teoría, despliegue y presentación
 npm test
 ```
 
-30 pruebas cubren tiempo/GMST, órbita y J2, geometría del horizonte, base de antena, arreglo/fase/taper, cuantización, síntesis, enlace bidireccional y presupuesto (VSAT, isotrópica, lluvia y ancho de banda).
+33 pruebas cubren tiempo/GMST, órbita y J2, geometría del horizonte, base de antena, arreglo/fase/taper, cuantización, síntesis, enlace bidireccional y presupuesto (VSAT, isotrópica, lluvia y ancho de banda).
 
 ## Despliegue
 
@@ -196,6 +196,14 @@ npm run build:portable
 ```
 
 Genera el HTML, el launcher, el selector de versiones, el actualizador y el ZIP en `release/`. Las versiones anteriores se conservan.
+
+### Descargas de escritorio Tauri
+
+- [Windows · instalador y EXE](https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.0)
+- [Ubuntu · .deb y AppImage](https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.0)
+- [macOS Apple Silicon · .dmg](https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.0)
+
+Los binarios no están firmados ni notarizados. macOS puede pedir clic derecho → Abrir.
 
 ## Documentación
 

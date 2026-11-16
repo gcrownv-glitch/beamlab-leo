@@ -23,6 +23,7 @@
 - [ ] Confirmar que el globo, el satélite y los paneles cargan.
 - [ ] Pulsar **Guía**, avanzar un paso y cerrar; así se comprueba que la tarjeta funciona (10 pasos).
 - [ ] Probar **Bajada/Subida** y bajar la potencia del terminal a 1 W; confirmar que la subida cambia de MODCOD.
+- [ ] Abrir **Lab**, tomar una muestra y exportar ficha PNG/PDF y CSV.
 - [ ] Dejar la app en el modo **Puntual** y en **10×**.
 - [ ] Tener abierto `guion.md` en otra ventana o en el móvil.
 

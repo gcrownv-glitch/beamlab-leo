@@ -58,8 +58,9 @@ No hace falta memorizar el guion. Memoriza **tres ideas**, **tres palabras** y *
 |---|---|---|---|
 | 1 | El satélite que no se queda quieto | 5 | Cubrir un país: el panal |
 | 2 | El problema: una lámpara no alcanza | 6 | Un haz con forma de Lima |
-| 3 | La solución: una orquesta de antenas | 7 | ¿Llega la señal? El presupuesto |
-| 4 | El precio de concentrar | 8 | Cierre: las tres ideas |
+| 3 | La solución: una orquesta de antenas | 7 | ¿Llega la señal? Bajada y subida |
+| 4 | El precio de concentrar | 8 | Laboratorio: medir y dejar legado |
+| 5 | Cubrir un país: el panal | 9 | Cierre: las tres ideas |
 
 *Cada escena lleva su tiempo orientativo en el título.*
 
@@ -282,9 +283,28 @@ L_{fs}=20\log_{10}\!\left(\frac{4\pi d}{\lambda}\right)\qquad
 
 ---
 
-## Escena 8 · Cierre: las tres ideas
+## Escena 8 · Laboratorio: medir y dejar legado
 
-**Tiempo:** 11:00–11:45  
+**Tiempo:** 11:00–12:00  
+**Muestra:** botón **Lab**; crea una sesión, toma una muestra y exporta **Ficha PNG/PDF** y **CSV**.
+
+**Di algo así:**
+
+- “No basta con mirar la simulación: un laboratorio necesita **mediciones**. Aquí creamos una sesión con título, curso y observaciones.”
+- “**Tomar muestra** guarda la configuración exacta: órbita, arreglo, cuantización, enlace, capacidades y hora UTC. Si mañana alguien quiere repetir la práctica, sabe qué se usó.”
+- “La **ficha** combina la escena, los paneles y los metadatos en una sola imagen, en PNG o PDF. También podemos exportar solo la escena.”
+- “El **CSV** sirve para Excel, Origin o Python; el **JSON** guarda la sesión completa. Las versiones anteriores del archivo se conservan; no hay telemetría.”
+- “Esto es el legado: un banco de prácticas y mediciones para las siguientes promociones, con el nombre del autor y la versión de la app.”
+
+![Ficha de laboratorio](../img/10-laboratorio.jpg)
+
+**Frase para recordar:** “Una práctica sin datos es una anécdota; con datos, es un laboratorio.”
+
+---
+
+## Escena 9 · Cierre: las tres ideas
+
+**Tiempo:** 12:00–12:45  
 **Muestra:** vuelve a **Puntual** o deja la vista general; señala la URL.
 
 **Di algo así:**
@@ -391,7 +411,7 @@ Si el tiempo se acorta:
 2. **0:45–2:00 · Problema y beamforming.** Global vs puntual; dBi; “no movemos la antena, movemos el tiempo”; muestra el mapa de fase.
 3. **2:00–3:00 · El arreglo.** 4×4 vs 16×16; panel de 19 cm; ~29 dBi; taper y lóbulos.
 4. **3:00–4:15 · Cobertura.** Celular Perú (~400 celdas, 3 colores); conformada Lima (100 km, 98 % con cuantización).
-5. **4:15–5:00 · Enlace y cierre.** Bajada/subida, EIRP/FSPL/C/N₀, balance y mínimo DL/UL; las 3 C; URL.
+5. **4:15–5:00 · Enlace, laboratorio y cierre.** Bajada/subida, C/N, mínimo DL/UL; una muestra y ficha; las 3 C; URL.
 
 ---
 

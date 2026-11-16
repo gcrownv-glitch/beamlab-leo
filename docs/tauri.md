@@ -93,7 +93,16 @@ La app consulta `versions.json` y muestra un panel:
 
 No hay auto-reemplazo silencioso. El panel es informativo y opcional.
 
-En una fase posterior se puede integrar el updater de Tauri con firma minisign (gratuita) para descargar e instalar en el mismo lugar, conservando un rollback. No se implementa todavía.
+La actualización en sitio se hace instalando la versión nueva sobre la anterior:
+
+- Windows: el instalador NSIS reemplaza la app.
+- Ubuntu: el `.deb` actualiza el paquete.
+- macOS: el `.dmg` reemplaza la app en Aplicaciones.
+- AppImage/EXE directo: se descarga el archivo nuevo y se reemplaza manualmente.
+
+No se instalan dos versiones en paralelo. Para reproducir una práctica antigua, la muestra guarda versión/configuración y el release histórico queda descargable.
+
+En una fase posterior se puede integrar el updater de Tauri con firma minisign (gratuita) para descargar e instalar automáticamente, conservando un rollback. No se implementa todavía.
 
 ## 8. Limitaciones actuales
 

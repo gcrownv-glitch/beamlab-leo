@@ -1,4 +1,4 @@
-﻿# Auditoría técnica y de producto — BeamLab LEO 2.3.0
+# Auditoría técnica y de producto — BeamLab LEO 2.3.0
 
 **Fecha:** 2026-11-12  
 **Auditor:** Jhorel Kennedy Cornejo Cruz — IET UCSP  
@@ -51,7 +51,7 @@ Se audita el simulador completo: órbita, arreglo en fase, modos de cobertura, p
 | 17 | Pruebas automatizadas y build | **Cumple** | 33/33 y build correcto |
 | 18 | CI y despliegue público | **Cumple** | GitHub Actions y HTTP 200 |
 | 19 | README, LICENSE, CHANGELOG, CITATION, docs | **Cumple** | Repositorio organizado |
-| 20 | Guion y PDF de exposición | **Cumple** | 20 páginas, portada/contraportada |
+| 20 | Guion y PDF de exposición | **Cumple** | 21 páginas, portada/contraportada |
 | 21 | Asignación de potencia por haz y modelo térmico | **Parcial** | Se muestra el total y un aviso; no se reparte potencia |
 | 22 | Interferencia co-canal / C/I por reutilización | **No incluido** | Declarado en Limitaciones |
 | 23 | Polarización, Doppler y handover | **No incluido** | Declarado en Limitaciones |

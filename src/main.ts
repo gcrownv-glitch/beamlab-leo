@@ -12,6 +12,7 @@ import type { OrbitElements } from './core/orbit';
 import type { RegionId } from './core/regions';
 import { regionCenter } from './core/regions';
 import type { ArrayConfig } from './core/array';
+import { buildLabSheet, exportPdf, exportPng, sheetFilename } from './lab-sheet';
 
 const fmtLat = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'N' : 'S'}`;
 const fmtLon = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'E' : 'O'}`;
@@ -216,6 +217,20 @@ class App {
     screenshot: () => {
       this.scene?.capture();
       this.ui.toast('Captura guardada.');
+    },
+    exportScene: () => {
+      this.scene?.capture();
+      this.ui.toast('Escena exportada.');
+    },
+    exportLabSheet: (format, session, sample) => {
+      if (!this.scene) return;
+      const sheet = buildLabSheet(this.state, this.engine.derived, session, this.scene.captureCanvas(), sample);
+      const name = sheetFilename(sample?.id ?? 'ficha', format);
+      if (format === 'pdf') {
+        exportPdf(sheet, name);
+      } else {
+        exportPng(sheet, name);
+      }
     },
     setFpsCap: (cap) => this.setFpsCap(cap),
     setQuality: (q) => this.setQuality(q),

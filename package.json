@@ -1,7 +1,7 @@
 {
   "name": "beamlab-leo",
   "private": true,
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Simulador interactivo de órbita, arreglos en fase y beamforming satelital en órbita LEO",
   "homepage": "https://gcrownv-glitch.github.io/beamlab-leo/",
   "repository": {
@@ -32,16 +32,24 @@
     "preview:lan": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:portable": "npm run build && node scripts/build-portable.mjs && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-launcher.ps1"
+    "build:portable": "npm run build && node scripts/build-portable.mjs && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-launcher.ps1",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:win": "tauri build --bundles nsis",
+    "tauri:build:linux": "tauri build --bundles deb,appimage",
+    "tauri:build:mac": "tauri build --target aarch64-apple-darwin --bundles dmg"
   },
   "engines": {
     "node": ">=20.19"
   },
   "dependencies": {
+    "jspdf": "^4.2.1",
     "katex": "0.16.22",
     "three": "0.187.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4",
     "@types/three": "0.187.0",
     "typescript": "5.9.3",
     "vite": "7.1.7",

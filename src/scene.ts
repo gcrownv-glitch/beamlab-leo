@@ -960,6 +960,17 @@ export class SceneView {
     }, 'image/png');
   }
 
+  captureCanvas(): HTMLCanvasElement {
+    this.composer.render();
+    const src = this.renderer.domElement;
+    const out = document.createElement('canvas');
+    out.width = src.width;
+    out.height = src.height;
+    const ctx = out.getContext('2d');
+    if (ctx) ctx.drawImage(src, 0, 0);
+    return out;
+  }
+
   dispose() {
     this.renderer.dispose();
     this.composer.dispose();

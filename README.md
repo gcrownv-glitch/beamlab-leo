@@ -1,4 +1,4 @@
-# BeamLab LEO
+﻿# BeamLab LEO
 
 **Simulador interactivo de órbita, arreglos en fase y beamforming satelital.**
 
@@ -25,7 +25,9 @@ BeamLab LEO muestra, en un globo 3D, cómo un satélite en órbita baja (LEO) il
 - **Enlace bidireccional:** bajada y subida, balance DL/UL, potencia de terminal, EIRP, FSPL, atmósfera, lluvia, G/T, C/N₀, C/N, MODCOD DVB-S2X, outage y capacidad limitada por el peor enlace.
 - **Rendimiento:** límite de FPS (30–120/∞), calidad Alta/Media/Baja, texturas reales y shader de ganancia en el globo.
 - **Presentación:** guía de 10 pasos, teoría con ecuaciones y material de exposición.
-- **Portable:** HTML autónomo de ~3,6 MB, launcher `.exe` de ~48 KB y actualizador por versiones sin tiendas.
+- **Portable:** HTML autónomo de ~4,3 MB, launcher `.exe` de ~48 KB y actualizador por versiones sin tiendas.
+- **Tauri:** app de escritorio sin Chromium embebido para Windows, Ubuntu y macOS Apple Silicon.
+- **Laboratorio:** sesiones, muestras, ficha PNG/PDF, CSV/JSON y backup local.
 
 ## Inicio rápido
 
@@ -182,11 +184,11 @@ El repositorio publica en GitHub Pages con `.github/workflows/deploy.yml`: insta
 
 ### Portable sin tiendas
 
-También se genera un **HTML autónomo** de ~3,6 MB que funciona sin servidor ni instalación, y un **launcher `.exe`** de ~48 KB que abre la versión elegida con Edge en modo app:
+También se genera un **HTML autónomo** de ~4,3 MB que funciona sin servidor ni instalación, y un **launcher `.exe`** de ~48 KB que abre la versión elegida con Edge en modo app:
 
 - [Descargar versiones portables](https://gcrownv-glitch.github.io/beamlab-leo/versiones.html)
-- [HTML autónomo 2.2.0](https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.2.0.html)
-- [ZIP con launcher EXE](https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.2.0-portable.zip)
+- [HTML autónomo 2.3.0](https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.0.html)
+- [ZIP con launcher EXE 2.3.0](https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.0-portable.zip)
 - [Plan portable y actualizaciones](docs/portable.md)
 
 ```bash
@@ -204,6 +206,8 @@ Genera el HTML, el launcher, el selector de versiones, el actualizador y el ZIP 
 - **[Auditoría técnica y de producto](docs/auditoria.md)**
 - **[Plan web, Android e iOS](docs/movil.md)**
 - **[Portable, versiones y actualización remota](docs/portable.md)**
+- **[Laboratorio y datos](docs/laboratorio.md)**
+- **[Tauri: escritorio sin Chromium](docs/tauri.md)**
 
 ## Limitaciones
 

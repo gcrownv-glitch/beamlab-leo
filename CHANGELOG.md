@@ -2,6 +2,19 @@
 
 Todas las modificaciones relevantes de BeamLab LEO.
 
+## [2.3.0] — 2026-11-16
+
+### Tauri, laboratorio y actualizaciones
+
+- Tauri 2 para Windows, Ubuntu (deb/AppImage) y macOS Apple Silicon (dmg).
+- Sin Chromium embebido: usa WebView2/WKWebView/WebKitGTK.
+- **Ficha de laboratorio** compuesta: escena + paneles + metadatos, en PNG o PDF.
+- Sesiones y muestras locales: título, curso, autor, notas y snapshot de configuración.
+- Exportación **CSV** y **JSON**; carga de sesión y backup.
+- Panel de **nueva versión** no bloqueante: continuar, no avisar o ver versiones.
+- Workflow de escritorio para Linux, macOS ARM y Windows.
+- 30 pruebas de la app; el empaquetado Tauri se valida en CI.
+
 ## [2.2.0] — 2026-11-15
 
 ### Distribución portable y actualizaciones por versión

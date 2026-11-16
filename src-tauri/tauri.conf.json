@@ -1,0 +1,48 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "BeamLab LEO",
+  "version": "2.3.0",
+  "identifier": "com.gcrownv.beamlab",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "BeamLab LEO",
+        "width": 1600,
+        "height": 950,
+        "minWidth": 1100,
+        "minHeight": 700,
+        "resizable": true,
+        "fullscreen": false,
+        "theme": "Dark",
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' ipc: http://ipc.localhost; connect-src 'self' ipc: http://ipc.localhost https://gcrownv-glitch.github.io http://127.0.0.1:5173 ws://127.0.0.1:5173; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:;"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Education",
+    "shortDescription": "Simulador de beamforming satelital LEO",
+    "longDescription": "BeamLab LEO: órbita, arreglos en fase, cuantización, cobertura, enlace bidireccional, laboratorio y exportación de fichas.",
+    "copyright": "Copyright © 2026 Jhorel Kennedy Cornejo Cruz · IET UCSP",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  }
+}

@@ -1,4 +1,4 @@
-# Auditoría técnica y de producto — BeamLab LEO 2.2.0
+# Auditoría técnica y de producto — BeamLab LEO 2.3.0
 
 **Fecha:** 2026-11-12  
 **Auditor:** Jhorel Kennedy Cornejo Cruz — IET UCSP  
@@ -57,6 +57,10 @@ Se audita el simulador completo: órbita, arreglo en fase, modos de cobertura, p
 | 23 | Polarización, Doppler y handover | **No incluido** | Declarado en Limitaciones |
 | 24 | Fallos de elementos, acoplamiento mutuo y calibración perfecta | **No incluido** | El arreglo sigue siendo ideal en esos aspectos; cuantización y residuales sí están |
 | 25 | Distribución sin tiendas: HTML, EXE launcher y actualización por versiones | **Cumple** | HTML verificado offline, launcher 48 KB, manifiesto SHA-256 y versiones conservadas |
+| 26 | Tauri para Windows, Ubuntu y macOS ARM, sin Chromium embebido | **Cumple** | `src-tauri`, workflow desktop y bundles sin firma |
+| 27 | Ficha de laboratorio PNG/PDF con escena y paneles | **Cumple** | Exportación compuesta verificada a 1600×1000 |
+| 28 | Sesiones y muestras JSON/CSV con respaldo local | **Cumple** | LabStore, CSV de 56 columnas, importación JSON |
+| 29 | Panel de nueva versión opcional | **Cumple** | Modal con continuar/no avisar/ver versiones |
 | 25 | Accesibilidad completa del canvas 3D | **Parcial** | `aria-label` y panel textual; sin alternativa completa para lector de pantalla |
 | 26 | Prueba E2E automatizada en CI | **Parcial** | Verificación manual con Playwright; el CI corre unitarias + build |
 
@@ -134,6 +138,8 @@ Con antena isotrópica (0 dBi): C/N ≈ −8,6 dB, **outage** y 0 Mbps. Esto sus
 - [x] Los créditos con nombre completo y GitHub están visibles.
 - [x] 30 pruebas pasan.
 - [x] HTML portable de 3,6 MB abre sin servidor y conserva versiones.
+- [x] Ficha de laboratorio PNG/PDF y muestras CSV/JSON exportadas.
+- [x] Tauri configurado para Ubuntu, macOS ARM y Windows; builds en CI.
 - [x] El build de producción compila.
 - [x] GitHub Pages publica el sitio.
 - [x] README, LICENSE, CHANGELOG, CITATION y PDF están actualizados.

@@ -71,7 +71,7 @@ if (existsSync(manifestFile)) {
 const entry = {
   version,
   date: new Date().toISOString().slice(0, 10),
-  notes: process.env.PORTABLE_NOTES ?? 'Enlace bidireccional, cuantización y guía de 10 pasos.',
+  notes: process.env.PORTABLE_NOTES ?? 'Laboratorio, Tauri y actualizaciones opcionales.',
   html: `${baseUrl}/BeamLabLEO-${version}.html`,
   zip: `${baseUrl}/BeamLabLEO-${version}-portable.zip`,
   size: Buffer.byteLength(html),

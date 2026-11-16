@@ -12,6 +12,10 @@ import type { RegionId } from './core/regions';
 import { drawPatternChart, drawPhaseMap, type PatternPoint } from './charts';
 import { BEAM_HEX, REUSE_LABELS } from './palette';
 import type { CameraMode, Derived, LinkDirection, Mode, PhaseView, Quality, QuantMode, QuantState, SimState, TerminalId } from './state';
+import { buildSample, type LabSample, type LabSession } from './core/lab';
+import { LabStore } from './lab-store';
+import { checkForUpdate, skipVersion, type UpdateInfo } from './update';
+import type { SheetFormat } from './lab-sheet';
 
 export type ToggleKey =
   | 'showOrbit'
@@ -51,6 +55,8 @@ export interface UIHandlers {
   setUsers(n: number): void;
   setCellTarget(lat: number, lon: number): void;
   setQuant(patch: Partial<QuantState>): void;
+  exportLabSheet(format: SheetFormat, session: LabSession, sample: LabSample | null): void;
+  exportScene(): void;
   screenshot(): void;
   setFpsCap(cap: number): void;
   setQuality(quality: Quality): void;
@@ -84,6 +90,10 @@ export class UI {
   private lastPhaseObj: PhaseView | null = null;
   private lastReuseKey = '';
   private lastPatternKey = '';
+  private lab = new LabStore();
+  private labSample: LabSample | null = null;
+  private latestState: SimState | null = null;
+  private latestDerived: Derived | null = null;
 
   private tourSteps: TourStep[] = [
     {
@@ -192,6 +202,7 @@ export class UI {
     this.bind();
     this.renderMath();
     this.syncControls(state);
+    window.setTimeout(() => void this.checkUpdate(), 3200);
   }
 
   private el<T extends HTMLElement>(id: string): T {
@@ -333,7 +344,28 @@ export class UI {
     $('shape-lima').addEventListener('click', () => this.h.setShapedCenter(-12.05, -77.04));
     $('shape-run').addEventListener('click', () => this.h.synthesize());
 
-    $('btn-shot').addEventListener('click', () => this.h.screenshot());
+    $('btn-shot').addEventListener('click', () => this.openLab());
+    $('btn-lab').addEventListener('click', () => this.openLab());
+    $('lab-close').addEventListener('click', () => this.closeLab());
+    $('lab-sample').addEventListener('click', () => this.takeSample());
+    $('lab-png').addEventListener('click', () => this.exportSheet('png'));
+    $('lab-pdf').addEventListener('click', () => this.exportSheet('pdf'));
+    $('lab-scene').addEventListener('click', () => this.h.exportScene());
+    $('lab-csv').addEventListener('click', () => this.lab.exportCsv());
+    $('lab-json').addEventListener('click', () => this.lab.exportJson());
+    $('lab-reset').addEventListener('click', () => this.resetLab());
+    ($('lab-import') as HTMLInputElement).addEventListener('change', (e) => this.importLab(e));
+    for (const el of ['lab-title', 'lab-course', 'lab-author', 'lab-notes']) {
+      $(el).addEventListener('input', () => this.saveLabFields());
+    }
+    $('update-close').addEventListener('click', () => this.hideUpdate());
+    $('update-continue').addEventListener('click', () => this.hideUpdate());
+    $('update-skip').addEventListener('click', () => {
+      const modal = this.el('update');
+      const version = modal.dataset.version;
+      if (version) skipVersion(version);
+      this.hideUpdate();
+    });
     $('btn-help').addEventListener('click', () => this.toggleHelp());
     $('help-close').addEventListener('click', () => this.toggleHelp(false));
     $('help').addEventListener('click', (e) => {
@@ -403,7 +435,7 @@ export class UI {
     else if (e.key.toLowerCase() === 'g') this.h.setToggle('showGain', !this.state.showGain);
     else if (e.key.toLowerCase() === 't') this.startTour();
     else if (e.key.toLowerCase() === 'h') this.toggleHelp();
-    else if (e.key.toLowerCase() === 'p') this.h.screenshot();
+    else if (e.key.toLowerCase() === 'p') this.openLab();
     else if (e.key === '[') this.togglePanel('panel-orbit');
     else if (e.key === ']') this.togglePanel('panel-antenna');
     else if (e.key === 'Escape') {
@@ -529,6 +561,8 @@ export class UI {
 
   update(s: SimState, d: Derived) {
     const $ = <T extends HTMLElement>(id: string) => this.el<T>(id);
+    this.latestState = s;
+    this.latestDerived = d;
 
     $('mission-name').textContent = `${ORBIT_PRESETS.find((p) => p.id === s.presetId)?.name ?? 'Personalizada'} · ${(s.orbit.a - R_EARTH).toFixed(0)} km · ${(s.orbit.i / DEG).toFixed(1)}°`;
     $('ro-apogee').textContent = `${apogeeAlt(s.orbit).toFixed(0)} km`;
@@ -678,6 +712,122 @@ export class UI {
       ? `${(sys.capacityMbps / 1000).toFixed(2)} Gbps`
       : `${sys.capacityMbps.toFixed(0)} Mbps`;
     $('sys-coverage').textContent = sys.coverageFraction == null ? '—' : `${(sys.coverageFraction * 100).toFixed(0)} %`;
+  }
+
+  private openLab() {
+    const s = this.lab.session;
+    (this.el('lab-title') as HTMLInputElement).value = s.title;
+    (this.el('lab-course') as HTMLInputElement).value = s.course;
+    (this.el('lab-author') as HTMLInputElement).value = s.author;
+    (this.el('lab-notes') as HTMLTextAreaElement).value = s.notes;
+    this.renderLab();
+    this.el('lab').hidden = false;
+  }
+
+  private closeLab() {
+    this.el('lab').hidden = true;
+  }
+
+  private renderLab() {
+    const s = this.lab.session;
+    this.el('lab-session-id').textContent = `${s.id} · v${s.appVersion}`;
+    this.el('lab-count').textContent = `${s.samples.length} muestra${s.samples.length === 1 ? '' : 's'}`;
+    const box = this.el('lab-samples');
+    if (!s.samples.length) {
+      box.innerHTML = '<div class="lab-empty">Aún no hay muestras. Configura la simulación y pulsa “Tomar muestra”.</div>';
+      return;
+    }
+    box.innerHTML = s.samples.slice().reverse().map((m) => {
+      const dl = m.links.downlink;
+      const time = m.timestamp.slice(11, 19);
+      return `<div class="lab-row" data-id="${m.id}">
+        <b>${time} UTC · ${m.mode} · ${m.array.n}×${m.array.n}</b>
+        <span>${m.id} · ${m.quant.phaseBits}/${m.quant.ampBits} bits · C/N ${dl ? dl.cnDb.toFixed(1) : '—'} dB · SLL ${m.metrics.sllDb.toFixed(1)} dB</span>
+        <button class="lab-del" data-del="${m.id}" title="Eliminar muestra">✕</button>
+      </div>`;
+    }).join('');
+    for (const btn of box.querySelectorAll<HTMLButtonElement>('[data-del]')) {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.del;
+        if (!id) return;
+        this.lab.removeSample(id);
+        if (this.labSample?.id === id) this.labSample = null;
+        this.renderLab();
+      });
+    }
+  }
+
+  private saveLabFields() {
+    this.lab.updateFields({
+      title: (this.el('lab-title') as HTMLInputElement).value,
+      course: (this.el('lab-course') as HTMLInputElement).value,
+      author: (this.el('lab-author') as HTMLInputElement).value,
+      notes: (this.el('lab-notes') as HTMLTextAreaElement).value,
+    });
+  }
+
+  private takeSample() {
+    if (!this.latestState || !this.latestDerived) return;
+    this.saveLabFields();
+    const sample = buildSample(this.latestState, this.latestDerived, this.lab.session.notes);
+    this.lab.addSample(sample);
+    this.labSample = sample;
+    this.renderLab();
+    this.toast(`Muestra ${sample.id} guardada`);
+  }
+
+  private exportSheet(format: SheetFormat) {
+    if (!this.latestState || !this.latestDerived) return;
+    const sample = this.labSample ?? buildSample(this.latestState, this.latestDerived, this.lab.session.notes);
+    this.labSample = sample;
+    this.h.exportLabSheet(format, this.lab.session, sample);
+  }
+
+  private resetLab() {
+    if (!confirm('¿Crear una sesión nueva? Las muestras actuales quedarán solo en el archivo que hayas exportado.')) return;
+    this.lab.reset();
+    this.labSample = null;
+    this.openLab();
+    this.toast('Sesión nueva creada');
+  }
+
+  private async importLab(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const session = await this.lab.importJson(file);
+      this.labSample = session.samples.at(-1) ?? null;
+      this.openLab();
+      this.toast('Sesión cargada');
+    } catch (err) {
+      this.toast(err instanceof Error ? err.message : 'No se pudo cargar la sesión', true);
+    } finally {
+      input.value = '';
+    }
+  }
+
+  private async checkUpdate() {
+    try {
+      const info = await checkForUpdate();
+      if (info) this.showUpdate(info);
+    } catch {
+      // sin conexión o sin manifiesto: no molestar
+    }
+  }
+
+  private showUpdate(info: UpdateInfo) {
+    const modal = this.el('update');
+    modal.dataset.version = info.latest;
+    this.el('update-current').textContent = `Usando v${info.current}`;
+    this.el('update-latest').textContent = `Nueva v${info.latest}`;
+    this.el('update-notes').textContent = info.notes;
+    (this.el('update-download') as HTMLAnchorElement).href = info.page;
+    modal.hidden = false;
+  }
+
+  private hideUpdate() {
+    this.el('update').hidden = true;
   }
 
   private updateBeams(s: SimState, d: Derived) {

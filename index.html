@@ -52,7 +52,11 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z" fill="none" stroke="currentColor" stroke-width="1.6" /><path d="M8 7h8M8 11h8" stroke="currentColor" stroke-width="1.4" /></svg>
             <span>Teoría</span>
           </button>
-          <button class="btn icon" id="btn-shot" title="Descargar captura (P)">
+          <button class="btn ghost" id="btn-lab" title="Laboratorio: muestras y ficha (P)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-4.8 8.1A2.8 2.8 0 0 0 7.6 21h8.8a2.8 2.8 0 0 0 2.4-3.9L14 9V3" fill="none" stroke="currentColor" stroke-width="1.6" /><path d="M7.2 15h9.6" stroke="currentColor" stroke-width="1.4" /></svg>
+            <span>Lab</span>
+          </button>
+          <button class="btn icon" id="btn-shot" title="Ficha de laboratorio (P)">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l1.6-2h6.8L17 8h3v11H4z" fill="none" stroke="currentColor" stroke-width="1.6" /><circle cx="12" cy="13" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
           </button>
         </nav>
@@ -565,6 +569,59 @@
                 <p class="fine">Modelo docente: esfera terrestre, órbita kepleriana con deriva J2 secular, arreglo con cuantización y errores residuales, sin acoplamiento mutuo ni fallos de elementos. Las cifras son realistas, no certificadas. Elaborado por Jhorel Kennedy Cornejo Cruz · IET UCSP.</p>
               </section>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal" id="lab" hidden>
+        <div class="modal-card lab-card">
+          <div class="modal-head">
+            <div><span class="eyebrow">Laboratorio</span><h2>Ficha y muestras</h2></div>
+            <button class="btn icon" id="lab-close" aria-label="Cerrar">✕</button>
+          </div>
+          <div class="modal-body lab-body">
+            <div class="lab-side">
+              <label class="lab-field"><span>Título de la práctica</span><input id="lab-title" maxlength="80" /></label>
+              <label class="lab-field"><span>Curso / grupo</span><input id="lab-course" maxlength="60" /></label>
+              <label class="lab-field"><span>Autor</span><input id="lab-author" maxlength="60" /></label>
+              <label class="lab-field"><span>Observaciones</span><textarea id="lab-notes" rows="3" maxlength="300"></textarea></label>
+              <div class="lab-actions">
+                <button class="btn small" id="lab-sample">Tomar muestra</button>
+                <button class="btn small" id="lab-png">Ficha PNG</button>
+                <button class="btn small" id="lab-pdf">Ficha PDF</button>
+                <button class="btn small ghost" id="lab-scene">Solo escena</button>
+              </div>
+              <div class="lab-actions">
+                <button class="btn small ghost" id="lab-csv">Exportar CSV</button>
+                <button class="btn small ghost" id="lab-json">Guardar sesión</button>
+                <label class="btn small ghost lab-file">Cargar<input id="lab-import" type="file" accept=".json,application/json" /></label>
+              </div>
+              <button class="lab-reset" id="lab-reset">Nueva sesión</button>
+              <p class="lab-hint">La ficha combina la escena, los paneles y los metadatos. Las muestras se guardan localmente; exporta JSON/CSV para respaldarlas.</p>
+            </div>
+            <div class="lab-main">
+              <div class="lab-summary"><span id="lab-session-id"></span><b id="lab-count">0 muestras</b></div>
+              <div class="lab-samples" id="lab-samples"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal" id="update" hidden>
+        <div class="modal-card update-card">
+          <div class="modal-head">
+            <div><span class="eyebrow">Actualización</span><h2>Hay una versión nueva</h2></div>
+            <button class="btn icon" id="update-close" aria-label="Cerrar">✕</button>
+          </div>
+          <div class="update-body">
+            <div class="update-version"><span id="update-current"></span><b id="update-latest"></b></div>
+            <p class="update-notes" id="update-notes"></p>
+            <div class="update-actions">
+              <button class="btn small ghost" id="update-skip">No avisar por esta versión</button>
+              <a class="btn small" id="update-download" href="#" target="_blank" rel="noopener noreferrer">Ver versiones</a>
+              <button class="btn small" id="update-continue">Continuar con la actual</button>
+            </div>
+            <p class="fine">Actualizar es opcional. No se reemplaza nada hasta que tú lo decidas.</p>
           </div>
         </div>
       </div>

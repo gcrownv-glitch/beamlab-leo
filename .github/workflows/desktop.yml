@@ -39,8 +39,8 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage
 
   macos:
-    name: macOS · Apple Silicon · dmg
-    runs-on: macos-14
+    name: macOS · Apple Silicon cross · dmg
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

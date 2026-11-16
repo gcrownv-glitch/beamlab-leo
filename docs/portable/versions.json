@@ -16,8 +16,8 @@
         "linuxDeb": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.1/BeamLab.LEO_2.3.1_amd64.deb",
         "macDmg": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.1/BeamLab.LEO_2.3.1_aarch64.dmg"
       },
-      "size": 4564506,
-      "sha256": "8b70591d733acaa92e07e805606cb4bce9cbeea348fcb47aca57cecf0a29dcf4"
+      "size": 4564535,
+      "sha256": "929b27746ae0ad77600bc3b5d1bd1f5d321379c280672aed5445fb90bcdadb77"
     }
   ]
 }

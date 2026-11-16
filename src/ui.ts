@@ -779,12 +779,13 @@ export class UI {
 
   private async exportSheet(format: SheetFormat) {
     if (!this.latestState || !this.latestDerived) return;
-    if (!this.labSample) {
-      this.labSample = buildSample(this.latestState, this.latestDerived, this.lab.session.notes);
-      this.lab.addSample(this.labSample);
+    const current = buildSample(this.latestState, this.latestDerived, this.lab.session.notes);
+    if (!this.labSample || this.labSample.configHash !== current.configHash) {
+      this.lab.addSample(current);
       this.renderLab();
     }
-    const result = await this.h.exportLabSheet(format, this.lab.session, this.labSample);
+    this.labSample = current;
+    const result = await this.h.exportLabSheet(format, this.lab.session, current);
     this.notifySave(result, format === 'pdf' ? 'Ficha PDF' : 'Ficha PNG');
   }
 

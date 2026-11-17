@@ -2,6 +2,12 @@
 
 Todas las modificaciones relevantes de BeamLab LEO.
 
+## [2.3.4] — 2026-11-17
+
+- Quité “Disco visible completo” del modo celular. La cobertura celular queda siempre limitada a Perú, Sudamérica o Europa; para el disco completo está el modo Global.
+- La versión visible en la cabecera permite confirmar qué build se está usando.
+- 33 pruebas.
+
 ## [2.3.3] — 2026-11-17
 
 - El mapa de ganancia de un haz puntual se recorta a su huella real, además de la región en celular y conformada. Evita que un lóbulo lejano parezca cobertura.

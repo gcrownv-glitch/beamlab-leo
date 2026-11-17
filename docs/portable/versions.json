@@ -1,7 +1,24 @@
 {
   "schema": 1,
-  "latest": "2.3.3",
+  "latest": "2.3.4",
   "versions": [
+    {
+      "version": "2.3.4",
+      "date": "2026-11-17",
+      "notes": "Cobertura celular solo por región y versión visible en la cabecera.",
+      "html": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.4.html",
+      "zip": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.4-portable.zip",
+      "release": "https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.4",
+      "downloads": {
+        "windowsPortable": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.4/beamlab-leo.exe",
+        "windowsInstaller": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.4/BeamLab.LEO_2.3.4_x64-setup.exe",
+        "linuxAppImage": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.4/BeamLab.LEO_2.3.4_amd64.AppImage",
+        "linuxDeb": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.4/BeamLab.LEO_2.3.4_amd64.deb",
+        "macDmg": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.4/BeamLab.LEO_2.3.4_aarch64.dmg"
+      },
+      "size": 4567401,
+      "sha256": "26bf8bb08520ef4b6c14757381597adc4154e664e57eb77259b0b350759ab1c5"
+    },
     {
       "version": "2.3.3",
       "date": "2026-11-17",

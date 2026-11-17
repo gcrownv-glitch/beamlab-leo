@@ -255,6 +255,9 @@ class App {
   }
 
   private setMode(mode: Mode) {    const prev = this.state.mode;
+    if (mode === 'cellular' && this.state.region === 'visible') {
+      this.engine.setRegion('peru');
+    }
     this.engine.setMode(mode);
     if (prev !== mode && (mode === 'cellular' || mode === 'shaped')) {
       if (mode === 'cellular') {

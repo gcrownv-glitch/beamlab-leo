@@ -17,6 +17,7 @@ import { LabStore } from './lab-store';
 import { checkForUpdate, skipVersion, type UpdateInfo } from './update';
 import type { SheetFormat } from './lab-sheet';
 import type { SaveResult } from './save';
+import { APP_VERSION } from './version';
 
 export type ToggleKey =
   | 'showOrbit'
@@ -200,6 +201,7 @@ export class UI {
   constructor(state: SimState, handlers: UIHandlers) {
     this.state = state;
     this.h = handlers;
+    this.el('app-version').textContent = `v${APP_VERSION}`;
     this.bind();
     this.renderMath();
     this.syncControls(state);

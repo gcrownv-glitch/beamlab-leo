@@ -71,7 +71,7 @@ if (existsSync(manifestFile)) {
 const entry = {
   version,
   date: new Date().toISOString().slice(0, 10),
-  notes: process.env.PORTABLE_NOTES ?? 'Recorta el haz puntual a su huella y corrige el cono 3D.',
+  notes: process.env.PORTABLE_NOTES ?? 'Cobertura celular solo por región y versión visible en la cabecera.',
   html: `${baseUrl}/BeamLabLEO-${version}.html`,
   zip: `${baseUrl}/BeamLabLEO-${version}-portable.zip`,
   release: `https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v${version}`,

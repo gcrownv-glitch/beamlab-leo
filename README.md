@@ -75,9 +75,9 @@ La web es la vía más rápida:
 
 <https://gcrownv-glitch.github.io/beamlab-leo/>
 
-También hay paquetes de escritorio en [GitHub Releases](https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.3):
+También hay paquetes de escritorio en [GitHub Releases](https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.4):
 
-- **Windows:** `BeamLab.LEO_2.3.3_x64-setup.exe` es el instalador (incluye desinstalador); `beamlab-leo.exe` es portable y no instala nada.
+- **Windows:** `BeamLab.LEO_2.3.4_x64-setup.exe` es el instalador (incluye desinstalador); `beamlab-leo.exe` es portable y no instala nada.
 - **Ubuntu:** `.deb` para el gestor de paquetes y `.AppImage` para ejecutar sin instalar.
 - **macOS Apple Silicon:** `.dmg`. No hay build para Intel.
 - **HTML portable:** un solo archivo de unos 4,4 MB, sin servidor. Está en la [página de versiones](https://gcrownv-glitch.github.io/beamlab-leo/versiones.html).

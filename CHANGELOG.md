@@ -2,6 +2,11 @@
 
 Todas las modificaciones relevantes de BeamLab LEO.
 
+## [2.3.3] — 2026-11-17
+
+- El mapa de ganancia de un haz puntual se recorta a su huella real, además de la región en celular y conformada. Evita que un lóbulo lejano parezca cobertura.
+- 33 pruebas.
+
 ## [2.3.2] — 2026-11-17
 
 - El cono de “Haces 3D” termina en el anillo de huella sobre la Tierra, no en un disco plano que se salía de la superficie. Era un defecto de dibujo, no del enlace.

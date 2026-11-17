@@ -22,6 +22,7 @@ import type { Vec3 } from './core/vec';
 import {
   anglesForGroundPoint,
   beamGroundPoint,
+  footprintRing,
   type AntennaFrame,
 } from './core/geometry';
 import { linkBudget, uplinkFrequencyGHz } from './core/link';
@@ -477,8 +478,8 @@ export class Engine {
       } else {
         gainMap = computeGainMap(pattern, beams.length ? beams : [ZERO_BEAM], patternQ, size, s.mode === 'cellular' ? 'max' : 'sum');
       }
-      if (s.mode === 'cellular' || s.mode === 'shaped') {
-        this.maskGainMap(gainMap, sat.rEcef, frame, s);
+      if (s.mode === 'cellular' || s.mode === 'shaped' || s.mode === 'spot') {
+        this.maskGainMap(gainMap, sat.rEcef, frame, s, active);
       }
       this.gainDirty = false;
       this.lastGainMs = now;
@@ -927,12 +928,25 @@ export class Engine {
    * uso el polígono de la región; para conformado, el círculo de diseño con un
    * pequeño margen.
    */
-  private maskGainMap(map: GainMap, sat: Vec3, frame: AntennaFrame, s: SimState) {
+  private maskGainMap(map: GainMap, sat: Vec3, frame: AntennaFrame, s: SimState, active: Beam | null) {
     const size = map.size;
     const poly = s.mode === 'cellular' ? regionPolygon(s.region) : null;
     const shapedLat = s.shapedCenter.lat * DEG;
     const shapedLon = s.shapedCenter.lon * DEG;
     const shapedRadius = (s.shapedRadiusKm * 1.06) / R_EARTH;
+    const spotLat = s.spotTarget.lat * DEG;
+    const spotLon = s.spotTarget.lon * DEG;
+    let spotRadius = 0;
+    if (s.mode === 'spot' && active) {
+      const ring = footprintRing(sat, frame, active, (this.baseMetrics.hpbwDeg * DEG) / 2, 64);
+      for (const p of ring) {
+        const g = ecefToGeodetic(p);
+        const cosD = Math.sin(g.lat) * Math.sin(spotLat)
+          + Math.cos(g.lat) * Math.cos(spotLat) * Math.cos(g.lon - spotLon);
+        spotRadius = Math.max(spotRadius, Math.acos(Math.max(-1, Math.min(1, cosD))));
+      }
+      spotRadius = Math.min(Math.PI, spotRadius * 1.08 + 0.005);
+    }
     for (let iv = 0; iv < size; iv++) {
       const v = -1 + (2 * (iv + 0.5)) / size;
       for (let iu = 0; iu < size; iu++) {
@@ -957,6 +971,12 @@ export class Engine {
           const cosD = Math.sin(geo.lat) * Math.sin(shapedLat)
             + Math.cos(geo.lat) * Math.cos(shapedLat) * Math.cos(geo.lon - shapedLon);
           inside = Math.acos(Math.max(-1, Math.min(1, cosD))) <= shapedRadius;
+        } else if (s.mode === 'spot' && active) {
+          const cosD = Math.sin(geo.lat) * Math.sin(spotLat)
+            + Math.cos(geo.lat) * Math.cos(spotLat) * Math.cos(geo.lon - spotLon);
+          inside = spotRadius > 0
+            ? Math.acos(Math.max(-1, Math.min(1, cosD))) <= spotRadius
+            : true;
         }
         if (!inside) {
           map.data[idx] = 0;

@@ -597,7 +597,19 @@
                 <label class="btn small ghost lab-file">Cargar<input id="lab-import" type="file" accept=".json,application/json" /></label>
               </div>
               <button class="lab-reset" id="lab-reset">Nueva sesión</button>
-              <p class="lab-hint"><b>Tomar muestra</b> crea la muestra actual. <b>Ficha PNG/PDF</b> usa la última muestra (o crea una). <b>Guardar sesión</b> es un respaldo JSON; <b>Cargar</b> reemplaza la sesión actual; <b>Nueva sesión</b> la vacía. Los archivos se abren o se avisa dónde quedaron.</p>
+              <details class="lab-guide">
+                <summary>Guía rápida del laboratorio</summary>
+                <ol>
+                  <li>Configura la órbita, el arreglo, la cuantización y el enlace en los paneles de la app.</li>
+                  <li>Escribe el título, el curso y una observación. No son obligatorios, pero ayudan a ordenar la práctica.</li>
+                  <li>Pulsa <b>Tomar muestra</b>. Se guarda una foto del estado actual con hora UTC.</li>
+                  <li>Si quieres la ficha, pulsa <b>Ficha PNG</b> o <b>Ficha PDF</b>. Si no habías tomado muestra, se crea una con la configuración actual.</li>
+                  <li><b>Guardar sesión</b> descarga un JSON de respaldo. <b>Cargar</b> reemplaza la sesión abierta por ese archivo. <b>Nueva sesión</b> empieza de cero.</li>
+                  <li>El CSV sirve para Excel, Origin o Python. La ficha y el JSON conservan el contexto de la práctica.</li>
+                </ol>
+                <p>Si ves “0 muestras”, la sesión está vacía o acabas de crearla. La web y la app Tauri guardan sesiones separadas; para pasarlas de una a otra usa el JSON.</p>
+              </details>
+              <p class="lab-hint"><b>Tomar muestra</b> crea la muestra actual. <b>Ficha PNG/PDF</b> usa la configuración actual (o crea una muestra). <b>Guardar sesión</b> es un respaldo JSON; <b>Cargar</b> reemplaza la sesión actual; <b>Nueva sesión</b> la vacía. Los archivos se abren o se avisa dónde quedaron.</p>
             </div>
             <div class="lab-main">
               <div class="lab-summary"><span id="lab-session-id"></span><b id="lab-count">0 muestras</b></div>

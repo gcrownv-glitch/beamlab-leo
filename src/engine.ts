@@ -919,6 +919,14 @@ export class Engine {
     return info;
   }
 
+  /**
+   * Recorta el mapa de ganancia a la región que realmente se está cubriendo.
+   *
+   * El cálculo de haces es correcto, pero el overlay de color podía extenderse
+   * fuera de la huella y dar la impresión de una cobertura mayor. Para celular
+   * uso el polígono de la región; para conformado, el círculo de diseño con un
+   * pequeño margen.
+   */
   private maskGainMap(map: GainMap, sat: Vec3, frame: AntennaFrame, s: SimState) {
     const size = map.size;
     const poly = s.mode === 'cellular' ? regionPolygon(s.region) : null;

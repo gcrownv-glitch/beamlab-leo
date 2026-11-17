@@ -1,3 +1,9 @@
+/**
+ * Aviso de versión nueva.
+ *
+ * Consulta el manifiesto de GitHub Pages y muestra un panel, pero no instala
+ * nada por su cuenta. La decisión de actualizar sigue siendo del usuario.
+ */
 import { APP_VERSION } from './version';
 
 export interface VersionEntry {

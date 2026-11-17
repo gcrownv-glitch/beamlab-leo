@@ -1,5 +1,7 @@
 use std::fs;
 
+// El diálogo elige la ruta; este comando solo escribe los bytes que devuelve
+// la ficha o el CSV. Evita dar al frontend acceso libre al sistema de archivos.
 #[tauri::command]
 fn save_binary(path: String, data: Vec<u8>) -> Result<(), String> {
     fs::write(&path, data).map_err(|e| format!("No se pudo guardar {path}: {e}"))

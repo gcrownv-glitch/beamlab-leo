@@ -4,41 +4,36 @@ Todas las modificaciones relevantes de BeamLab LEO.
 
 ## [2.3.1] — 2026-11-16
 
-### Correcciones de uso y rendimiento
+Esta versión corrige problemas que aparecieron al probar la app fuera del navegador.
 
-- Pinch del trackpad en Tauri/WebView2 ahora acerca la cámara y no la página.
-- Tauri inicia en calidad media, 45 FPS y menor pixel ratio; menos GPU y calor.
-- La cobertura celular y conformada se recorta a la región/huella real: no pinta todo el globo.
-- La ficha PNG/PDF crea una muestra si no existe; muestra confirmación y abre el archivo.
-- Guardado nativo en Tauri con diálogo, ruta visible y apertura del archivo.
-- CSV/JSON también usan guardado nativo en Tauri.
-- Página de versiones con descargas separadas: instalador, portable, AppImage, .deb y .dmg.
-- Instrucciones de desinstalación para cada paquete.
+- El pinch del trackpad en Tauri ya no hace zoom de página: acerca la cámara.
+- Tauri arranca con calidad media, 45 FPS y un pixel ratio menor. La primera vez migra la configuración anterior; después se puede subir la calidad a mano.
+- La cobertura celular se recorta a la región y la conformada al círculo de diseño. Antes el color se extendía fuera de la huella.
+- La ficha PNG/PDF toma la configuración actual y crea una muestra si no existe. Al terminar avisa la ruta y abre el archivo.
+- En Tauri, PNG, PDF, CSV y JSON pasan por el diálogo nativo de guardado.
+- La página de versiones separa instalador, portable, AppImage, .deb y .dmg, e indica cómo desinstalar cada uno.
 - 33 pruebas.
 
 ## [2.3.0] — 2026-11-16
 
-### Tauri, laboratorio y actualizaciones
+Añadí el laboratorio y el empaquetado de escritorio.
 
-- Tauri 2 para Windows, Ubuntu (deb/AppImage) y macOS Apple Silicon (dmg).
-- Sin Chromium embebido: usa WebView2/WKWebView/WebKitGTK.
-- **Ficha de laboratorio** compuesta: escena + paneles + metadatos, en PNG o PDF.
-- Sesiones y muestras locales: título, curso, autor, notas y snapshot de configuración.
-- Exportación **CSV** y **JSON**; carga de sesión y backup.
-- Panel de **nueva versión** no bloqueante: continuar, no avisar o ver versiones.
+- Tauri 2 para Windows, Ubuntu (deb/AppImage) y macOS Apple Silicon (dmg), sin Chromium embebido.
+- Ficha de laboratorio compuesta: escena, paneles y metadatos en PNG o PDF.
+- Sesiones locales con título, curso, autor, notas y muestras de configuración.
+- Exportación CSV y JSON, carga de sesión y respaldo.
+- Panel de nueva versión no bloqueante: continuar, no avisar o ver versiones.
 - Workflow de escritorio para Linux, macOS ARM y Windows.
-- 33 pruebas de la app; el empaquetado Tauri se valida en CI.
+- 30 pruebas; el empaquetado Tauri se valida en CI.
 
 ## [2.2.0] — 2026-11-15
 
-### Distribución portable y actualizaciones por versión
-
-- HTML autónomo de ~3,6 MB, sin servidor ni instalación, con texturas, CSS, JS y fuentes embebidas.
-- Launcher `.exe` de ~48 KB que abre la versión elegida con Edge/Chrome en modo app.
+- HTML autónomo de ~4,4 MB, sin servidor ni instalación, con texturas, CSS, JS y fuentes embebidas.
+- Launcher `.exe` de ~48 KB que abre la versión elegida con Edge o Chrome en modo app.
 - ZIP portable con app, launcher, selector de versiones y actualizador.
 - Actualizador `Actualizar.cmd` por HTTPS con verificación SHA-256.
 - Manifiesto `versions.json`, página `/versiones.html` y archivo histórico de versiones.
-- **No requiere Google Play ni App Store**; iOS queda cubierto por HTML/PWA.
+- Sin Google Play ni App Store; iOS queda cubierto por HTML/PWA.
 - 30 pruebas de la app; el empaquetado se valida aparte.
 
 ## [2.1.0] — 2026-11-14

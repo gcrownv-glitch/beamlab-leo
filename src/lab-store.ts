@@ -1,3 +1,10 @@
+/**
+ * Persistencia local del laboratorio.
+ *
+ * No hay backend. La sesión vive en localStorage y el usuario se la lleva en
+ * JSON. La web y Tauri tienen almacenamientos separados, así que el JSON es
+ * también la forma de mover una práctica entre ambos.
+ */
 import { createSession, LAB_SCHEMA, samplesToCsv, type LabSession } from './core/lab';
 import { saveText, type SaveResult } from './save';
 

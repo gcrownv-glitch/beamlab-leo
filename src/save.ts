@@ -1,3 +1,10 @@
+/**
+ * Guardado de archivos.
+ *
+ * En web no se puede elegir carpeta sin permisos, así que descargo y, para
+ * PNG/PDF, abro una vista previa. En Tauri sí uso el diálogo del sistema y
+ * luego abro el archivo con la aplicación asociada.
+ */
 export interface SaveResult {
   saved: boolean;
   path?: string;

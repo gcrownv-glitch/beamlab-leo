@@ -1,3 +1,10 @@
+/**
+ * Ficha de laboratorio.
+ *
+ * La compongo en un canvas aparte para no depender de una captura del DOM:
+ * escena a la izquierda, datos a la derecha y pie con la trazabilidad. El PDF
+ * usa la misma imagen, así que ambos formatos cuentan la misma historia.
+ */
 import type { Derived, SimState } from './state';
 import type { LabSample, LabSession } from './core/lab';
 import { APP_VERSION } from './version';

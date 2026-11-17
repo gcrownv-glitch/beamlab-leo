@@ -1,3 +1,11 @@
+/**
+ * Modelo de datos del laboratorio.
+ *
+ * Una sesión es el cuaderno de la práctica; una muestra es una foto del estado
+ * de la simulación. Guardo la configuración completa en cada muestra para que
+ * se pueda repetir sin depender de la sesión actual. El hash no es
+ * criptográfico: solo sirve para reconocer configuraciones iguales.
+ */
 import type { ArrayConfig } from './array';
 import type { LinkResult } from './link';
 import type { Derived, LinkDirection, SimState } from '../state';

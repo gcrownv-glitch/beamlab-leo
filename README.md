@@ -1,174 +1,118 @@
-﻿# BeamLab LEO
+# BeamLab LEO
 
-**Simulador interactivo de órbita, arreglos en fase y beamforming satelital.**
+Simulador de órbita baja, arreglos en fase y enlace satelital.
 
-[![Demo](https://img.shields.io/badge/demo-online-22d3ee?style=flat-square)](https://gcrownv-glitch.github.io/beamlab-leo/)
-[![Deploy](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml/badge.svg)](https://github.com/gcrownv-glitch/beamlab-leo/actions/workflows/deploy.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-3da639?style=flat-square)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20.19-339933?style=flat-square)](package.json)
-[![Tests](https://img.shields.io/badge/tests-33%20passing-22d3ee?style=flat-square)](tests)
-
-**Demo:** <https://gcrownv-glitch.github.io/beamlab-leo/><br>
-**Repositorio:** <https://github.com/gcrownv-glitch/beamlab-leo>
+[Demo](https://gcrownv-glitch.github.io/beamlab-leo/) · [Versiones](https://gcrownv-glitch.github.io/beamlab-leo/versiones.html) · [Descargas](https://github.com/gcrownv-glitch/beamlab-leo/releases) · [Guía en PDF](docs/presentacion/guion-beamlab-leo.pdf)
 
 ![Vista general de BeamLab LEO](docs/img/01-general.jpg)
 
-BeamLab LEO muestra, en un globo 3D, cómo un satélite en órbita baja (LEO) ilumina la Tierra con haces directivos: la órbita y la huella visible, la fase de cada elemento del arreglo, la cobertura celular de un país y el diseño de un haz con forma de una ciudad. El presupuesto de enlace traduce esas decisiones de antena a C/N, MODCOD y Mbps.
+## Qué es
 
-## Contenido
+BeamLab LEO nació como una herramienta para explicar, con una escena 3D, cómo un satélite en órbita baja puede iluminar la Tierra con haces directivos. La órbita, la huella visible, la fase de cada elemento del arreglo, la cobertura de un país y el diseño de un haz con forma de ciudad están en la misma pantalla. El presupuesto de enlace traduce esas decisiones a C/N, MODCOD y capacidad.
 
-- **Órbita:** Kepler, corrección secular J2, GMST, ECI/ECEF, traza, huella y distancia oblicua.
-- **Arreglo en fase:** 4×4 a 32×32, separación en λ, taper Uniforme/Kaiser/Hann, mapa de fase, HPBW, SLL, directividad, lóbulos de difracción.
-- **Cuantización realista:** fase de 3–7 bits, amplitud de 3–5 bits o taper fijo, errores residuales de fase/amplitud, patrón exacto del haz activo y modos tiempo real/análisis.
-- **Cobertura:** haz global, haz puntual, celdas fijas a Tierra con reutilización 3/4/7, selección de celda y fracción de cobertura.
-- **Haz conformado:** síntesis por mínimos cuadrados complejos con regularización y gradiente conjugado; muestreo sobre la superficie terrestre.
-- **Enlace bidireccional:** bajada y subida, balance DL/UL, potencia de terminal, EIRP, FSPL, atmósfera, lluvia, G/T, C/N₀, C/N, MODCOD DVB-S2X, outage y capacidad limitada por el peor enlace.
-- **Rendimiento:** límite de FPS (30–120/∞), calidad Alta/Media/Baja, texturas reales y shader de ganancia en el globo.
-- **Presentación:** guía de 10 pasos, teoría con ecuaciones y material de exposición.
-- **Portable:** HTML autónomo de ~4,4 MB, launcher `.exe` de ~48 KB y actualizador por versiones sin tiendas.
-- **Tauri:** app de escritorio sin Chromium embebido para Windows, Ubuntu y macOS Apple Silicon.
-- **Laboratorio:** sesiones, muestras, ficha PNG/PDF, CSV/JSON y backup local.
+No es un producto de vuelo ni un reemplazo de un simulador profesional. Es un material de laboratorio: sirve para mover parámetros, comparar resultados y discutir por qué un diseño funciona o no. Esa intención explica también sus límites, que están anotados más abajo.
 
-## Inicio rápido
+La aplicación está en español porque el curso se dicta en español. El código y los nombres técnicos se mantienen en el idioma habitual de la ingeniería.
 
-Requisitos: Node.js ≥ 20.19.
+## Lo que se puede hacer
+
+- Cambiar de misión y editar altitud, inclinación, excentricidad y RAAN.
+- Comparar un haz global, uno puntual, una cobertura celular con reutilización 3/4/7 y un haz conformado por síntesis.
+- Modificar el arreglo: 4×4 a 32×32, separación en longitudes de onda, frecuencia, taper y eficiencia.
+- Ver el mapa de fase y el corte del patrón; medir directividad, ganancia, HPBW, SLL y apuntamiento.
+- Activar cuantización de fase y amplitud, añadir errores residuales y comparar el patrón ideal con el exacto.
+- Leer un enlace de bajada y otro de subida, con sus C/N, MODCOD, margen y capacidad. La capacidad del sistema usa el peor de los dos.
+- Crear una sesión de laboratorio, tomar muestras, exportar una ficha PNG/PDF y respaldar los datos en JSON o CSV.
+
+## Cómo ejecutarlo
+
+Necesitas Node.js 20.19 o superior.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Abre `http://localhost:5173`. Para producción:
+La app queda en `http://localhost:5173`. Para probar el build de producción:
 
 ```bash
 npm run build
 npm run preview
 ```
 
-La app es estática; necesita servirse por HTTP. No abras `dist/index.html` con `file://`.
-
-## Uso
-
-1. Elige una misión (Starlink, ISS, OneWeb, SSO) o ajusta altitud, inclinación, excentricidad y RAAN.
-2. Selecciona el modo: **Global**, **Puntual**, **Celular** o **Conformada**.
-3. Ajusta el arreglo (N×N, separación, frecuencia, taper, eficiencia) y la potencia por haz.
-4. En **Puntual**, haz clic en el globo para mover el haz. En **Celular**, haz clic para inspeccionar una celda. En **Conformada**, elige centro y radio y pulsa **Sintetizar cobertura**.
-5. Lee el presupuesto de enlace: EIRP, FSPL, C/N, MODCOD, margen, G/T, elevación y capacidad; alterna **bajada/subida** y cambia la potencia del terminal.
+El sitio es estático. Debe servirse por HTTP; abrir `dist/index.html` con `file://` no funciona.
 
 ### Atajos
 
 | Tecla | Acción |
 |---|---|
-| `Espacio` | Reproducir / pausar |
-| `1`–`4` | Global / Puntual / Celular / Conformada |
+| `Espacio` | Reproducir o pausar |
+| `1`–`4` | Global, puntual, celular, conformada |
 | `T` | Guía de presentación |
 | `H` | Teoría y ecuaciones |
-| `P` | Captura PNG |
-| `G` | Mostrar/ocultar ganancia |
+| `P` | Abrir laboratorio / ficha |
+| `G` | Mostrar u ocultar ganancia |
 | `[` / `]` | Contraer panel de órbita / antena |
 
-## Modelo técnico
+## Laboratorio
 
-### Órbita
+El botón **Lab** abre una sesión de trabajo. La sesión guarda un título, un curso, un autor y observaciones; las muestras son fotografías del estado de la simulación.
 
-La posición se propaga con elementos keplerianos y deriva secular J2 de Ω, ω y M. La Tierra se modela como esfera de radio 6378,137 km. A 550 km:
+1. Configura la órbita, el arreglo, la cuantización y el enlace.
+2. Escribe los datos de la práctica.
+3. Pulsa **Tomar muestra**. Se guardan la hora UTC, la geometría, la configuración y los resultados.
+4. Exporta **Ficha PNG** o **Ficha PDF**. La ficha reúne la escena, los paneles y los metadatos en una sola imagen. Si no hay una muestra con la configuración actual, se crea en ese momento.
+5. Usa **Guardar sesión** para descargar un JSON de respaldo y **Cargar** para recuperarlo. **Nueva sesión** empieza vacía.
+6. Exporta **CSV** para abrir los datos en Excel, Origin o Python.
 
-- velocidad orbital ≈ 7,59 km/s;
-- período ≈ 95,6 min;
-- horizonte a 67,0° de nadir;
-- casquete visible de 23,0° de ángulo central, **2.560 km de radio** (5.100 km de diámetro).
+La web y la app Tauri guardan sus sesiones por separado. Para mover una práctica entre ambas, exporta el JSON en una y cárgalo en la otra. Si el contador dice “0 muestras”, la sesión está nueva o vacía.
 
-### Arreglo en fase
+Los archivos se descargan en la web y se guardan con el diálogo del sistema en Tauri. Después de exportar, la app avisa la ruta y, cuando el formato lo permite, abre el archivo.
 
-El factor de arreglo es
+## Descargas
 
-```text
-AF(u,v) = Σ_m Σ_n a_mn · exp[j k (x_m u + y_n v)]
-```
+La web es la vía más rápida:
 
-con `u = sinθ cosφ`, `v = sinθ sinφ`, `k = 2π/λ`. Para apuntar a `(u₀,v₀)`:
+<https://gcrownv-glitch.github.io/beamlab-leo/>
 
-```text
-a_mn = w_m w_n · exp[−j k (x_m u₀ + y_n v₀)]
-```
+También hay paquetes de escritorio en [GitHub Releases](https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.1):
 
-El patrón del elemento es `g_e(θ) = cos^q θ` en campo y `cos^{2q} θ` en potencia. El simulador calcula directividad integrando el patrón en el hemisferio, HPBW por cruce de −3 dB, SLL y el aviso de grating lobes cuando `d > 0,5 λ`.
+- **Windows:** `BeamLab.LEO_2.3.1_x64-setup.exe` es el instalador (incluye desinstalador); `beamlab-leo.exe` es portable y no instala nada.
+- **Ubuntu:** `.deb` para el gestor de paquetes y `.AppImage` para ejecutar sin instalar.
+- **macOS Apple Silicon:** `.dmg`. No hay build para Intel.
+- **HTML portable:** un solo archivo de unos 4,4 MB, sin servidor. Está en la [página de versiones](https://gcrownv-glitch.github.io/beamlab-leo/versiones.html).
 
-### Cuantización
+Los binarios no están firmados ni notarizados. macOS puede pedir clic derecho → Abrir. Windows puede mostrar SmartScreen la primera vez.
 
-Un desfasador de `b` bits tiene `2^b` estados y un paso `Δφ = 2π/2^b`; un VGA de `a` bits cuantiza la amplitud. Sobre eso se añade un error residual gaussiano de calibración/temperatura.
+Para desinstalar: el instalador de Windows se quita desde Configuración → Aplicaciones o con `uninstall.exe`; el EXE portable se borra; en Ubuntu, `sudo apt remove beamlab-leo` para el .deb y se elimina el AppImage; en macOS se arrastra la app a la Papelera.
 
-El haz activo se reconstruye con los pesos cuantizados y se calcula su patrón exacto. Para HPBW/SLL se usa un **corte directo de 481 puntos**, no una interpolación de la rejilla 2D. Hay dos modos:
-
-- **Tiempo real:** patrón 2D 65×65 y corte exacto, actualizado con throttle (~4 Hz).
-- **Análisis:** patrón 257×257 bajo demanda.
-
-Configuración por defecto: 5 bits de fase, 4 bits de amplitud, 2° RMS de fase y 0,2 dB RMS de amplitud. El botón **Ideal** desactiva cuantización y errores para comparar.
-
-### Haz conformado
-
-Se muestrea un círculo de radio `R` sobre la superficie terrestre, se mapea a direcciones `(u,v)` y se resuelve
+## Cómo está organizado
 
 ```text
-min_w ||A w − d||² + λ||w||²
+src/core/       órbita, geometría, arreglo, síntesis, cobertura, enlace
+src/            motor, escena, interfaz, laboratorio, estado
+src-tauri/      contenedor Tauri para Windows, Ubuntu y macOS ARM
+tests/          pruebas de física, arreglo, enlace y laboratorio
+docs/           teoría, guía, auditoría y notas de despliegue
+public/         texturas y archivos estáticos
+scripts/        build portable y launcher
 ```
 
-con `d = 1` dentro de la zona y `0` fuera, transición coseno en el borde y gradiente conjugado. El tiempo se congela en este modo: es un **diseño estático**, no una simulación dinámica.
+El motor recibe el estado, propaga la órbita, calcula el patrón y los haces, y entrega todo a la escena y a la interfaz. La escena no decide física: solo dibuja lo que el motor calcula. Esa separación permitió añadir laboratorio y escritorio sin duplicar la simulación.
 
-### Enlace
+## Decisiones que conviene conocer
 
-```text
-EIRP = P_tx + G_tx
-L_fs = 20 log10(4πd/λ)
-P_rx = EIRP − L_fs − L_atm − L_rain + G_rx
-C/N₀ = P_rx − N₀
-C/N  = C/N₀ − 10 log10(B)
-```
+**Tierra esférica.** Uso radio constante para que las comparaciones sean limpias. No hay WGS-84, geoide ni obstáculos.
 
-La temperatura de sistema incluye antena (50 K) y receptor; se muestra `G/T`. La capacidad no usa Shannon como si fuera un módem: se selecciona el **MODCOD DVB-S2X** más alto cuyo umbral de C/N se cumple, con 1 dB de margen. Si ninguno cumple, hay **outage** y capacidad cero.
+**Patrón exacto del haz activo.** El patrón del haz que se está mirando se reconstruye con los pesos cuantizados y se mide con un corte directo. En celular, el mapa multihaz sigue siendo una aproximación para que la interacción no se vuelva pesada.
 
-En **bajada** transmiten el satélite (20 W, ganancia del haz) y recibe el VSAT (34 dBi). En **subida** transmite el VSAT (4 W configurables, 34 dBi) y recibe el satélite (ganancia del haz). Se emparejan 12/14 GHz en Ku y 20/30 GHz en K/Ka, con ganancia de apertura fija; no se modelan duplexores ni planes de frecuencia de un operador. La capacidad de sistema usa `min(bajada, subida)` y la interfaz indica qué lado limita.
+**Cuantización.** Los bits de fase y amplitud son reales; los errores residuales son gaussianos y dependen de una semilla. En un arreglo grande el efecto sobre el SLL puede ser pequeño porque los lóbulos de cuantización quedan por debajo del taper. En el haz conformado el efecto es más visible.
 
-Configuración por defecto:
+**Cobertura.** La máscara de color se recorta a la región o al círculo conformado. Antes se pintaba fuera de la huella y daba una impresión equivocada; las métricas no cambiaron.
 
-| Parámetro | Valor |
-|---|---|
-| Órbita | Starlink 550 km, 53° |
-| Arreglo | 16×16, 0,5 λ, Ku 12 GHz, Kaiser −30, η = 65 % |
-| P<sub>tx</sub> satélite (bajada) | 20 W por haz |
-| P<sub>tx</sub> terminal (subida) | 4 W |
-| Canal | 100 MHz |
-| Terminal | VSAT 0,6 m, 34 dBi, NF 1,5 dB |
-| Usuarios/haz | 20 |
-| Resultado típico | Bajada C/N ≈ 30 dB · Subida C/N ≈ 24 dB · 64APSK 5/6 · ≈500 Mbps/haz · ≈25 Mbps/usuario |
+**Tauri.** Elegí Tauri para no empaquetar Chromium. Usa WebView2 en Windows, WKWebView en macOS y WebKitGTK en Ubuntu. Es más liviano, aunque el render WebGL depende del webview de cada sistema.
 
-Con la antena isotrópica (0 dBi) el mismo enlace queda en outage: sirve para comparar y entender por qué la antena del usuario importa.
-
-## Estructura
-
-```text
-src/
-  core/
-    constants.ts   constantes físicas
-    vec.ts         álgebra vectorial
-    orbit.ts       Kepler, J2, GMST, horizonte, ECI/ECEF
-    geometry.ts    cosenos directores, rayos, huellas
-    array.ts       factor de arreglo, taper, directividad, HPBW/SLL
-    synthesis.ts   mínimos cuadrados complejos + gradiente conjugado
-    coverage.ts    celdas, haces visibles, apuntamiento
-    regions.ts     polígonos, áreas, celdas, muestreo
-    presets.ts     ISS, Starlink, OneWeb, SSO
-    link.ts        EIRP, FSPL, G/T, MODCOD, capacidad
-  scene.ts          globo 3D, satélite, órbitas, haces, shader
-  engine.ts         estado → órbita → patrón → haces → enlace
-  charts.ts         mapa de fase y corte de patrón
-  ui.ts             controles, métricas, guía y teoría
-  main.ts           texturas, bucle y manejadores
-  state.ts          estado y tipos
-public/assets/      texturas de la Tierra
-tests/              33 pruebas
-docs/               teoría, despliegue y presentación
-```
+**Actualizaciones.** La app consulta un manifiesto y muestra un panel con las novedades. No actualiza sola: el usuario decide. La instalación nueva reemplaza la anterior; las muestras guardan la versión usada.
 
 ## Pruebas
 
@@ -176,66 +120,34 @@ docs/               teoría, despliegue y presentación
 npm test
 ```
 
-33 pruebas cubren tiempo/GMST, órbita y J2, geometría del horizonte, base de antena, arreglo/fase/taper, cuantización, síntesis, enlace bidireccional y presupuesto (VSAT, isotrópica, lluvia y ancho de banda).
-
-## Despliegue
-
-El repositorio publica en GitHub Pages con `.github/workflows/deploy.yml`: instala, prueba, compila y despliega en cada push a `main`. Guía completa, dominio propio y solución de problemas: **[docs/deploy.md](docs/deploy.md)**.
-
-### Portable sin tiendas
-
-También se genera un **HTML autónomo** de ~4,4 MB que funciona sin servidor ni instalación, y un **launcher `.exe`** de ~48 KB que abre la versión elegida con Edge en modo app:
-
-- [Descargar versiones portables](https://gcrownv-glitch.github.io/beamlab-leo/versiones.html)
-- [HTML autónomo 2.3.1](https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.1.html)
-- [ZIP con launcher EXE 2.3.1](https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.1-portable.zip)
-- [Plan portable y actualizaciones](docs/portable.md)
-
-```bash
-npm run build:portable
-```
-
-Genera el HTML, el launcher, el selector de versiones, el actualizador y el ZIP en `release/`. Las versiones anteriores se conservan.
-
-### Descargas de escritorio Tauri
-
-- [Windows · instalador y EXE portable](https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.1)
-- [Ubuntu · .deb y AppImage](https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.1)
-- [macOS Apple Silicon · .dmg](https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.1)
-
-El **instalador** NSIS se desinstala desde Configuración → Aplicaciones o `uninstall.exe`. El **EXE portable** no instala nada: se borra el archivo.
-
-Los binarios no están firmados ni notarizados. macOS puede pedir clic derecho → Abrir.
+Son 33 pruebas: tiempo y GMST, órbita y J2, geometría del horizonte, base de antena, arreglo y taper, cuantización, síntesis, enlace bidireccional, presupuesto y laboratorio. El build de Tauri se compila en GitHub Actions para Ubuntu, Windows y macOS ARM.
 
 ## Documentación
 
-- **[Teoría y ecuaciones](docs/teoria.md)**
-- **[Despliegue](docs/deploy.md)**
-- **[Guion de exposición](docs/presentacion/guion.md)** · **[PDF](docs/presentacion/guion-beamlab-leo.pdf)** · **[Checklist](docs/presentacion/checklist.md)**
-- **[Registro de cambios](CHANGELOG.md)** · **[Citación](CITATION.cff)**
-- **[Auditoría técnica y de producto](docs/auditoria.md)**
-- **[Plan web, Android e iOS](docs/movil.md)**
-- **[Portable, versiones y actualización remota](docs/portable.md)**
-- **[Laboratorio y datos](docs/laboratorio.md)**
-- **[Tauri: escritorio sin Chromium](docs/tauri.md)**
+- [Teoría y ecuaciones](docs/teoria.md)
+- [Guía de exposición y PDF](docs/presentacion/guion.md)
+- [Laboratorio y datos](docs/laboratorio.md)
+- [Tauri](docs/tauri.md)
+- [Portable y versiones](docs/portable.md)
+- [Despliegue](docs/deploy.md)
+- [Auditoría técnica](docs/auditoria.md)
+- [Registro de cambios](CHANGELOG.md)
 
-## Limitaciones
+## Límites
 
-Modelo docente, no certificado:
-
-- Tierra esférica, sin elipsoide WGS-84 ni geoide.
-- Arreglo ideal en lo relativo a acoplamiento mutuo, fallos de elementos y calibración perfecta; la cuantización y los errores residuales sí están modelados.
-- El patrón exacto se calcula para el **haz activo**; en celular el mapa multihaz sigue siendo ideal para mantener interacción.
-- Sin interferencia co-canal ni C/I por reutilización; la cobertura celular se limita a 2.500 celdas y muestra la fracción cubierta.
-- Sin **feeder link**, handover entre satélites ni constelación completa.
-- El enlace bidireccional usa apertura fija y frecuencias emparejadas; no modela duplexores, planes de frecuencia del operador ni control de potencia adaptativo.
-- La lluvia es un margen seleccionable, no un modelo de disponibilidad.
+- La Tierra es esférica; no hay elipsoide, geoide ni atmósfera refractiva.
+- El arreglo no incluye acoplamiento mutuo, fallos de elementos ni calibración medida. La cuantización y los errores residuales sí están modelados.
+- No hay interferencia co-canal ni C/I por reutilización.
+- No hay feeder link, handover entre satélites ni constelación completa.
+- La lluvia es un margen que se elige, no un modelo de disponibilidad.
 - El haz conformado es estático y se calcula para una posición orbital concreta.
+- El enlace usa apertura fija y frecuencias emparejadas; no modela duplexores ni control adaptativo de potencia.
 
 ## Autor
 
-**Jhorel Kennedy Cornejo Cruz**<br>
-IET UCSP — Ingeniería Electrónica y Telecomunicaciones, Universidad Católica San Pablo<br>
+Jhorel Kennedy Cornejo Cruz  
+IET UCSP, Ingeniería Electrónica y Telecomunicaciones  
+Universidad Católica San Pablo  
 [github.com/gcrownv-glitch](https://github.com/gcrownv-glitch)
 
 ## Licencia

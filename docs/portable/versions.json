@@ -1,7 +1,24 @@
 {
   "schema": 1,
-  "latest": "2.3.1",
+  "latest": "2.3.2",
   "versions": [
+    {
+      "version": "2.3.2",
+      "date": "2026-11-17",
+      "notes": "Corrige el cono del haz y aclara la cobertura visible.",
+      "html": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.2.html",
+      "zip": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.2-portable.zip",
+      "release": "https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.3.2",
+      "downloads": {
+        "windowsPortable": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.2/beamlab-leo.exe",
+        "windowsInstaller": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.2/BeamLab.LEO_2.3.2_x64-setup.exe",
+        "linuxAppImage": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.2/BeamLab.LEO_2.3.2_amd64.AppImage",
+        "linuxDeb": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.2/BeamLab.LEO_2.3.2_amd64.deb",
+        "macDmg": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.3.2/BeamLab.LEO_2.3.2_aarch64.dmg"
+      },
+      "size": 4566612,
+      "sha256": "cf635a24f083539ce3808aa082a6aefde872a91d7ceae7f48258ed6b44cb33e8"
+    },
     {
       "version": "2.3.1",
       "date": "2026-11-17",

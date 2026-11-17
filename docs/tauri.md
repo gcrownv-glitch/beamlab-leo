@@ -1,6 +1,6 @@
 ﻿# Tauri: escritorio sin Chromium
 
-**Versión:** 2.3.1  
+**Versión:** 2.3.2  
 **Objetivo:** Windows, Ubuntu y macOS Apple Silicon sin empaquetar Chromium.
 
 ## 1. Decisión
@@ -75,11 +75,11 @@ Los artefactos quedan en `src-tauri/target/<target>/release/bundle/`.
 
 Se dispara con un tag `v*` o manualmente. Los artefactos se descargan desde GitHub Actions y, en el tag, se publican en **GitHub Releases**.
 
-Artefactos de v2.3.1:
+Artefactos de v2.3.2:
 
-- Windows: `beamlab-leo.exe` (directo) y `BeamLab.LEO_2.3.1_x64-setup.exe` (NSIS).
-- Ubuntu: `BeamLab.LEO_2.3.1_amd64.deb` y `.AppImage`.
-- macOS Apple Silicon: `BeamLab.LEO_2.3.1_aarch64.dmg`.
+- Windows: `beamlab-leo.exe` (directo) y `BeamLab.LEO_2.3.2_x64-setup.exe` (NSIS).
+- Ubuntu: `BeamLab.LEO_2.3.2_amd64.deb` y `.AppImage`.
+- macOS Apple Silicon: `BeamLab.LEO_2.3.2_aarch64.dmg`.
 
 **No están firmados.** macOS mostrará “desarrollador no identificado”; se abre con clic derecho → Abrir. Windows puede mostrar SmartScreen. No se paga Apple Developer ni certificado Windows.
 

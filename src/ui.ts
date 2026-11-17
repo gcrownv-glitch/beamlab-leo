@@ -872,6 +872,9 @@ export class UI {
     $('beam-mode').textContent = MODE_LABEL[s.mode];
     $('beam-reuse').textContent = s.mode === 'cellular' ? `${s.reuse} colores` : '—';
     $('beam-visible').textContent = d.beamSet ? `${d.beamSet.visibleCells}/${d.beamSet.totalCells}` : '—';
+    $('cell-region-note').textContent = s.region === 'visible'
+      ? 'Disco visible: se cubre solo la cara visible; la cara oculta no recibe señal.'
+      : 'El color se recorta a la región seleccionada; la cara oculta no recibe señal.';
     const key = `${s.mode}|${s.reuse}|${s.antenna.n}`;
     if (key !== this.lastReuseKey) {
       this.lastReuseKey = key;

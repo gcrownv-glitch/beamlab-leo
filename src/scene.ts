@@ -10,6 +10,7 @@ import type { Derived, Quality, SimState } from './state';
 import { footprintRing, type AntennaFrame } from './core/geometry';
 import { groundTrack, maxCentralAngle, orbitPathEci } from './core/orbit';
 import type { Vec3 } from './core/vec';
+import type { Beam } from './core/array';
 import { BEAM_NUM } from './palette';
 
 const KM = 1 / 1000;
@@ -524,19 +525,11 @@ export class SceneView {
     this.earthGroup.add(this.activeDisc);
 
     const coneGeo = new THREE.BufferGeometry();
-    const segs = 40;
-    const verts: number[] = [0, 0, 0];
-    const idx: number[] = [];
-    for (let i = 0; i < segs; i++) {
-      const a = (2 * Math.PI * i) / segs;
-      verts.push(Math.cos(a), Math.sin(a), -1);
-    }
-    for (let i = 0; i < segs; i++) {
-      idx.push(0, 1 + i, 1 + ((i + 1) % segs));
-    }
-    coneGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-    coneGeo.setIndex(idx);
-    coneGeo.computeVertexNormals();
+    const coneSegs = 48;
+    coneGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((coneSegs + 1) * 3), 3));
+    const coneIdx: number[] = [];
+    for (let i = 0; i < coneSegs; i++) coneIdx.push(0, 1 + i, 1 + ((i + 1) % coneSegs));
+    coneGeo.setIndex(coneIdx);
     this.beamCone = new THREE.Mesh(
       coneGeo,
       new THREE.MeshBasicMaterial({
@@ -790,16 +783,7 @@ export class SceneView {
         this.activeDisc.visible = true;
 
         if (state.showCones) {
-          const ground = new THREE.Vector3(pt.x * KM, pt.y * KM, pt.z * KM);
-          ground.applyAxisAngle(Z_AXIS, d.sat.gmst);
-          const satPos = new THREE.Vector3(d.sat.r.x, d.sat.r.y, d.sat.r.z).multiplyScalar(KM);
-          const axis = ground.clone().sub(satPos);
-          const dist = axis.length();
-          axis.normalize();
-          this.beamCone.position.copy(satPos);
-          this.beamCone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), axis);
-          this.beamCone.scale.set(rad * 2.1, rad * 2.1, dist);
-          (this.beamCone.material as THREE.MeshBasicMaterial).color.setHex(BEAM_COLORS[active.color % BEAM_COLORS.length]);
+          this.updateBeamCone(d, active);
         }
       }
     } else {
@@ -807,6 +791,31 @@ export class SceneView {
       this.activeDisc.visible = false;
       this.beamCone.visible = false;
     }
+  }
+
+  /**
+   * Cono didáctico del haz. La base se construye con el anillo real de huella
+   * sobre la Tierra, no con un disco plano en el espacio. Así el volumen
+   * termina en la superficie y no sugiere señal detrás del planeta.
+   */
+  private updateBeamCone(d: Derived, active: Beam): void {
+    const ring = footprintRing(d.sat.rEcef, d.frame, active, (d.activeMetrics.hpbwDeg * DEG) / 2, 48);
+    const pos = (this.beamCone.geometry.getAttribute('position') as THREE.BufferAttribute);
+    if (ring.length < 3) {
+      this.beamCone.visible = false;
+      return;
+    }
+    const sat = new THREE.Vector3(d.sat.r.x, d.sat.r.y, d.sat.r.z).multiplyScalar(KM);
+    pos.setXYZ(0, sat.x, sat.y, sat.z);
+    for (let i = 0; i < 48; i++) {
+      const p = ring[i % ring.length];
+      const v = new THREE.Vector3(p.x * KM, p.y * KM, p.z * KM).applyAxisAngle(Z_AXIS, d.sat.gmst);
+      pos.setXYZ(i + 1, v.x, v.y, v.z);
+    }
+    pos.needsUpdate = true;
+    this.beamCone.geometry.computeBoundingSphere();
+    (this.beamCone.material as THREE.MeshBasicMaterial).color.setHex(BEAM_COLORS[active.color % BEAM_COLORS.length]);
+    this.beamCone.visible = true;
   }
 
   private updateRegion(state: SimState) {

@@ -2,6 +2,13 @@
 
 Todas las modificaciones relevantes de BeamLab LEO.
 
+## [2.3.2] — 2026-11-17
+
+- El cono de “Haces 3D” termina en el anillo de huella sobre la Tierra, no en un disco plano que se salía de la superficie. Era un defecto de dibujo, no del enlace.
+- La cobertura celular muestra una nota según la región: con “Disco visible completo” se cubre toda la cara visible, no la cara oculta.
+- La guía rápida del laboratorio queda dentro del panel Lab.
+- 33 pruebas.
+
 ## [2.3.1] — 2026-11-16
 
 Esta versión corrige problemas que aparecieron al probar la app fuera del navegador.

@@ -23,8 +23,8 @@ El HTML lleva **todo dentro**: JavaScript, CSS, texturas y fuentes. No necesita 
 
 Descargas:
 
-- App: <https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.1.html>
-- ZIP con launcher: <https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.1-portable.zip>
+- App: <https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.2.html>
+- ZIP con launcher: <https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.2-portable.zip>
 - Selector: <https://gcrownv-glitch.github.io/beamlab-leo/versiones.html>
 
 El `.exe` **no es un navegador embebido**: es un lanzador mínimo que abre el HTML con Edge en modo app (`--app=...`). Si no encuentra Edge, prueba Chrome y, si tampoco, abre el navegador predeterminado. No instala nada.
@@ -35,7 +35,7 @@ El `.exe` **no es un navegador embebido**: es un lanzador mínimo que abre el HT
 
 - HTML autónomo abierto desde `file://` con Edge headless: `window.__beamlab` activo, canvas 1600×1000, texturas cargadas, **sin errores**.
 - Tamaño: **4.564.387 bytes**.
-- ZIP: **9.244.154 bytes** (incluye 2.1.0, 2.2.0 y 2.3.1).
+- ZIP: **9.244.154 bytes** (incluye 2.1.0, 2.2.0 y 2.3.2).
 - Launcher: **48 KB**, compilado con .NET Framework 4.8 (`csc`), sin runtime extra.
 - 30 pruebas de la app pasan.
 - El HTML funciona sin conexión después de descargarlo.
@@ -50,7 +50,7 @@ El `.exe` **no es un navegador embebido**: es un lanzador mínimo que abre el HT
 BeamLabLEO-portable/
   BeamLabLEO.exe              ← launcher opcional
   index.html                  ← selector de versiones
-  BeamLabLEO-2.3.1.html       ← app completa
+  BeamLabLEO-2.3.2.html       ← app completa
   BeamLabLEO-2.1.1.html       ← versión futura, se conserva
   Actualizar.cmd              ← buscar/descargar otra versión
   Actualizar.ps1
@@ -73,13 +73,13 @@ No hay servidor propio. Se usa GitHub Pages + un manifiesto JSON.
 ```json
 {
   "schema": 1,
-  "latest": "2.3.1",
+  "latest": "2.3.2",
   "versions": [
     {
-      "version": "2.3.1",
+      "version": "2.3.2",
       "date": "2026-11-15",
       "notes": "Enlace bidireccional, cuantización y guía de 10 pasos.",
-      "html": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.1.html",
+      "html": "https://gcrownv-glitch.github.io/beamlab-leo/BeamLabLEO-2.3.2.html",
       "size": 3574637,
       "sha256": "..."
     }

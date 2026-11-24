@@ -66,7 +66,6 @@ export class Engine {
   private baseGrid: PatternGrid;
   private baseMetrics: ArrayMetrics;
   private hornGrid: PatternGrid;
-  private hornMetrics: ArrayMetrics;
   private hornCfg: ArrayConfig;
 
   private synth: SynthesisResult | null = null;
@@ -119,7 +118,6 @@ export class Engine {
       efficiency: 0.65,
     };
     this.hornGrid = computeBasePattern(this.hornCfg);
-    this.hornMetrics = computeMetrics(this.hornCfg, this.hornGrid, ZERO_BEAM);
     this.baseGrid = computeBasePattern(state.antenna);
     this.baseMetrics = computeMetrics(state.antenna, this.baseGrid, ZERO_BEAM);
     this.derived = this.compute(performance.now(), true, true);
@@ -279,7 +277,6 @@ export class Engine {
       this.baseGrid = computeBasePattern(s.antenna);
       this.baseMetrics = computeMetrics(s.antenna, this.baseGrid, ZERO_BEAM);
       this.hornGrid = computeBasePattern(this.hornCfg);
-      this.hornMetrics = computeMetrics(this.hornCfg, this.hornGrid, ZERO_BEAM);
       this.patternDirty = false;
       this.beamsDirty = true;
       this.gainDirty = true;

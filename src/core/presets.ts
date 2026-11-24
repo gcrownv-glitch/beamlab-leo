@@ -83,7 +83,6 @@ export function elementsOverPoint(
   let u = Math.asin(ratio) + alongDeg * DEG;
   const x = Math.cos(u);
   const y = Math.sin(u) * Math.cos(inc);
-  const z = Math.sin(u) * Math.sin(inc);
   const lonEci = Math.atan2(y, x);
   const target = lonDeg * DEG + gmstRad(epoch);
   let raan = target - lonEci;

@@ -80,7 +80,6 @@ export function beamsVisibleLattice(
       const u = (i + 0.5 * (j & 1)) * du;
       const v = j * dv;
       if (u * u + v * v > Math.sin(horizon) ** 2) continue;
-      const w = Math.sqrt(Math.max(0, 1 - u * u - v * v));
       const pt = beamGroundPoint(satEcef, frame, { id: 0, u, v, amp: 1, color: 0 });
       if (!pt) continue;
       const geo = ecefToGeodetic(pt);

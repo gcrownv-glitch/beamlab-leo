@@ -152,7 +152,6 @@ export function propagate(el: OrbitElements, ms: number, useJ2 = true): OrbitSta
   const nu = Math.atan2(yp, xp);
 
   const p = el.a * (1 - el.e * el.e);
-  const r = p / (1 + el.e * Math.cos(nu));
   const sqrtMuP = Math.sqrt(MU_EARTH / p);
   const vxp = -sqrtMuP * Math.sin(nu);
   const vyp = sqrtMuP * (el.e + Math.cos(nu));

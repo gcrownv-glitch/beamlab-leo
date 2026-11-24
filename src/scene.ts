@@ -100,7 +100,6 @@ export class SceneView {
   private maxBeamVerts = 600 * 56 * 2;
 
   private labels: { sat: HTMLDivElement; target: HTMLDivElement };
-  private tooltip: HTMLDivElement;
   private ray = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
   private hoverQueued = 0;
@@ -108,7 +107,6 @@ export class SceneView {
   private lastOrbit: unknown = null;
   private lastGain: unknown = null;
   private lastPhase: unknown = null;
-  private lastRegionKey = '';
   private prevSat = new THREE.Vector3();
   private lastCamMode = '';
 
@@ -167,7 +165,6 @@ export class SceneView {
       sat: this.makeLabel('sat'),
       target: this.makeLabel('target'),
     };
-    this.tooltip = document.getElementById('tooltip') as HTMLDivElement;
     this.applyTextures(textures);
 
     const composer = new EffectComposer(this.renderer);

@@ -112,7 +112,6 @@ export function apertureMeters(cfg: ArrayConfig): { lx: number; ly: number } {
  * en O(size·N) y luego se hace el producto externo.
  */
 export function computeBasePattern(cfg: ArrayConfig, size = 801, half = 1.35): PatternGrid {
-  const lambda = wavelengthM(cfg.freqGHz);
   const w = taperWeights(cfg.n, cfg.taper);
   const step = (2 * half) / (size - 1);
   const fxRe = new Float64Array(size);

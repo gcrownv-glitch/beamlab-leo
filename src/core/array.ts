@@ -435,15 +435,44 @@ export function patternFromWeights(
     xm[i] = (i - (n - 1) / 2) * cfg.dx;
     yn[i] = (i - (n - 1) / 2) * cfg.dy;
   }
-  // Bases trigonométricas por fila/columna: evita recalcular senos y cosenos
-  // para cada elemento en cada punto de la grilla.
-  const cx = new Float64Array(n);
-  const sx = new Float64Array(n);
+  // Factorización en dos pasos 1D (O(size·n² + size²·n) en lugar de O(size²·n²)).
+  const cosX = new Float64Array(size * n);
+  const sinX = new Float64Array(size * n);
+  for (let iu = 0; iu < size; iu++) {
+    const du = -half + iu * step;
+    const base = iu * n;
+    for (let ix = 0; ix < n; ix++) {
+      const phx = TWO_PI * xm[ix] * du;
+      cosX[base + ix] = Math.cos(phx);
+      sinX[base + ix] = Math.sin(phx);
+    }
+  }
+  const rowRe = new Float64Array(size * n);
+  const rowIm = new Float64Array(size * n);
+  for (let iu = 0; iu < size; iu++) {
+    const xBase = iu * n;
+    for (let iy = 0; iy < n; iy++) {
+      let rr = 0;
+      let ri = 0;
+      const wBase = iy * n;
+      for (let ix = 0; ix < n; ix++) {
+        const c = cosX[xBase + ix];
+        const s = sinX[xBase + ix];
+        const wr = re[wBase + ix];
+        const wi = im[wBase + ix];
+        rr += wr * c - wi * s;
+        ri += wr * s + wi * c;
+      }
+      rowRe[xBase + iy] = rr;
+      rowIm[xBase + iy] = ri;
+    }
+  }
   const cy = new Float64Array(n);
   const sy = new Float64Array(n);
   let max = 0;
   for (let iv = 0; iv < size; iv++) {
     const dv = -half + iv * step;
+    const dv2 = dv * dv;
     for (let iy = 0; iy < n; iy++) {
       const phy = TWO_PI * yn[iy] * dv;
       cy[iy] = Math.cos(phy);
@@ -452,28 +481,20 @@ export function patternFromWeights(
     const row = iv * size;
     for (let iu = 0; iu < size; iu++) {
       const du = -half + iu * step;
-      for (let ix = 0; ix < n; ix++) {
-        const phx = TWO_PI * xm[ix] * du;
-        cx[ix] = Math.cos(phx);
-        sx[ix] = Math.sin(phx);
-      }
+      const rBase = iu * n;
       let pr = 0;
       let pi = 0;
-      let idx = 0;
       for (let iy = 0; iy < n; iy++) {
-        const cyv = cy[iy];
-        const syv = sy[iy];
-        for (let ix = 0; ix < n; ix++) {
-          const c = cx[ix] * cyv - sx[ix] * syv;
-          const s = sx[ix] * cyv + cx[ix] * syv;
-          pr += re[idx] * c - im[idx] * s;
-          pi += re[idx] * s + im[idx] * c;
-          idx++;
-        }
+        const rr = rowRe[rBase + iy];
+        const ri = rowIm[rBase + iy];
+        const c = cy[iy];
+        const s = sy[iy];
+        pr += rr * c - ri * s;
+        pi += rr * s + ri * c;
       }
       const p = pr * pr + pi * pi;
       power[row + iu] = p;
-      if (du * du + dv * dv <= 1 && p > max) max = p;
+      if (du * du + dv2 <= 1 && p > max) max = p;
     }
   }
   if (max > 0) {

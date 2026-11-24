@@ -1,11 +1,15 @@
 import { TWO_PI } from './constants';
 import {
   type ArrayConfig,
+  type PatternCutPoint,
   type PatternGrid,
   type Beam,
   compositePower,
+  cutFromWeights,
+  gridDirectivity,
   patternFromWeights,
 } from './array';
+import { quantizedComplexWeights, type QuantConfig } from './quantization';
 import type { DirectionSample } from './regions';
 
 export interface SynthesisResult {
@@ -54,17 +58,32 @@ export function synthesizeCoverage(
   const bi = new Float64Array(L);
   const ar = new Float64Array(L);
   const ai = new Float64Array(L);
+  const cx = new Float64Array(cfg.n);
+  const sx = new Float64Array(cfg.n);
+  const cy = new Float64Array(cfg.n);
+  const sy = new Float64Array(cfg.n);
 
   const samples = [...inside, ...outside];
   for (const s of samples) {
     const w2 = Math.max(1e-6, 1 - s.u * s.u - s.v * s.v);
     const g = Math.max(Math.pow(w2, cfg.q / 2), 0.25);
+    for (let ix = 0; ix < cfg.n; ix++) {
+      const phx = TWO_PI * xm[ix] * s.u;
+      cx[ix] = Math.cos(phx);
+      sx[ix] = Math.sin(phx);
+    }
+    for (let iy = 0; iy < cfg.n; iy++) {
+      const phy = TWO_PI * yn[iy] * s.v;
+      cy[iy] = Math.cos(phy);
+      sy[iy] = Math.sin(phy);
+    }
     let k = 0;
     for (let iy = 0; iy < cfg.n; iy++) {
+      const cyv = cy[iy];
+      const syv = sy[iy];
       for (let ix = 0; ix < cfg.n; ix++) {
-        const ph = TWO_PI * (xm[ix] * s.u + yn[iy] * s.v);
-        ar[k] = Math.cos(ph);
-        ai[k] = Math.sin(ph);
+        ar[k] = cx[ix] * cyv - sx[ix] * syv;
+        ai[k] = sx[ix] * cyv + cx[ix] * syv;
         k++;
       }
     }
@@ -188,5 +207,96 @@ export function synthesizeCoverage(
     insideMeanDb: sumDb / Math.max(1, insideCount),
     outsideMaxDb,
     conditionNote: `λ=${lambda.toExponential(1)} · ${inside.length} puntos internos`,
+  };
+}
+
+export interface ShapedSynthesisJob {
+  antenna: ArrayConfig;
+  quant: QuantConfig & { mode: 'ideal' | 'realtime' | 'analysis' };
+  baseHpbwDeg: number;
+  centerBeam: Beam;
+  inside: DirectionSample[];
+  outside: DirectionSample[];
+}
+
+export interface ShapedSynthesisOutput {
+  result: SynthesisResult;
+  finalResult: SynthesisResult;
+  idealCut: PatternCutPoint[];
+  activeCut: PatternCutPoint[];
+  idealDirectivityDb: number;
+  finalDirectivityDb: number;
+  computeMs: number;
+}
+
+export function measureSynthesis(
+  grid: PatternGrid,
+  inside: DirectionSample[],
+  outside: DirectionSample[],
+  q: number,
+): { coverage: number; mean: number; spill: number } {
+  const beam: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 0 };
+  let covered = 0;
+  let count = 0;
+  let sum = 0;
+  for (const p of inside) {
+    if (!p.inside) continue;
+    count++;
+    const power = compositePower(grid, [beam], p.u, p.v, q);
+    const db = 10 * Math.log10(Math.max(power, 1e-12));
+    if (db >= -3) covered++;
+    sum += db;
+  }
+  let spill = -Infinity;
+  for (const p of outside) {
+    const power = compositePower(grid, [beam], p.u, p.v, q);
+    spill = Math.max(spill, 10 * Math.log10(Math.max(power, 1e-12)));
+  }
+  return {
+    coverage: covered / Math.max(1, count),
+    mean: sum / Math.max(1, count),
+    spill,
+  };
+}
+
+/** Ejecuta el pipeline completo de síntesis conformada (reutilizado por Worker y modo síncrono). */
+export function runShapedSynthesisJob(job: ShapedSynthesisJob): ShapedSynthesisOutput {
+  const t0 = performance.now();
+  const { antenna, quant, baseHpbwDeg, centerBeam, inside, outside } = job;
+  const result = synthesizeCoverage(antenna, inside, outside, 1e-2);
+  const span = Math.min(60, Math.max(20, baseHpbwDeg * 4));
+  const idealCut = cutFromWeights(antenna, result.re, result.im, centerBeam, antenna.q, span, 481);
+  const idealDirectivityDb = gridDirectivity(result.grid, antenna.q);
+
+  let finalResult = result;
+  let activeCut = idealCut;
+  let finalDirectivityDb = idealDirectivityDb;
+
+  if (quant.mode !== 'ideal') {
+    const qw = quantizedComplexWeights(antenna, result.re, result.im, quant);
+    const qgrid = patternFromWeights(antenna, qw.re, qw.im);
+    const measured = measureSynthesis(qgrid, inside, outside, antenna.q);
+    activeCut = cutFromWeights(antenna, qw.re, qw.im, centerBeam, antenna.q, span, 481);
+    finalDirectivityDb = gridDirectivity(qgrid, antenna.q);
+    finalResult = {
+      ...result,
+      re: qw.re,
+      im: qw.im,
+      grid: qgrid,
+      insideCoverage: measured.coverage,
+      insideMeanDb: measured.mean,
+      outsideMaxDb: measured.spill,
+      conditionNote: `${result.conditionNote} · cuantizado`,
+    };
+  }
+
+  return {
+    result,
+    finalResult,
+    idealCut,
+    activeCut,
+    idealDirectivityDb,
+    finalDirectivityDb,
+    computeMs: performance.now() - t0,
   };
 }

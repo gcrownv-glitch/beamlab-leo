@@ -12,7 +12,10 @@ import type { OrbitElements } from './core/orbit';
 import type { RegionId } from './core/regions';
 import { regionCenter } from './core/regions';
 import type { ArrayConfig } from './core/array';
+import { runShapedSynthesisJob, type ShapedSynthesisOutput } from './core/synthesis';
 import { buildLabSheet, exportPdf, exportPng, sheetFilename } from './lab-sheet';
+import SynthWorker from './workers/synth.worker?worker&inline';
+import type { SynthWorkerResponse } from './workers/synth.worker';
 
 const fmtLat = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'N' : 'S'}`;
 const fmtLon = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'E' : 'O'}`;
@@ -29,6 +32,8 @@ class App {
   private fpsWindowStart = 0;
   private uiAccum = 0;
   private nextFrame = 0;
+  private synthWorker: Worker | null = null;
+  private synthReqId = 0;
   renderedFrames = 0;
 
   constructor() {
@@ -333,6 +338,18 @@ class App {
     this.ui.toast('Tiempo actual · el satélite vuelve a pasar sobre Lima.');
   }
 
+  private getSynthWorker(): Worker | null {
+    if (typeof Worker === 'undefined') return null;
+    if (!this.synthWorker) {
+      try {
+        this.synthWorker = new SynthWorker();
+      } catch {
+        return null;
+      }
+    }
+    return this.synthWorker;
+  }
+
   private synthesize() {
     this.state.playing = false;
     const der = this.engine.derived;
@@ -345,11 +362,24 @@ class App {
       this.engine.setMode('shaped');
       this.refresh();
     }
+
+    let prep: ReturnType<Engine['prepareShapedSynthesis']>;
+    try {
+      prep = this.engine.prepareShapedSynthesis();
+    } catch (e) {
+      this.ui.toast((e as Error).message, true);
+      this.ui.setSynthesisBusy(false, 'No se pudo sintetizar. Prueba con otro radio o centro.');
+      return;
+    }
+
+    const reqId = ++this.synthReqId;
+    const t0 = performance.now();
     this.ui.setSynthesisBusy(true, 'Resolviendo (AᴴA+λI)w = Aᴴd …');
-    window.setTimeout(() => {
-      const t0 = performance.now();
+
+    const finish = (output: ShapedSynthesisOutput) => {
+      if (reqId !== this.synthReqId) return;
       try {
-        const info = this.engine.synthesizeShaped();
+        const info = this.engine.applyShapedSynthesis(prep, output);
         this.engine.update();
         this.ui.syncControls(this.state);
         this.ui.update(this.state, this.engine.derived);
@@ -363,7 +393,35 @@ class App {
       } finally {
         this.ui.setSynthesisBusy(false);
       }
-    }, 80);
+    };
+
+    const fail = (msg: string) => {
+      if (reqId !== this.synthReqId) return;
+      this.ui.toast(msg, true);
+      this.ui.setSynthesisBusy(false, 'No se pudo sintetizar. Prueba con otro radio o centro.');
+    };
+
+    const worker = this.getSynthWorker();
+    if (worker) {
+      worker.onmessage = (ev: MessageEvent<SynthWorkerResponse>) => {
+        if (ev.data.id !== reqId) return;
+        if (ev.data.ok) finish(ev.data.output);
+        else fail(ev.data.error);
+      };
+      worker.onerror = () => {
+        fail('Error en el Web Worker de síntesis.');
+      };
+      worker.postMessage({ id: reqId, job: prep.job });
+      return;
+    }
+
+    window.setTimeout(() => {
+      try {
+        finish(runShapedSynthesisJob(prep.job));
+      } catch (e) {
+        fail((e as Error).message);
+      }
+    }, 16);
   }
 
   private refresh() {

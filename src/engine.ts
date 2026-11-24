@@ -5,7 +5,6 @@ import {
   type GainMap,
   type PatternGrid,
   beamPhaseMap,
-  compositePower,
   computeBasePattern,
   computeGainMap,
   computeMetrics,
@@ -26,7 +25,7 @@ import {
   type AntennaFrame,
 } from './core/geometry';
 import { linkBudget, SAT_ANTENNA_TEMP_K, SAT_NOISE_FIGURE_DB, uplinkFrequencyGHz } from './core/link';
-import { quantizedBeamWeights, quantizedComplexWeights } from './core/quantization';
+import { quantizedBeamWeights } from './core/quantization';
 import {
   antennaBasis,
   ecefToGeodetic,
@@ -52,7 +51,12 @@ import {
   type DirectionSample,
   type GroundCell,
 } from './core/regions';
-import { synthesizeCoverage, type SynthesisResult } from './core/synthesis';
+import {
+  runShapedSynthesisJob,
+  type ShapedSynthesisJob,
+  type ShapedSynthesisOutput,
+  type SynthesisResult,
+} from './core/synthesis';
 import type { Derived, Mode, PhaseView, QuantInfo, ShapedInfo, SimState, SystemInfo } from './state';
 
 const ZERO_BEAM: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 0 };
@@ -60,6 +64,12 @@ const SHAPED_BEAM: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 1 };
 const EMPTY_GAIN: GainMap = { size: 1, data: new Float32Array([0]), max: 0, rgba: new Uint8Array([0, 0, 0, 0]) };
 /** En GEO una bocina de 17° cubre el disco; en LEO depende de la altitud (2 × horizonte). */
 const globalHpbwDeg = (altKm: number): number => (2 * horizonOffNadir(Math.max(100, altKm))) / DEG;
+
+export interface PreparedShapedSynthesis {
+  job: ShapedSynthesisJob;
+  satEcef: Vec3;
+  frame: AntennaFrame;
+}
 
 export class Engine {
   state: SimState;
@@ -101,6 +111,7 @@ export class Engine {
   private hornDirty = false;
   private beamsDirty = true;
   private gainDirty = true;
+  private lastShowGain = true;
   private lastBeamMs = 0;
   private lastGainMs = 0;
   private lastBeamSat = { x: Infinity, y: Infinity, z: Infinity };
@@ -128,6 +139,7 @@ export class Engine {
     this.hornGrid = computeBasePattern(this.hornCfg);
     this.baseGrid = computeBasePattern(state.antenna);
     this.baseMetrics = computeMetrics(state.antenna, this.baseGrid, ZERO_BEAM);
+    this.lastShowGain = state.showGain;
     this.derived = this.compute(performance.now(), true, true);
   }
 
@@ -497,13 +509,19 @@ export class Engine {
       }
     }
 
+    const showGainTurnedOn = !this.lastShowGain && s.showGain;
+    this.lastShowGain = s.showGain;
+    if (showGainTurnedOn) this.gainDirty = true;
+
     let gainMap = initial ? EMPTY_GAIN : this.derived.gainMap;
     const gainInterval = s.mode === 'cellular' ? 850 : 160;
-    if ((beams.length === 0 && s.mode !== 'global') || (s.mode === 'shaped' && !synthActive)) {
+    if (!s.showGain) {
+      // Omitir computeGainMap y maskGainMap mientras la capa de ganancia esté oculta.
+    } else if ((beams.length === 0 && s.mode !== 'global') || (s.mode === 'shaped' && !synthActive)) {
       gainMap = EMPTY_GAIN;
       this.gainDirty = false;
       this.lastGainMs = now;
-    } else if (this.gainDirty && (now - this.lastGainMs > gainInterval || initial || quantUpdated)) {
+    } else if (this.gainDirty && (now - this.lastGainMs > gainInterval || initial || quantUpdated || showGainTurnedOn)) {
       const count = beams.length;
       const size = count > 1600 ? 128 : count > 800 ? 160 : count > 400 ? 192 : count > 180 ? 224 : count > 80 ? 256 : count > 30 ? 320 : 384;
       let snapSat: Vec3;
@@ -844,10 +862,9 @@ export class Engine {
     ].join('|');
   }
 
-  /** Diseña la fase/amplitud para iluminar la zona circular seleccionada. */
-  synthesizeShaped(): ShapedInfo {
+  /** Prepara las muestras geométricas del haz conformado (rápido, sin resolver CG). */
+  prepareShapedSynthesis(): PreparedShapedSynthesis {
     const s = this.state;
-    const t0 = performance.now();
     const sat = propagate(s.orbit, s.simTime, true);
     const frame = antennaBasis(sat.rEcef);
     const center = anglesForGroundPoint(sat.rEcef, frame, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG);
@@ -858,9 +875,6 @@ export class Engine {
     if (scan > 62 * DEG) {
       throw new Error('La zona está a más de 62° de nadir: el haz se deforma demasiado. Reposiciona el satélite.');
     }
-    this.synth = null;
-    this.synthKey = '';
-    this.synthInfo = null;
 
     const hpbw = Math.max(1.2, this.baseMetrics.hpbwDeg) * DEG;
     const radiusKm = Math.max(10, s.shapedRadiusKm);
@@ -924,54 +938,51 @@ export class Engine {
       return Array.from({ length: max }, (_, i) => arr[Math.floor(i * stride)]);
     };
 
-    const result = synthesizeCoverage(s.antenna, thin(inside, 900), thin(outside, 500), 1e-2);
     const centerBeam: Beam = { id: 0, u: center.u, v: center.v, amp: 1, color: 0 };
-    const span = Math.min(60, Math.max(20, this.baseMetrics.hpbwDeg * 4));
-    const idealCut = cutFromWeights(s.antenna, result.re, result.im, centerBeam, s.antenna.q, span, 481);
-    this.synthIdealPattern = result.grid;
-    this.synthIdealCut = idealCut;
-    this.synthIdealMetrics = this.metricsFromCut(idealCut, gridDirectivity(result.grid, s.antenna.q));
-    this.synthCut = idealCut;
-    this.synthMetrics = this.synthIdealMetrics;
-    let finalResult = result;
-    if (s.quant.mode !== 'ideal') {
-      const qw = quantizedComplexWeights(s.antenna, result.re, result.im, s.quant);
-      const qgrid = patternFromWeights(s.antenna, qw.re, qw.im);
-      const measured = this.measureSynthesis(qgrid, inside, outside, s.antenna.q);
-      const qCut = cutFromWeights(s.antenna, qw.re, qw.im, centerBeam, s.antenna.q, span, 481);
-      this.synthMetrics = this.metricsFromCut(qCut, gridDirectivity(qgrid, s.antenna.q));
-      this.synthCut = qCut;
-      finalResult = {
-        ...result,
-        re: qw.re,
-        im: qw.im,
-        grid: qgrid,
-        insideCoverage: measured.coverage,
-        insideMeanDb: measured.mean,
-        outsideMaxDb: measured.spill,
-        conditionNote: `${result.conditionNote} · cuantizado`,
-      };
-    }
-    const directivity = gridDirectivity(finalResult.grid, s.antenna.q);
+    return {
+      job: {
+        antenna: { ...s.antenna },
+        quant: { ...s.quant },
+        baseHpbwDeg: this.baseMetrics.hpbwDeg,
+        centerBeam,
+        inside: thin(inside, 900),
+        outside: thin(outside, 500),
+      },
+      satEcef: { x: sat.rEcef.x, y: sat.rEcef.y, z: sat.rEcef.z },
+      frame,
+    };
+  }
+
+  /** Valida y aplica el resultado de la síntesis (desde el Web Worker o modo síncrono). */
+  applyShapedSynthesis(prep: PreparedShapedSynthesis, output: ShapedSynthesisOutput): ShapedInfo {
+    const s = this.state;
+    const directivity = output.finalDirectivityDb;
     const dMax =
       10 * Math.log10(4 * Math.PI * (s.antenna.n * s.antenna.dx) * (s.antenna.n * s.antenna.dy));
     if (directivity > dMax + 1.5) {
       throw new Error('La síntesis no converge para esta geometría. Prueba otro radio o vuelve a intentar.');
     }
-    if (finalResult.insideCoverage < 0.25) {
+    if (output.finalResult.insideCoverage < 0.25) {
       throw new Error('No se logró cubrir la zona. Reduce el radio o aumenta el número de elementos.');
     }
-    this.synth = finalResult;
-    this.synthComputeMs = performance.now() - t0;
+
+    this.synthIdealPattern = output.result.grid;
+    this.synthIdealCut = output.idealCut;
+    this.synthIdealMetrics = this.metricsFromCut(output.idealCut, output.idealDirectivityDb);
+    this.synthCut = output.activeCut;
+    this.synthMetrics = this.metricsFromCut(output.activeCut, directivity);
+    this.synth = output.finalResult;
+    this.synthComputeMs = output.computeMs;
     this.synthKey = this.synthesisKey();
-    this.synthSatEcef = { x: sat.rEcef.x, y: sat.rEcef.y, z: sat.rEcef.z };
-    this.synthFrame = frame;
+    this.synthSatEcef = { x: prep.satEcef.x, y: prep.satEcef.y, z: prep.satEcef.z };
+    this.synthFrame = prep.frame;
+
     const info: ShapedInfo = {
-      coverage: finalResult.insideCoverage,
-      spillDb: finalResult.outsideMaxDb,
+      coverage: output.finalResult.insideCoverage,
+      spillDb: output.finalResult.outsideMaxDb,
       directivityDb: directivity,
       radiusKm: s.shapedRadiusKm,
-      meanDb: finalResult.insideMeanDb,
+      meanDb: output.finalResult.insideMeanDb,
     };
     this.synthInfo = info;
     this.beamsDirty = true;
@@ -979,6 +990,16 @@ export class Engine {
     this.cachedPhase = null;
     this.cachedMetrics = null;
     return info;
+  }
+
+  /** Diseña la fase/amplitud de forma síncrona para iluminar la zona circular seleccionada. */
+  synthesizeShaped(): ShapedInfo {
+    const prep = this.prepareShapedSynthesis();
+    this.synth = null;
+    this.synthKey = '';
+    this.synthInfo = null;
+    const output = runShapedSynthesisJob(prep.job);
+    return this.applyShapedSynthesis(prep, output);
   }
 
   /**
@@ -1068,35 +1089,5 @@ export class Engine {
       }
     }
     if (!anyPositive) map.max = 0;
-  }
-
-  private measureSynthesis(
-    grid: PatternGrid,
-    inside: DirectionSample[],
-    outside: DirectionSample[],
-    q: number,
-  ): { coverage: number; mean: number; spill: number } {
-    const beam: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 0 };
-    let covered = 0;
-    let count = 0;
-    let sum = 0;
-    for (const p of inside) {
-      if (!p.inside) continue;
-      count++;
-      const power = compositePower(grid, [beam], p.u, p.v, q);
-      const db = 10 * Math.log10(Math.max(power, 1e-12));
-      if (db >= -3) covered++;
-      sum += db;
-    }
-    let spill = -Infinity;
-    for (const p of outside) {
-      const power = compositePower(grid, [beam], p.u, p.v, q);
-      spill = Math.max(spill, 10 * Math.log10(Math.max(power, 1e-12)));
-    }
-    return {
-      coverage: covered / Math.max(1, count),
-      mean: sum / Math.max(1, count),
-      spill,
-    };
   }
 }

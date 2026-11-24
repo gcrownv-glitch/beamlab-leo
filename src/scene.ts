@@ -25,17 +25,15 @@ export interface Textures {
 
 const BEAM_COLORS = BEAM_NUM;
 
-function sunDirection(ms: number): THREE.Vector3 {
+function sunDirection(ms: number, out: THREE.Vector3): THREE.Vector3 {
   const n = (ms - Date.UTC(2000, 0, 1, 12)) / 86400000;
   const L = (280.46 + 0.9856474 * n) * DEG;
   const g = (357.528 + 0.9856003 * n) * DEG;
   const lambda = L + (1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * DEG;
   const eps = 23.439 * DEG;
-  return new THREE.Vector3(
-    Math.cos(lambda),
-    Math.cos(eps) * Math.sin(lambda),
-    Math.sin(eps) * Math.sin(lambda),
-  ).normalize();
+  return out
+    .set(Math.cos(lambda), Math.cos(eps) * Math.sin(lambda), Math.sin(eps) * Math.sin(lambda))
+    .normalize();
 }
 
 function makeSolarTexture(): THREE.Texture {
@@ -112,8 +110,46 @@ export class SceneView {
   private prevSat = new THREE.Vector3();
   private lastCamMode = '';
 
+  private tmpSatPos = new THREE.Vector3();
+  private tmpZAxis = new THREE.Vector3();
+  private tmpVDir = new THREE.Vector3();
+  private tmpXAxis = new THREE.Vector3();
+  private tmpYAxis = new THREE.Vector3();
+  private tmpBasis = new THREE.Matrix4();
+  private tmpSun = new THREE.Vector3();
+  private tmpAntX = new THREE.Vector3();
+  private tmpAntY = new THREE.Vector3();
+  private tmpAntZ = new THREE.Vector3();
+  private tmpCol = new THREE.Color();
+  private tmpPt = new THREE.Vector3();
+  private tmpUp = new THREE.Vector3();
+  private tmpLocal = new THREE.Vector3();
+  private tmpWorld = new THREE.Vector3();
+  private tmpProj = new THREE.Vector3();
+  private tmpDir = new THREE.Vector3();
+  private tmpDelta = new THREE.Vector3();
+  private tmpUnitZ = new THREE.Vector3(0, 0, 1);
+
   private onPick: (lat: number, lon: number) => void;
   private onHover: (lat: number | null, lon: number | null, x: number, y: number) => void;
+  private onResizeBound = () => this.onResize();
+  private onPointerDownBound = (e: PointerEvent) => {
+    this.downPos.set(e.clientX, e.clientY);
+  };
+  private onPointerUpBound = (e: PointerEvent) => {
+    if (Math.hypot(e.clientX - this.downPos.x, e.clientY - this.downPos.y) > 5) return;
+    const hit = this.pick(e.clientX, e.clientY);
+    if (hit) this.onPick(hit.lat, hit.lon);
+  };
+  private onPointerMoveBound = (e: PointerEvent) => {
+    const now = performance.now();
+    if (now - this.hoverQueued < 45) return;
+    this.hoverQueued = now;
+    const hit = this.pick(e.clientX, e.clientY);
+    if (hit) this.onHover(hit.lat, hit.lon, e.clientX, e.clientY);
+    else this.onHover(null, null, e.clientX, e.clientY);
+  };
+  private onPointerLeaveBound = () => this.onHover(null, null, 0, 0);
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -130,7 +166,6 @@ export class SceneView {
       canvas,
       antialias: true,
       powerPreference: 'high-performance',
-      preserveDrawingBuffer: true,
     });
     this.renderer.setSize(w, h);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -176,27 +211,14 @@ export class SceneView {
     composer.addPass(new OutputPass());
     this.composer = composer;
 
-    window.addEventListener('resize', () => this.onResize());
-    canvas.addEventListener('pointerdown', (e) => {
-      this.downPos.set(e.clientX, e.clientY);
-    });
-    canvas.addEventListener('pointerup', (e) => {
-      if (Math.hypot(e.clientX - this.downPos.x, e.clientY - this.downPos.y) > 5) return;
-      const hit = this.pick(e.clientX, e.clientY);
-      if (hit) this.onPick(hit.lat, hit.lon);
-    });
-    canvas.addEventListener('pointermove', (e) => {
-      const now = performance.now();
-      if (now - this.hoverQueued < 45) return;
-      this.hoverQueued = now;
-      const hit = this.pick(e.clientX, e.clientY);
-      if (hit) this.onHover(hit.lat, hit.lon, e.clientX, e.clientY);
-      else this.onHover(null, null, e.clientX, e.clientY);
-    });
+    window.addEventListener('resize', this.onResizeBound);
+    canvas.addEventListener('pointerdown', this.onPointerDownBound);
+    canvas.addEventListener('pointerup', this.onPointerUpBound);
+    canvas.addEventListener('pointermove', this.onPointerMoveBound);
     // WebView2/Tauri entrega el pinch del trackpad como Ctrl+wheel; si se
     // deja pasar, el webview hace zoom de página en vez de acercar la cámara.
     canvas.addEventListener('wheel', this.onPinchWheel, { passive: false, capture: true });
-    canvas.addEventListener('pointerleave', () => this.onHover(null, null, 0, 0));
+    canvas.addEventListener('pointerleave', this.onPointerLeaveBound);
   }
 
   private makeLabel(kind: 'sat' | 'target'): HTMLDivElement {
@@ -590,28 +612,28 @@ export class SceneView {
 
   /** Actualiza la escena con el estado y los datos derivados. */
   update(state: SimState, d: Derived, dt: number) {
-    const satPos = new THREE.Vector3(d.sat.r.x, d.sat.r.y, d.sat.r.z).multiplyScalar(KM);
+    const satPos = this.tmpSatPos.set(d.sat.r.x, d.sat.r.y, d.sat.r.z).multiplyScalar(KM);
     this.satGroup.position.copy(satPos);
 
-    const zAxis = satPos.clone().negate().normalize();
-    const vDir = new THREE.Vector3(d.sat.v.x, d.sat.v.y, d.sat.v.z).normalize();
-    const xAxis = vDir.clone().addScaledVector(zAxis, -vDir.dot(zAxis)).normalize();
-    const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis);
-    const basis = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
+    const zAxis = this.tmpZAxis.copy(satPos).negate().normalize();
+    const vDir = this.tmpVDir.set(d.sat.v.x, d.sat.v.y, d.sat.v.z).normalize();
+    const xAxis = this.tmpXAxis.copy(vDir).addScaledVector(zAxis, -vDir.dot(zAxis)).normalize();
+    const yAxis = this.tmpYAxis.crossVectors(zAxis, xAxis);
+    const basis = this.tmpBasis.makeBasis(xAxis, yAxis, zAxis);
     this.satGroup.quaternion.setFromRotationMatrix(basis);
 
     this.earthGroup.rotation.z = d.sat.gmst;
     this.earthGroup.updateMatrixWorld();
     this.clouds.rotation.z += dt * 0.0018;
 
-    const sun = sunDirection(state.simTime);
+    const sun = sunDirection(state.simTime, this.tmpSun);
     const u = this.earthMat.uniforms;
     // La base de la antena del motor está en ECEF (este/norte/nadir); el shader
     // trabaja en ECI, así que se rota por GMST. No debe confundirse con la base
     // del modelo 3D, que sigue la velocidad (a lo largo de la traza).
-    const antX = new THREE.Vector3(d.frame.x.x, d.frame.x.y, d.frame.x.z).applyAxisAngle(Z_AXIS, d.sat.gmst);
-    const antY = new THREE.Vector3(d.frame.y.x, d.frame.y.y, d.frame.y.z).applyAxisAngle(Z_AXIS, d.sat.gmst);
-    const antZ = new THREE.Vector3(d.frame.z.x, d.frame.z.y, d.frame.z.z).applyAxisAngle(Z_AXIS, d.sat.gmst);
+    const antX = this.tmpAntX.set(d.frame.x.x, d.frame.x.y, d.frame.x.z).applyAxisAngle(Z_AXIS, d.sat.gmst);
+    const antY = this.tmpAntY.set(d.frame.y.x, d.frame.y.y, d.frame.y.z).applyAxisAngle(Z_AXIS, d.sat.gmst);
+    const antZ = this.tmpAntZ.set(d.frame.z.x, d.frame.z.y, d.frame.z.z).applyAxisAngle(Z_AXIS, d.sat.gmst);
     u.uSun.value.copy(sun);
     u.uSat.value.copy(satPos);
     u.uAntX.value.copy(antX);
@@ -778,7 +800,7 @@ export class SceneView {
     const frame: AntennaFrame = d.frame;
     const nSamples = 48;
     let count = 0;
-    const col = new THREE.Color();
+    const col = this.tmpCol;
     (this.beamLines.material as THREE.LineBasicMaterial).opacity = state.mode === 'cellular' ? 0.38 : 0.9;
     const stride = beams.length > 160 ? 2 : 1;
     const ringCount = state.mode === 'cellular' ? 0 : beams.length;
@@ -838,11 +860,11 @@ export class SceneView {
         if (state.mode === 'global' || d.activeMetrics.hpbwDeg / 2 > 10) {
           this.activeDisc.visible = false;
         } else {
-          const up = new THREE.Vector3(pt.x, pt.y, pt.z).normalize();
+          const up = this.tmpUp.set(pt.x, pt.y, pt.z).normalize();
           const footKm = (d.link?.slantKm ?? d.sat.alt) * Math.tan((d.activeMetrics.hpbwDeg * DEG) / 2);
           const rad = Math.max(0.004, footKm * KM * 1.05);
-          this.activeDisc.position.copy(new THREE.Vector3(pt.x * KM, pt.y * KM, pt.z * KM)).addScaledVector(up, 0.002);
-          this.activeDisc.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), up);
+          this.activeDisc.position.copy(this.tmpPt.set(pt.x * KM, pt.y * KM, pt.z * KM)).addScaledVector(up, 0.002);
+          this.activeDisc.quaternion.setFromUnitVectors(this.tmpUnitZ, up);
           this.activeDisc.scale.setScalar(rad);
           (this.activeDisc.material as THREE.MeshBasicMaterial).color.setHex(BEAM_COLORS[active.color % BEAM_COLORS.length]);
           this.activeDisc.visible = true;
@@ -876,11 +898,10 @@ export class SceneView {
       this.beamCone.visible = false;
       return;
     }
-    const sat = new THREE.Vector3(d.sat.r.x, d.sat.r.y, d.sat.r.z).multiplyScalar(KM);
-    pos.setXYZ(0, sat.x, sat.y, sat.z);
+    pos.setXYZ(0, d.sat.r.x * KM, d.sat.r.y * KM, d.sat.r.z * KM);
     for (let i = 0; i < 48; i++) {
       const p = ring[i % ring.length];
-      const v = new THREE.Vector3(p.x * KM, p.y * KM, p.z * KM).applyAxisAngle(Z_AXIS, d.sat.gmst);
+      const v = this.tmpPt.set(p.x * KM, p.y * KM, p.z * KM).applyAxisAngle(Z_AXIS, d.sat.gmst);
       pos.setXYZ(i + 1, v.x, v.y, v.z);
     }
     pos.needsUpdate = true;
@@ -891,8 +912,7 @@ export class SceneView {
 
   private updateShapedCone(d: Derived, state: SimState): void {
     const pos = this.beamCone.geometry.getAttribute('position') as THREE.BufferAttribute;
-    const sat = new THREE.Vector3(d.sat.r.x, d.sat.r.y, d.sat.r.z).multiplyScalar(KM);
-    pos.setXYZ(0, sat.x, sat.y, sat.z);
+    pos.setXYZ(0, d.sat.r.x * KM, d.sat.r.y * KM, d.sat.r.z * KM);
     const lat = state.shapedCenter.lat * DEG;
     const lon = state.shapedCenter.lon * DEG;
     const gamma = state.shapedRadiusKm / R_EARTH;
@@ -900,11 +920,13 @@ export class SceneView {
       const brg = (2 * Math.PI * i) / 48;
       const la2 = Math.asin(Math.max(-1, Math.min(1, Math.sin(lat) * Math.cos(gamma) + Math.cos(lat) * Math.sin(gamma) * Math.cos(brg))));
       const lo2 = lon + Math.atan2(Math.sin(brg) * Math.sin(gamma) * Math.cos(lat), Math.cos(gamma) - Math.sin(lat) * Math.sin(la2));
-      const v = new THREE.Vector3(
-        Math.cos(la2) * Math.cos(lo2) * R_EARTH * KM,
-        Math.cos(la2) * Math.sin(lo2) * R_EARTH * KM,
-        Math.sin(la2) * R_EARTH * KM,
-      ).applyAxisAngle(Z_AXIS, d.sat.gmst);
+      const v = this.tmpPt
+        .set(
+          Math.cos(la2) * Math.cos(lo2) * R_EARTH * KM,
+          Math.cos(la2) * Math.sin(lo2) * R_EARTH * KM,
+          Math.sin(la2) * R_EARTH * KM,
+        )
+        .applyAxisAngle(Z_AXIS, d.sat.gmst);
       pos.setXYZ(i + 1, v.x, v.y, v.z);
     }
     pos.needsUpdate = true;
@@ -992,12 +1014,14 @@ export class SceneView {
         this.controls.target.set(0, 0, 0);
       } else {
         this.controls.target.copy(satPos);
-        const dir = satPos.clone().normalize();
-        this.camera.position.copy(satPos).addScaledVector(dir, 0.9).add(new THREE.Vector3(0, -0.7, 0.5));
+        const dir = this.tmpDir.copy(satPos).normalize();
+        this.camera.position.copy(satPos).addScaledVector(dir, 0.9);
+        this.camera.position.y -= 0.7;
+        this.camera.position.z += 0.5;
       }
       this.prevSat.copy(satPos);
     } else if (state.cameraMode !== 'earth') {
-      const delta = satPos.clone().sub(this.prevSat);
+      const delta = this.tmpDelta.copy(satPos).sub(this.prevSat);
       this.camera.position.add(delta);
       this.controls.target.copy(satPos);
       this.prevSat.copy(satPos);
@@ -1010,16 +1034,19 @@ export class SceneView {
   private updateLabels(d: Derived, satPos: THREE.Vector3) {
     const cam = this.camera.position;
     const satVisible = !this.occluded(satPos, cam);
-    const sp = satPos.clone().add(new THREE.Vector3(0, 0, 0.08)).project(this.camera);
+    const sp = this.tmpProj.copy(satPos);
+    sp.z += 0.08;
+    sp.project(this.camera);
     this.setLabel(this.labels.sat, sp, satVisible, `SAT · ${d.sat.alt.toFixed(0)} km · ${d.sat.speed.toFixed(2)} km/s`, -22);
 
     const pt = d.activeBeam ? activeGroundPoint(d) : null;
     if (pt) {
-      const local = new THREE.Vector3(pt.x * KM, pt.y * KM, pt.z * KM);
-      const world = this.earthGroup.localToWorld(local.clone());
-      const up = world.clone().normalize();
-      const visible = up.dot(cam.clone().sub(world).normalize()) > 0.02;
-      const p = world.clone().project(this.camera);
+      this.tmpLocal.set(pt.x * KM, pt.y * KM, pt.z * KM);
+      const world = this.earthGroup.localToWorld(this.tmpWorld.copy(this.tmpLocal));
+      const up = this.tmpUp.copy(world).normalize();
+      const toCam = this.tmpDir.copy(cam).sub(world).normalize();
+      const visible = up.dot(toCam) > 0.02;
+      const p = this.tmpProj.copy(world).project(this.camera);
       let lat = d.activeBeam?.target?.lat;
       let lon = d.activeBeam?.target?.lon;
       if (lat === undefined || lon === undefined) {
@@ -1046,7 +1073,7 @@ export class SceneView {
   }
 
   private occluded(point: THREE.Vector3, cam: THREE.Vector3): boolean {
-    const dir = point.clone().sub(cam);
+    const dir = this.tmpDir.copy(point).sub(cam);
     const dist = dir.length();
     dir.normalize();
     const b = cam.dot(dir);
@@ -1064,7 +1091,7 @@ export class SceneView {
     this.ray.setFromCamera(this.pointer, this.camera);
     const hits = this.ray.intersectObject(this.earth, false);
     if (!hits.length) return null;
-    const local = this.earthGroup.worldToLocal(hits[0].point.clone());
+    const local = this.earthGroup.worldToLocal(this.tmpLocal.copy(hits[0].point));
     const r = local.length();
     return {
       lat: Math.asin(local.z / r) / DEG,
@@ -1079,7 +1106,7 @@ export class SceneView {
     const dist = this.camera.position.distanceTo(this.controls.target);
     const factor = Math.exp(e.deltaY * 0.0025);
     const next = Math.min(this.controls.maxDistance, Math.max(this.controls.minDistance, dist * factor));
-    const dir = this.camera.position.clone().sub(this.controls.target).normalize();
+    const dir = this.tmpDir.copy(this.camera.position).sub(this.controls.target).normalize();
     this.camera.position.copy(this.controls.target).addScaledVector(dir, next);
     this.controls.update();
   };
@@ -1128,9 +1155,9 @@ export class SceneView {
   }
 
   capture(): Promise<SaveResult> {
-    this.composer.render();
+    const out = this.captureCanvas();
     return new Promise((resolve) => {
-      this.renderer.domElement.toBlob((blob) => {
+      out.toBlob((blob) => {
         if (!blob) {
           resolve({ saved: false, error: 'No se pudo generar la captura.' });
           return;
@@ -1153,8 +1180,42 @@ export class SceneView {
   }
 
   dispose() {
-    this.renderer.dispose();
+    window.removeEventListener('resize', this.onResizeBound);
+    const canvas = this.renderer.domElement;
+    canvas.removeEventListener('pointerdown', this.onPointerDownBound);
+    canvas.removeEventListener('pointerup', this.onPointerUpBound);
+    canvas.removeEventListener('pointermove', this.onPointerMoveBound);
+    canvas.removeEventListener('wheel', this.onPinchWheel, { capture: true });
+    canvas.removeEventListener('pointerleave', this.onPointerLeaveBound);
+
+    this.controls.dispose();
+    const disposedMats = new Set<THREE.Material>();
+    this.scene.traverse((obj) => {
+      const renderable = obj as {
+        geometry?: THREE.BufferGeometry;
+        material?: THREE.Material | THREE.Material[];
+      };
+      renderable.geometry?.dispose();
+      const mats = Array.isArray(renderable.material)
+        ? renderable.material
+        : renderable.material
+          ? [renderable.material]
+          : [];
+      for (const m of mats) {
+        if (disposedMats.has(m)) continue;
+        disposedMats.add(m);
+        const withMap = m as { map?: THREE.Texture | null };
+        withMap.map?.dispose();
+        m.dispose();
+      }
+    });
+    this.gainTexture.dispose();
+    this.phaseTexture.dispose();
+    this.bloom.dispose();
     this.composer.dispose();
+    this.renderer.dispose();
+    this.labels.sat.remove();
+    this.labels.target.remove();
   }
 }
 

@@ -672,8 +672,11 @@ export class UI {
       $('cn0-meter').classList.remove('outage');
       $('sys-power').textContent = '—';
       $('sys-spectrum').textContent = '—';
+      $('sys-cap-label').textContent = s.mode === 'cellular' ? 'Cap. clúster' : 'Cap. sistema';
       $('sys-capacity').textContent = '—';
       $('sys-coverage').textContent = '—';
+      $('sys-agg-row').hidden = s.mode !== 'cellular';
+      $('sys-aggregate').textContent = '—';
       return;
     }
     $('link-badge').textContent = `${dirLabel} · ${l.freqGHz.toFixed(0)} GHz · ${s.bandwidthMHz} MHz`;
@@ -708,13 +711,17 @@ export class UI {
     }
 
     const sys = d.system;
+    const fmtCap = (mbps: number) => mbps >= 1000
+      ? `${(mbps / 1000).toFixed(2)} Gbps`
+      : `${mbps.toFixed(0)} Mbps`;
     $('sys-power').textContent = sys.rfPowerW >= 1000 ? `${(sys.rfPowerW / 1000).toFixed(1)} kW` : `${sys.rfPowerW.toFixed(0)} W`;
     $('sys-power').classList.toggle('warn', sys.rfPowerW > 6000);
     $('sys-spectrum').textContent = `${sys.spectrumMHz.toFixed(0)} MHz`;
-    $('sys-capacity').textContent = sys.capacityMbps >= 1000
-      ? `${(sys.capacityMbps / 1000).toFixed(2)} Gbps`
-      : `${sys.capacityMbps.toFixed(0)} Mbps`;
+    $('sys-cap-label').textContent = s.mode === 'cellular' ? 'Cap. clúster' : 'Cap. sistema';
+    $('sys-capacity').textContent = fmtCap(sys.capacityMbps);
     $('sys-coverage').textContent = sys.coverageFraction == null ? '—' : `${(sys.coverageFraction * 100).toFixed(0)} %`;
+    $('sys-agg-row').hidden = s.mode !== 'cellular';
+    $('sys-aggregate').textContent = fmtCap(sys.aggregateCapacityMbps);
   }
 
   private openLab() {

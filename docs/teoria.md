@@ -199,7 +199,7 @@ El taper reduce los lóbulos a costa de ensanchar el haz y perder ganancia. Es e
 La directividad se calcula integrando numéricamente sobre el hemisferio:
 
 $$
-D=\frac{4\pi\,|AF|^2_{\max}}{\displaystyle\int_0^{2\pi}\!\!\int_0^{\pi/2}|AF(\theta,\phi)|^2P_e(\theta)\sin\theta\,d\theta\,d\phi}.
+D=\frac{4\pi\,\max_{u^2+v^2\le 1}\!\bigl(|AF(\theta,\phi)|^2 P_e(\theta)\bigr)}{\displaystyle\int_0^{2\pi}\!\!\int_0^{\pi/2}|AF(\theta,\phi)|^2P_e(\theta)\sin\theta\,d\theta\,d\phi}.
 $$
 
 La ganancia incluye la eficiencia $\eta$: $G=\eta D$. En la app, $\eta$ es ajustable (65 % por defecto).
@@ -241,7 +241,7 @@ $$
 \sigma_\phi=\frac{\Delta_\phi}{\sqrt{12}},
 $$
 
-y un VGA de $a$ bits cuantiza la amplitud en $2^a$ niveles. A eso se suma el error residual de calibración y temperatura:
+y un VGA de $a$ bits cuantiza la atenuación en pasos logarítmicos de $\Delta_A = 32/2^a$ dB respecto al máximo (p. ej., 4 bits $\to 2$ dB, 5 bits $\to 1$ dB, 6 bits $\to 0{,}5$ dB). A eso se suma el error residual de calibración y temperatura:
 
 $$
 \sigma_{\phi,total}^2=\sigma_{\phi,cuant}^2+\sigma_{\phi,cal}^2+\sigma_{\phi,temp}^2.
@@ -249,18 +249,18 @@ $$
 
 El simulador:
 
-1. Genera errores gaussianos deterministas por semilla.
-2. Cuantiza fase y amplitud de cada elemento.
+1. Cuantiza primero fase y amplitud (VGA en dB) de cada elemento sobre los pesos ideales.
+2. Aplica encima los errores residuales continuos gaussianos (deterministas por semilla).
 3. Reconstruye el patrón exacto del haz activo con esos pesos.
 4. Calcula HPBW y SLL con un **corte directo de 481 puntos** desde los pesos, no interpolando una rejilla 2D gruesa.
 5. Compara ideal vs cuantizado y reporta $\Delta G$, $\Delta SLL$, apuntamiento y tiempo de cálculo.
 
 Dos modos:
 
-- **Tiempo real:** patrón 2D $65\times65$ y corte directo, actualizado con throttle (~4 Hz).
+- **Tiempo real:** patrón 2D $97\times97$ ($129\times129$ para arreglos $32\times32$) en $[-1{,}05, 1{,}05]^2$ y corte directo, actualizado con throttle (~4 Hz).
 - **Análisis:** patrón 2D $257\times257$ bajo demanda.
 
-Por defecto: 5 bits de fase (11,25°), 4 bits de amplitud (0,5 dB), 2° RMS de fase y 0,2 dB RMS de amplitud. El modo **Ideal** desactiva todo para comparar.
+Por defecto: 5 bits de fase (11,25°), 4 bits de amplitud (2 dB), 2° RMS de fase y 0,2 dB RMS de amplitud. El modo **Ideal** desactiva todo para comparar.
 
 ---
 
@@ -318,7 +318,7 @@ $$
 s\approx 2h\tan\!\left(\frac{\theta_{3\text{dB}}}{2}\right)\times0{,}9,
 $$
 
-de modo que celdas vecinas se solapan cerca de −3 dB. Cada celda guarda su lat/lon y se le asigna un color de reutilización $c=((\text{col}-\text{row})\bmod R+R)\bmod R$, con $R=3,4$ o $7$. Las celdas son **fijas a Tierra**: a medida que el satélite se mueve, se recalcula la fase de cada celda visible y las que caen bajo el horizonte o por debajo de 10° de elevación se retiran.
+de modo que celdas vecinas se solapan cerca de −3 dB. Cada celda guarda su lat/lon en malla hexagonal desplazada (*odd-r*, paso vertical $\sqrt{3}/2$) y se le asigna un color de reutilización sin colisiones entre vecinos usando coordenadas axiales $(q, r) = (\text{col} - \lfloor\text{row}/2\rfloor, \text{row})$ para $R\in\{3,4,7\}$. Las celdas son **fijas a Tierra**: a medida que el satélite se mueve, se recalcula la fase de cada celda visible y las que caen bajo el horizonte o por debajo de 10° de elevación se retiran.
 
 ---
 
@@ -410,20 +410,22 @@ $$
 
 ### 5.1 Bajada y subida
 
-El mismo presupuesto se evalúa en dos direcciones:
+El mismo presupuesto se evalúa en dos direcciones, separando la temperatura de antena y figura de ruido de cada receptor:
 
-- **Bajada:** $P_{tx}=P_{sat}$, $G_{tx}=G_{haz}$, $G_{rx}=G_{VSAT}$, frecuencia de bajada (12 GHz en Ku).
-- **Subida:** $P_{tx}=P_{VSAT}$, $G_{tx}=G_{VSAT}$, $G_{rx}=G_{haz}$, frecuencia de subida (14 GHz en Ku).
+- **Bajada:** $P_{tx}=P_{sat}$, $G_{tx}=G_{haz}$, $G_{rx}=G_{VSAT}$, $T_{ant}=50$ K, $\text{NF}_{VSAT}$ configurable (1,5 dB por defecto), frecuencia de bajada (12 GHz en Ku).
+- **Subida:** $P_{tx}=P_{VSAT}$, $G_{tx}=G_{VSAT}$, $G_{rx}=G_{haz}$, $T_{ant}=290$ K (Tierra vista desde órbita), $\text{NF}_{sat}=2{,}5$ dB ($T_{sys}\approx 515{,}7$ K), frecuencia de subida (14 GHz en Ku).
 
-Se emparejan 12/14 GHz en Ku y 20/30 GHz en K/Ka. Para una apertura fija, la ganancia de cada extremo se escala como $G(f)=G_0+20\log_{10}(f/f_0)$; es una aproximación de primer orden, no un modelo de duplexor. La capacidad de sistema se limita por el menor de los dos enlaces:
+La atenuación gaseosa atmosférica en cielo despejado escala con la frecuencia y la elevación como $L_{atm}(f,\varepsilon)\approx L_0(f)/\sin(\max(5^\circ,\varepsilon))$ (de ~0,04 dB en L/S a ~0,12–0,16 dB en Ku y ~0,45–0,50 dB en Ka al cenit). Se emparejan 12/14 GHz en Ku y 20/30 GHz en K/Ka. Para una apertura fija, la ganancia de cada extremo se escala como $G(f)=G_0+20\log_{10}(f/f_0)$; es una aproximación de primer orden, no un modelo de duplexor. La capacidad por clúster de reutilización es:
 
 $$
-C_{sistema}=N_{colores}\cdot\min(C_{DL},C_{UL}).
+C_{cl\acute{u}ster}=N_{colores}\cdot\min(C_{DL},C_{UL}),
 $$
+
+y en modo celular se reporta por separado la cota agregada ideal $C_{agregada}=N_{visibles}\cdot\min(C_{DL},C_{UL})$ (sin degradación C/I co-canal).
 
 ### 5.2 MODCOD y umbral
 
-No se usa Shannon como si fuera un módem real. El simulador elige el **MODCOD DVB-S2X** más alto cuyo umbral de C/N se cumple, con 1 dB de margen de implementación. La tabla es orientativa:
+No se usa Shannon como si fuera un módem real. El simulador elige el **MODCOD DVB-S2X** más alto cuyo umbral de C/N se cumple descontando 1 dB de margen de implementación ($C/N_{\text{ef}} = C/N - 1\text{ dB}$). El margen reportado se mide respecto al mismo umbral efectivo ($\text{margen} = C/N_{\text{ef}} - C/N_{\min}$), de modo que `outage` ocurre exactamente cuando el margen es negativo. La tabla es orientativa:
 
 | MODCOD | C/N mínimo | Eficiencia espectral |
 |---|---:|---:|
@@ -442,21 +444,21 @@ Si ningún MODCOD cumple, el enlace queda en **outage**: capacidad cero y “sin
 
 ### 5.3 Ejemplo con la configuración por defecto
 
-Con 20 W por haz en bajada, 4 W en el terminal y $G\approx26{,}9$ dBi con el patrón cuantizado (26,2 dBi ideal), terminal VSAT de 0,6 m ($G_{rx}=34$ dBi, NF 1,5 dB), 550 km, Ku 12/14 GHz:
+Con 20 W por haz en bajada, 4 W en el terminal y $G\approx26{,}2$ dBi con el patrón cuantizado (26,3 dBi ideal; pérdida de barrido de ~0,7 dB a ~23° off-nadir), terminal VSAT de 0,6 m ($G_{rx}=34$ dBi, NF 1,5 dB), 550 km (~595 km oblicuos, elevación ~66,4°), Ku 12/14 GHz:
 
-- **Bajada:** EIRP ≈ 39,2 dBW; $L_{fs}\approx169{,}7$ dB; $P_{rx}\approx-66{,}5$ dBm; $C/N_0\approx110{,}3$ dBHz; $C/N\approx30{,}3$ dB en 100 MHz.
-- **Subida:** EIRP del terminal ≈ 41,3 dBW; $L_{fs}\approx171{,}0$ dB; $C/N_0\approx104{,}7$ dBHz; $C/N\approx24{,}7$ dB en 100 MHz. El MODCOD sigue siendo 64APSK 5/6, pero con menos margen; a 1 W la subida cae a ≈18,4 dB y baja a 32APSK 4/5, con ≈400 Mbps.
-- Capacidad por haz ≈500 Mbps; ≈25 Mbps por usuario con 20 usuarios. El sistema usa el mínimo de bajada y subida.
+- **Bajada:** EIRP ≈ 39,2 dBW; $L_{fs}\approx169{,}5$ dB; $P_{rx}\approx-66{,}5$ dBm; $C/N_0\approx109{,}9$ dBHz; $C/N\approx29{,}9$ dB en 100 MHz → **64APSK 5/6** (500 Mbps, margen +9,4 dB).
+- **Subida:** EIRP del terminal ≈ 41,4 dBW; $L_{fs}\approx170{,}9$ dB; $T_{sys}\approx 515{,}7$ K; $C/N_0\approx99{,}3$ dBHz; $C/N\approx19{,}3$ dB en 100 MHz → **32APSK 4/5** (400 Mbps, margen +3,8 dB). La subida limita el enlace bidireccional; si el terminal baja a 1 W, cae a $C/N\approx13{,}3$ dB y pasa a **16APSK 3/4** (303 Mbps).
+- Capacidad por haz ≈ 400 Mbps; ≈ 20 Mbps por usuario con 20 usuarios. El sistema usa el mínimo de bajada y subida.
 
-Con una antena isotrópica de 0 dBi, el mismo enlace queda en $C/N\approx-8{,}6$ dB y **outage**. Ese era el origen de los “0–3 Mbps” de la versión anterior: no era un throughput realista, era un receptor isotrópico.
+Con una antena isotrópica de 0 dBi, el mismo enlace queda en $C/N < -3$ dB y **outage**. Ese era el origen de los “0–3 Mbps” de la versión anterior: no era un throughput realista, era un receptor isotrópico.
 
-El modo global, con $G\approx3{,}5$ dBi, baja mucho el C/N₀: la misma potencia, mucho menos concentrada. La capacidad de sistema se estima como `n_colores × capacidad_por_canal`; la potencia RF total como `n_haces × P_tx`, y se muestra para evidenciar que no todos los haces transmiten a plena potencia a la vez.
+El modo global, con $G\approx3{,}5$ dBi, baja mucho el C/N₀: la misma potencia, mucho menos concentrada. La capacidad por clúster se estima como `n_colores × capacidad_por_haz` (y la cota agregada ideal en modo celular como `n_haces_visibles × capacidad_por_haz`); la potencia RF total como `n_haces × P_tx`, y se muestra para evidenciar que no todos los haces transmiten a plena potencia a la vez.
 
 ---
 
 ## 6. Validación
 
-Las 30 pruebas de `npm test` comprueban, entre otras cosas:
+Las 46 pruebas de `npm test` comprueban, entre otras cosas:
 
 | Prueba | Resultado esperado |
 |---|---|

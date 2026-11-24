@@ -126,8 +126,9 @@ export function geodeticToEcef(lat: number, lon: number, altKm = 0): Vec3 {
 /** ECEF -> latitud/longitud geocéntricas y altitud. */
 export function ecefToGeodetic(r: Vec3): { lat: number; lon: number; alt: number } {
   const rho = len(r);
+  const sinLat = rho > 0 ? Math.max(-1, Math.min(1, r.z / rho)) : 0;
   return {
-    lat: Math.asin(r.z / rho),
+    lat: Math.asin(sinLat),
     lon: Math.atan2(r.y, r.x),
     alt: rho - R_EARTH,
   };

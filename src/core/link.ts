@@ -1,4 +1,8 @@
-import { C_LIGHT } from './constants';
+import { C_LIGHT, DEG } from './constants';
+
+export const GROUND_ANTENNA_TEMP_K = 50;
+export const SAT_ANTENNA_TEMP_K = 290;
+export const SAT_NOISE_FIGURE_DB = 2.5;
 
 export interface LinkParams {
   slantKm: number;
@@ -8,6 +12,7 @@ export interface LinkParams {
   rxGainDbi: number;
   noiseFigureDb: number;
   bandwidthMHz: number;
+  antennaTempK?: number;
   elevationDeg?: number;
   rainMarginDb?: number;
   atmosphericLossDb?: number;
@@ -67,13 +72,46 @@ export interface LinkResult {
   slantKm: number;
 }
 
+const ZENITH_ATM_TABLE: readonly [number, number][] = [
+  [1.6, 0.04],
+  [2.2, 0.04],
+  [12, 0.12],
+  [14, 0.16],
+  [20, 0.50],
+  [30, 0.45],
+];
+
+/** Atenuación gaseosa atmosférica en cielo despejado (ITU-R P.676 aprox.) [dB]. */
+export function atmosphericLossDb(freqGHz: number, elevationDeg: number): number {
+  const table = ZENITH_ATM_TABLE;
+  let zenithDb: number;
+  if (freqGHz <= table[0][0]) {
+    zenithDb = table[0][1];
+  } else if (freqGHz >= table[table.length - 1][0]) {
+    zenithDb = table[table.length - 1][1];
+  } else {
+    zenithDb = table[0][1];
+    for (let i = 0; i < table.length - 1; i++) {
+      const [f0, l0] = table[i];
+      const [f1, l1] = table[i + 1];
+      if (freqGHz >= f0 && freqGHz <= f1) {
+        const t = (freqGHz - f0) / (f1 - f0);
+        zenithDb = l0 + t * (l1 - l0);
+        break;
+      }
+    }
+  }
+  const elev = Math.max(5, Math.min(90, elevationDeg));
+  return zenithDb / Math.sin(elev * DEG);
+}
+
 /**
- * Presupuesto de enlace de bajada.
+ * Presupuesto de enlace (bajada o subida).
  *
- * Modelo: espacio libre + pérdida atmosférica + margen de lluvia, antena
- * receptora con ganancia y temperatura de sistema, y selección del MODCOD
- * DVB-S2X más alto cuyo umbral de C/N se cumple. Si ningún MODCOD cumple,
- * el enlace se declara en outage y la capacidad es cero.
+ * Modelo: espacio libre + pérdida atmosférica dependiente de frecuencia y
+ * elevación + margen de lluvia, antena receptora con ganancia y temperatura de
+ * sistema, y selección del MODCOD DVB-S2X más alto cuyo umbral de C/N se
+ * cumple descontando el margen de implementación.
  */
 export function linkBudget(p: LinkParams): LinkResult {
   const dM = Math.max(p.slantKm, 1) * 1000;
@@ -84,13 +122,13 @@ export function linkBudget(p: LinkParams): LinkResult {
 
   const elevationDeg = Math.max(0, Math.min(90, p.elevationDeg ?? 90));
   const rainDb = Math.max(0, p.rainMarginDb ?? 0);
-  const atmDb = Math.max(0, p.atmosphericLossDb ?? 0.25);
+  const atmDb = Math.max(0, p.atmosphericLossDb ?? atmosphericLossDb(p.freqGHz, elevationDeg));
   const extraLossDb = atmDb + rainDb;
 
   const rxPowerDbm = eirpDbW - fsplDb - extraLossDb + p.rxGainDbi + 30;
 
-  // Temperatura de sistema: antena (50 K) + contribución del receptor.
-  const tantK = 50;
+  // Temperatura de sistema: antena (50 K en tierra, 290 K en satélite) + receptor.
+  const tantK = Math.max(1, p.antennaTempK ?? GROUND_ANTENNA_TEMP_K);
   const tsysK = tantK + (Math.pow(10, p.noiseFigureDb / 10) - 1) * 290;
   const n0DbmHz = -174 + 10 * Math.log10(tsysK / 290);
   const bandwidthHz = Math.max(1, p.bandwidthMHz) * 1e6;
@@ -111,7 +149,7 @@ export function linkBudget(p: LinkParams): LinkResult {
   const users = Math.max(1, p.usersPerBeam ?? 20);
   const userThroughputMbps = throughputMbps / users;
   const lowest = MODCODS[0];
-  const marginDb = selected ? cnDb - selected.minCnDb : cnDb - lowest.minCnDb;
+  const marginDb = selected ? effectiveCnDb - selected.minCnDb : effectiveCnDb - lowest.minCnDb;
 
   return {
     fsplDb,

@@ -25,7 +25,7 @@ import {
   footprintRing,
   type AntennaFrame,
 } from './core/geometry';
-import { linkBudget, uplinkFrequencyGHz } from './core/link';
+import { linkBudget, SAT_ANTENNA_TEMP_K, SAT_NOISE_FIGURE_DB, uplinkFrequencyGHz } from './core/link';
 import { quantizedBeamWeights, quantizedComplexWeights } from './core/quantization';
 import {
   antennaBasis,
@@ -420,13 +420,13 @@ export class Engine {
       const due = !this.quantPattern || (key !== this.quantKey && now - this.lastQuantMs >= interval);
       if (due) {
         const t0 = performance.now();
-        const size = s.quant.mode === 'analysis' ? 257 : 65;
+        const size = s.quant.mode === 'analysis' ? 257 : (s.antenna.n >= 32 ? 129 : 97);
         const qw = quantizedBeamWeights(s.antenna, active, s.quant);
-        const qp = patternFromWeights(s.antenna, qw.re, qw.im, size, 1.35);
+        const qp = patternFromWeights(s.antenna, qw.re, qw.im, size, 1.05);
         const idealWeights = quantizedBeamWeights(s.antenna, active, {
           phaseBits: 0, ampBits: 0, phaseRmsDeg: 0, ampRmsDb: 0, seed: 0,
         });
-        const idealPattern = patternFromWeights(s.antenna, idealWeights.re, idealWeights.im, size, 1.35);
+        const idealPattern = patternFromWeights(s.antenna, idealWeights.re, idealWeights.im, size, 1.05);
         const span = Math.min(60, Math.max(20, this.baseMetrics.hpbwDeg * 4));
         const cut = cutFromWeights(s.antenna, qw.re, qw.im, active, s.antenna.q, span, 481);
         const idealCut = cutFromWeights(s.antenna, idealWeights.re, idealWeights.im, active, s.antenna.q, span, 481);
@@ -576,7 +576,8 @@ export class Engine {
           txPowerW: s.uplinkPowerW,
           txGainDbi: terminalUpGain,
           rxGainDbi: satUpGain,
-          noiseFigureDb: s.noiseFigureDb,
+          noiseFigureDb: SAT_NOISE_FIGURE_DB,
+          antennaTempK: SAT_ANTENNA_TEMP_K,
           bandwidthMHz: s.bandwidthMHz,
           elevationDeg,
           rainMarginDb: s.rainMarginDb,
@@ -600,6 +601,7 @@ export class Engine {
       rfPowerW: beams.length * s.ptxW,
       spectrumMHz: colors * s.bandwidthMHz,
       capacityMbps: colors * perBeamMbps,
+      aggregateCapacityMbps: (s.mode === 'cellular' ? beams.length : 1) * perBeamMbps,
       perUserMbps: perBeamMbps / Math.max(1, s.usersPerBeam),
       coverageFraction: beamSet?.coverageFraction ?? (s.mode === 'shaped' ? (this.synthInfo?.coverage ?? null) : null),
       limitingLink,

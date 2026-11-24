@@ -42,6 +42,12 @@ export function phaseStep(bits: number): number {
   return TWO_PI / Math.pow(2, Math.max(1, Math.min(8, Math.round(bits))));
 }
 
+/** Paso de atenuación del VGA digital en dB (3 bits→4 dB, 4→2 dB, 5→1 dB, 6→0.5 dB). */
+export function ampStepDb(bits: number): number {
+  const b = Math.max(1, Math.min(8, Math.round(bits)));
+  return 32 / Math.pow(2, b);
+}
+
 export function quantizePhase(phase: number, bits: number): number {
   if (!Number.isFinite(bits) || bits <= 0) return wrap(phase);
   const step = phaseStep(bits);
@@ -49,15 +55,18 @@ export function quantizePhase(phase: number, bits: number): number {
 }
 
 /**
- * Cuantiza una amplitud relativa al máximo del arreglo. Con 0 bits se deja
- * continua (taper fijo); con n bits se usan 2^n niveles entre 0 y el máximo.
+ * Cuantiza una amplitud en pasos logarítmicos de atenuación (dB) respecto al
+ * máximo del arreglo. Con 0 bits se deja continua (taper fijo).
  */
 export function quantizeAmplitude(amp: number, maxAmp: number, bits: number): number {
   if (!Number.isFinite(bits) || bits <= 0 || maxAmp <= 0) return amp;
-  const levels = Math.pow(2, Math.round(bits)) - 1;
-  if (levels <= 0) return amp;
-  const step = maxAmp / levels;
-  return Math.round(Math.max(0, amp) / step) * step;
+  if (amp <= 0) return 0;
+  const b = Math.max(1, Math.min(8, Math.round(bits)));
+  const stepDb = ampStepDb(b);
+  const maxAttenDb = (Math.pow(2, b) - 1) * stepDb;
+  const attenDb = Math.max(0, -20 * Math.log10(Math.min(1, amp / maxAmp)));
+  const qAttenDb = Math.min(maxAttenDb, Math.round(attenDb / stepDb) * stepDb);
+  return maxAmp * Math.pow(10, -qAttenDb / 20);
 }
 
 function residualPhase(seed: number, index: number, rmsDeg: number): number {
@@ -69,8 +78,9 @@ function residualAmp(seed: number, index: number, rmsDb: number): number {
 }
 
 /**
- * Pesos complejos de un haz de barrido, con error residual, cuantización de
- * fase y (opcionalmente) de amplitud. Todo es determinista para una semilla.
+ * Pesos complejos de un haz de barrido: primero cuantización digital de fase
+ * y amplitud (VGA en dB) sobre el peso ideal, luego errores residuales continuos
+ * de calibración/temperatura. Todo es determinista para una semilla.
  */
 export function quantizedBeamWeights(cfg: ArrayConfig, beam: Beam, q: QuantConfig): QuantizedWeights {
   const n = cfg.n;
@@ -82,7 +92,7 @@ export function quantizedBeamWeights(cfg: ArrayConfig, beam: Beam, q: QuantConfi
   const amps = new Float64Array(N);
   const idealPhases = new Float64Array(N);
   const idealAmps = new Float64Array(N);
-  let maxAmp = 0;
+  let maxIdealAmp = 0;
 
   for (let iy = 0; iy < n; iy++) {
     const yn = (iy - (n - 1) / 2) * cfg.dy;
@@ -91,23 +101,21 @@ export function quantizedBeamWeights(cfg: ArrayConfig, beam: Beam, q: QuantConfi
       const k = iy * n + ix;
       const a0 = w[ix] * w[iy];
       const p0 = wrap(-TWO_PI * (xm * beam.u + yn * beam.v));
-      const a = a0 * residualAmp(q.seed, k, q.ampRmsDb);
-      const p = wrap(p0 + residualPhase(q.seed, k + 104729, q.phaseRmsDeg));
       idealPhases[k] = p0;
       idealAmps[k] = a0;
-      amps[k] = a;
-      phases[k] = p;
-      if (a > maxAmp) maxAmp = a;
+      if (a0 > maxIdealAmp) maxIdealAmp = a0;
     }
   }
 
   for (let k = 0; k < N; k++) {
-    const aq = quantizeAmplitude(amps[k], maxAmp, q.ampBits);
-    const pq = quantizePhase(phases[k], q.phaseBits);
-    amps[k] = aq;
-    phases[k] = pq;
-    re[k] = aq * Math.cos(pq);
-    im[k] = aq * Math.sin(pq);
+    const aq = quantizeAmplitude(idealAmps[k], maxIdealAmp, q.ampBits);
+    const pq = quantizePhase(idealPhases[k], q.phaseBits);
+    const a = aq * residualAmp(q.seed, k, q.ampRmsDb);
+    const p = wrap(pq + residualPhase(q.seed, k + 104729, q.phaseRmsDeg));
+    amps[k] = a;
+    phases[k] = p;
+    re[k] = a * Math.cos(p);
+    im[k] = a * Math.sin(p);
   }
   return { re, im, phases, amps, idealPhases, idealAmps };
 }
@@ -126,25 +134,23 @@ export function quantizedComplexWeights(
   const amps = new Float64Array(N);
   const idealPhases = new Float64Array(N);
   const idealAmps = new Float64Array(N);
-  let maxAmp = 0;
+  let maxIdealAmp = 0;
   for (let k = 0; k < N; k++) {
     const a0 = Math.hypot(reIn[k], imIn[k]);
     const p0 = Math.atan2(imIn[k], reIn[k]);
-    const a = a0 * residualAmp(q.seed, k, q.ampRmsDb);
-    const p = wrap(p0 + residualPhase(q.seed, k + 104729, q.phaseRmsDeg));
     idealAmps[k] = a0;
     idealPhases[k] = p0;
-    amps[k] = a;
-    phases[k] = p;
-    if (a > maxAmp) maxAmp = a;
+    if (a0 > maxIdealAmp) maxIdealAmp = a0;
   }
   for (let k = 0; k < N; k++) {
-    const aq = quantizeAmplitude(amps[k], maxAmp, q.ampBits);
-    const pq = quantizePhase(phases[k], q.phaseBits);
-    amps[k] = aq;
-    phases[k] = pq;
-    re[k] = aq * Math.cos(pq);
-    im[k] = aq * Math.sin(pq);
+    const aq = quantizeAmplitude(idealAmps[k], maxIdealAmp, q.ampBits);
+    const pq = quantizePhase(idealPhases[k], q.phaseBits);
+    const a = aq * residualAmp(q.seed, k, q.ampRmsDb);
+    const p = wrap(pq + residualPhase(q.seed, k + 104729, q.phaseRmsDeg));
+    amps[k] = a;
+    phases[k] = p;
+    re[k] = a * Math.cos(p);
+    im[k] = a * Math.sin(p);
   }
   return { re, im, phases, amps, idealPhases, idealAmps };
 }

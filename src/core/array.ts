@@ -473,7 +473,7 @@ export function patternFromWeights(
       }
       const p = pr * pr + pi * pi;
       power[row + iu] = p;
-      if (p > max) max = p;
+      if (du * du + dv * dv <= 1 && p > max) max = p;
     }
   }
   if (max > 0) {
@@ -508,18 +508,37 @@ export function gridDirectivity(grid: PatternGrid, q: number): number {
   const dth = Math.PI / 2 / NTH;
   const dph = TWO_PI / NPH;
   let integral = 0;
+  let peak = 0;
   for (let it = 0; it < NTH; it++) {
     const th = (it + 0.5) * dth;
     const st = Math.sin(th);
     const w2 = Math.cos(th) * Math.cos(th);
+    const elem = Math.pow(w2, q);
     for (let ip = 0; ip < NPH; ip++) {
       const ph = (ip + 0.5) * dph;
-      const p = patternPowerAt(grid, st * Math.cos(ph), st * Math.sin(ph)) * Math.pow(w2, q);
+      const p = patternPowerAt(grid, st * Math.cos(ph), st * Math.sin(ph)) * elem;
+      if (p > peak) peak = p;
       integral += p * st;
     }
   }
+  // Revisar también los nodos visibles de la propia grilla para no subestimar el pico en haces estrechos.
+  const step = (2 * grid.half) / (grid.size - 1);
+  for (let iv = 0; iv < grid.size; iv++) {
+    const v = -grid.half + iv * step;
+    const v2 = v * v;
+    if (v2 >= 1) continue;
+    const row = iv * grid.size;
+    for (let iu = 0; iu < grid.size; iu++) {
+      const u = -grid.half + iu * step;
+      const w2 = 1 - u * u - v2;
+      if (w2 <= 1e-6) continue;
+      const p = grid.power[row + iu] * Math.pow(w2, q);
+      if (p > peak) peak = p;
+    }
+  }
   integral *= dth * dph;
-  return 10 * Math.log10(Math.max(4 * Math.PI / Math.max(integral, 1e-12), 1e-9));
+  const directivity = integral > 0 ? (4 * Math.PI * peak) / integral : 0;
+  return 10 * Math.log10(Math.max(directivity, 1e-9));
 }
 
 /** Corte exacto del patrón a partir de pesos complejos, sin interpolar la grilla 2D. */

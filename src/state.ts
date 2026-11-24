@@ -40,6 +40,7 @@ export interface SystemInfo {
   rfPowerW: number;
   spectrumMHz: number;
   capacityMbps: number;
+  aggregateCapacityMbps: number;
   perUserMbps: number;
   coverageFraction: number | null;
   limitingLink: LinkDirection | null;

@@ -225,7 +225,7 @@
             <span>Modo de cálculo</span>
             <select id="quant-mode">
               <option value="ideal">Ideal · sin cuantización</option>
-              <option value="realtime" selected>Tiempo real · 65×65</option>
+              <option value="realtime" selected>Tiempo real · rápido</option>
               <option value="analysis">Análisis · 257×257</option>
             </select>
           </label>
@@ -242,9 +242,10 @@
             <label class="field grow"><span>Amplitud</span>
               <select id="quant-amp">
                 <option value="0">Fija · sin VGA</option>
-                <option value="3">3 bits · 1 dB</option>
-                <option value="4" selected>4 bits · 0.5 dB</option>
-                <option value="5">5 bits · 0.25 dB</option>
+                <option value="3">3 bits · 4 dB</option>
+                <option value="4" selected>4 bits · 2 dB</option>
+                <option value="5">5 bits · 1 dB</option>
+                <option value="6">6 bits · 0.5 dB</option>
               </select>
             </label>
           </div>
@@ -429,8 +430,9 @@
           <div class="link-system beams-system">
             <div><span>RF sat</span><b id="sys-power">—</b></div>
             <div><span>Espectro</span><b id="sys-spectrum">—</b></div>
-            <div><span>Cap. sistema</span><b id="sys-capacity">—</b></div>
+            <div><span id="sys-cap-label">Cap. sistema</span><b id="sys-capacity">—</b></div>
             <div><span>Cobertura</span><b id="sys-coverage">—</b></div>
+            <div id="sys-agg-row" hidden title="Cota agregada ideal de los haces visibles (N_vis × C_haz), sin degradación C/I co-canal"><span>Cap. agregada</span><b id="sys-aggregate">—</b></div>
           </div>
         </article>
       </section>

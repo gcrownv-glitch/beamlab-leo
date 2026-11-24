@@ -87,10 +87,16 @@ export function elementsOverPoint(
   const target = lonDeg * DEG + gmstRad(epoch);
   let raan = target - lonEci;
   raan = ((raan % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-  const M0 = ((u % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const e = Math.max(0, Math.min(0.99, ecc));
+  const nu = ((u % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const E = 2 * Math.atan2(
+    Math.sqrt(1 - e) * Math.sin(nu / 2),
+    Math.sqrt(1 + e) * Math.cos(nu / 2),
+  );
+  const M0 = (((E - e * Math.sin(E)) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
   return {
     a: R_EARTH + altKm,
-    e: ecc,
+    e,
     i: inc,
     raan,
     argp: 0,

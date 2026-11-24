@@ -10,9 +10,9 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
 | **Versión declarada en manifiestos** | `2.3.4` *(estable local en `checkpoint-tramo-2`; futuras publicaciones saldrán como `beta`, p. ej. `2.4.0-beta.1`)* |
 | **Puntos de recuperación estables** | `main` (`25ce657`, v2.3.4 original) · rama `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2 verificados) |
-| **Rama activa** | `sec/tramo-3-tauri-xss` (construida sobre `fix/tramo-2-rf-physics`) |
-| **Última actualización** | `2026-11-24T18:09:11-05:00` (`2026-11-24T23:09:11Z`) |
-| **Estado de verificación** | `tsc --noEmit` + `vite build` en verde · `vitest run`: **12 archivos / 53 pruebas aprobadas** |
+| **Rama activa** | `perf/tramo-4-worker-render` (construida sobre `sec/tramo-3-tauri-xss`) |
+| **Última actualización** | `2026-11-24T18:28:21-05:00` (`2026-11-24T23:28:21Z`) |
+| **Estado de verificación** | `tsc --noEmit` + `vite build` en verde · `vitest run`: **13 archivos / 57 pruebas aprobadas** |
 
 ---
 
@@ -28,6 +28,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Tramo 2** | `28599b1` | `2026-11-24T17:58:49-05:00` (`22:58:49Z`) | `fix/tramo-2-rf-physics` | Agregar conmutador de modelo C/I co-canal celular y SINR `C/(N+I)` manteniendo Cap. clúster y Cap. agregada separadas |
 | **Tramo 2** | `62d3b68` | `2026-11-24T17:59:27-05:00` (`22:59:27Z`) | `fix/tramo-2-rf-physics` | Documentar conmutador C/I y preferencias de trabajo local/versionado *(punto estable `checkpoint-tramo-2`)* |
 | **Tramo 3** | `791afdf` | `2026-11-24T18:09:11-05:00` (`23:09:11Z`) | `sec/tramo-3-tauri-xss` | Hardening de seguridad: `save_export` en Rust, permisos Tauri mínimos, CSP web/desktop, DOM sin `innerHTML`, validador `LabStore`, CSV injection y `Actualizar.ps1` *fail-closed* |
+| **Tramo 3** | `6342a30` | `2026-11-24T18:09:53-05:00` (`23:09:53Z`) | `sec/tramo-3-tauri-xss` | Registrar checkpoint estable `checkpoint-tramo-2`, política beta y Tramo 3 |
+| **Tramo 4** | `b795140` | `2026-11-24T18:28:21-05:00` (`23:28:21Z`) | `perf/tramo-4-worker-render` | Factorizar `patternFromWeights`, mover síntesis conformada a Web Worker, omitir `gainMap` oculto, quitar `preserveDrawingBuffer` y completar `SceneView.dispose()` |
 
 ---
 
@@ -152,6 +154,30 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 
 ---
 
+### Tramo 4 — Rendimiento y arquitectura asíncrona (Web Worker + Three.js)
+
+- **Commit:** `b795140` (`2026-11-24T18:28:21-05:00`)
+
+#### 1. Factorización de `patternFromWeights` y trigonometría 1D en síntesis
+- **Causa raíz:** `patternFromWeights` evaluaba $O(\text{size}^2 \cdot n^2)$ operaciones y `size²·n` llamadas trigonométricas dentro del bucle 2D, y `synthesizeCoverage` evaluaba `n²` pares `cos/sin` por muestra.
+- **Corrección (`src/core/array.ts`, `src/core/synthesis.ts`):**
+  - `patternFromWeights` se factorizó en dos pasos 1D ($O(\text{size}\cdot n^2 + \text{size}^2\cdot n)$), reduciendo drásticamente llamadas trigonométricas (p. ej. ~128× menos en `257×257` con `16×16`) y manteniendo idéntica la normalización sobre el disco visible $u^2+v^2 \le 1$.
+  - `synthesizeCoverage` precalcula bases 1D `(cx, sx)` y `(cy, sy)` por muestra.
+
+#### 2. Web Worker para síntesis conformada sin bloquear el hilo principal
+- **Corrección (`src/core/synthesis.ts`, `src/workers/synth.worker.ts`, `src/engine.ts`, `src/main.ts`, `src-tauri/tauri.conf.json`):**
+  - Se extrajo `runShapedSynthesisJob()` en `src/core/synthesis.ts` y se dividió `Engine` en `prepareShapedSynthesis()` + `applyShapedSynthesis()` (manteniendo `synthesizeShaped()` síncrono para tests/fallback).
+  - `src/workers/synth.worker.ts` (empaquetado inline por Vite con `?worker&inline` para compatibilidad portable) ejecuta la síntesis con transferencia de `ArrayBuffer`s sin copiar ni congelar la UI a 60 FPS; `App.synthesize()` descarta respuestas obsoletas por `synthReqId`.
+  - Se añadió `worker-src 'self' blob:;` a `csp` y `devCsp` en `src-tauri/tauri.conf.json`.
+
+#### 3. Omisión de `gainMap` oculto, eliminación de `preserveDrawingBuffer` y `dispose()` completo
+- **Corrección (`src/engine.ts`, `src/scene.ts`):**
+  - `Engine.compute()` omite `computeGainMap` y `maskGainMap` mientras `state.showGain === false`, y fuerza recálculo inmediato en el tick en que vuelve a activarse.
+  - Se eliminó `preserveDrawingBuffer: true` de `WebGLRenderer` (las capturas renderizan explícitamente vía `captureCanvas()`), se preasignaron vectores/matrices reutilizables en `SceneView` para evitar presión de GC por frame, y `SceneView.dispose()` remueve todos los listeners DOM, libera `controls`, geometrías, materiales, texturas, composer/bloom y etiquetas DOM.
+- **Pruebas (`tests/performance.test.ts`):** 4 nuevas pruebas validando exactitud `< 1e-5` de `patternFromWeights`, omisión de `computeGainMap` con `showGain = false`, equivalencia del pipeline asíncrono y limpieza en `SceneView` (**13 archivos / 57 pruebas aprobadas**).
+
+---
+
 ## Invariantes que cualquier cambio futuro debe respetar
 
 1. **Oclusión terrestre en dos capas coherentes:** La visibilidad de superficie se evalúa con $\mathbf{N} \cdot (\mathbf{S} - \mathbf{P}) > 0$ tanto en `src/core/orbit.ts` (`elevationAngle`, `raySphere`) como en el *fragment shader* de `src/scene.ts`. Nunca usar máscaras CPU para tapar errores de proyección del shader.
@@ -159,6 +185,7 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 3. **Ausencia de haz = `EMPTY_GAIN`:** Con `beams.length === 0` (salvo `global`) o `shaped` sin sintetizar, `gainMap` debe ser `EMPTY_GAIN` (`max = 0`).
 4. **Invariantes RF:** `quantize*` aplica cuantización discreta antes de residuales continuos; `gridDirectivity` incluye $\cos^{2q}\theta$ en numerador y denominador sobre el disco visible; `marginDb < 0` equivale exactamente a `outage === true`.
 5. **Invariantes de seguridad:** Cero `innerHTML` en `src/` y `public/versiones.*`; Tauri usa `save_export` con diálogo en Rust y sin `opener:allow-open-path`; `LabStore` pasa siempre por `validateLabSession`; `Actualizar.ps1` aborta sin SHA-256 válido.
+6. **Invariantes de rendimiento:** `patternFromWeights` se mantiene factorizado en 2 pasos 1D; `Engine.compute()` no ejecuta `computeGainMap` con `showGain === false`; `SceneView` no activa `preserveDrawingBuffer` y `dispose()` libera listeners, controles y recursos WebGL.
 
 ---
 
@@ -167,7 +194,7 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | Tramo | Alcance resumido | Estado |
 |---|---|---|
 | **Tramo 3** | Seguridad: diálogo nativo en Rust (`save_export`), CSP producción vs `devCsp`, eliminar `innerHTML` en `ui.ts` y `versiones.html`, SHA-256 *fail-closed* en `Actualizar.ps1`, neutralizar CSV injection | Completado (`791afdf`) |
-| **Tramo 4** | Rendimiento: quitar `preserveDrawingBuffer`, saltar `computeGainMap` si `!showGain`, precomputar `cx/sx` en `patternFromWeights`, Web Worker para `synthesizeCoverage`, `SceneView.dispose()` completo | Pendiente |
+| **Tramo 4** | Rendimiento: quitar `preserveDrawingBuffer`, saltar `computeGainMap` si `!showGain`, precomputar `cx/sx` en `patternFromWeights`, Web Worker para `synthesizeCoverage`, `SceneView.dispose()` completo | Completado (`b795140`) |
 | **Tramo 5** | UX, Laboratorio y Móvil: arreglar LaTeX crudo en `index.html`, diferenciar cámaras `Satélite`/`Seguir`, cerrar todos los modales con `Escape`, `configHash` completo, *drawers* móviles (`≤ 760 px`) | Pendiente |
 | **Tramo 6** | DevOps/CI y Releases: corregir `build-launcher.ps1` y `BeamLabLEO.cs`, decidir política de `docs/portable/`, script único `bump-version.mjs`, pruebas en `desktop.yml` y `deploy.yml` | Pendiente |
 

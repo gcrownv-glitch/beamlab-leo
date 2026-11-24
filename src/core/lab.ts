@@ -188,11 +188,197 @@ function hashString(s: string): string {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-const csvCell = (v: unknown): string => {
+export const csvCell = (v: unknown): string => {
   if (v == null) return '';
-  const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
+  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : '';
+  let s = String(v);
+  if (/^[\t\r ]*[=+\-@]/.test(s)) s = `'${s}`;
+  return /[",\r\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
 };
+
+const MAX_STR = 512;
+const MAX_NOTES = 4096;
+const MAX_SAMPLES = 500;
+const VALID_MODES = new Set(['global', 'spot', 'cellular', 'shaped']);
+const VALID_TAPERS = new Set(['uniform', 'kaiser25', 'kaiser30', 'kaiser40', 'hann']);
+const VALID_QUANT_MODES = new Set(['ideal', 'realtime', 'analysis']);
+const VALID_LINK_DIRS = new Set(['downlink', 'uplink']);
+
+function asRecord(v: unknown, label: string): Record<string, unknown> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) {
+    throw new Error(`${label}: formato inválido.`);
+  }
+  return v as Record<string, unknown>;
+}
+
+function asStr(v: unknown, label: string, maxLen = MAX_STR): string {
+  if (typeof v !== 'string') throw new Error(`${label}: debe ser texto.`);
+  if (v.length > maxLen) throw new Error(`${label}: excede longitud máxima.`);
+  return v;
+}
+
+function asNum(v: unknown, label: string): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) {
+    throw new Error(`${label}: número inválido.`);
+  }
+  return v;
+}
+
+function asNullableNum(v: unknown, label: string): number | null {
+  return v === null ? null : asNum(v, label);
+}
+
+function asBool(v: unknown, label: string): boolean {
+  if (typeof v !== 'boolean') throw new Error(`${label}: booleano inválido.`);
+  return v;
+}
+
+function validateLinkSnapshot(v: unknown, label: string): LinkSnapshot | null {
+  if (v === null) return null;
+  const o = asRecord(v, label);
+  return {
+    cn0DbHz: asNum(o.cn0DbHz, `${label}.cn0DbHz`),
+    cnDb: asNum(o.cnDb, `${label}.cnDb`),
+    modcod: asStr(o.modcod, `${label}.modcod`, 64),
+    marginDb: asNum(o.marginDb, `${label}.marginDb`),
+    throughputMbps: asNum(o.throughputMbps, `${label}.throughputMbps`),
+    eirpDbW: asNum(o.eirpDbW, `${label}.eirpDbW`),
+    freqGHz: asNum(o.freqGHz, `${label}.freqGHz`),
+    outage: asBool(o.outage, `${label}.outage`),
+  };
+}
+
+function validateSample(raw: unknown, idx: number): LabSample {
+  const prefix = `samples[${idx}]`;
+  const o = asRecord(raw, prefix);
+  const schema = asNum(o.schema, `${prefix}.schema`);
+  if (schema !== LAB_SCHEMA) throw new Error(`${prefix}: esquema no soportado.`);
+  const mode = asStr(o.mode, `${prefix}.mode`, 32);
+  if (!VALID_MODES.has(mode)) throw new Error(`${prefix}.mode: modo inválido.`);
+
+  let target: LabSample['target'] = null;
+  if (o.target !== null) {
+    const t = asRecord(o.target, `${prefix}.target`);
+    target = {
+      lat: asNum(t.lat, `${prefix}.target.lat`),
+      lon: asNum(t.lon, `${prefix}.target.lon`),
+      label: asStr(t.label, `${prefix}.target.label`, 64),
+    };
+  }
+
+  const orb = asRecord(o.orbit, `${prefix}.orbit`);
+  const arr = asRecord(o.array, `${prefix}.array`);
+  const taper = asStr(arr.taper, `${prefix}.array.taper`, 32);
+  if (!VALID_TAPERS.has(taper)) throw new Error(`${prefix}.array.taper: taper inválido.`);
+
+  const q = asRecord(o.quant, `${prefix}.quant`);
+  const qMode = asStr(q.mode, `${prefix}.quant.mode`, 32);
+  if (!VALID_QUANT_MODES.has(qMode)) throw new Error(`${prefix}.quant.mode: modo inválido.`);
+
+  const met = asRecord(o.metrics, `${prefix}.metrics`);
+  const lnk = asRecord(o.links, `${prefix}.links`);
+  const selected = asStr(lnk.selected, `${prefix}.links.selected`, 16);
+  if (!VALID_LINK_DIRS.has(selected)) throw new Error(`${prefix}.links.selected: dirección inválida.`);
+  let limiting: LinkDirection | null = null;
+  if (lnk.limiting !== null) {
+    const lim = asStr(lnk.limiting, `${prefix}.links.limiting`, 16);
+    if (!VALID_LINK_DIRS.has(lim)) throw new Error(`${prefix}.links.limiting: dirección inválida.`);
+    limiting = lim as LinkDirection;
+  }
+
+  const sys = asRecord(o.system, `${prefix}.system`);
+  let shaped: LabSample['shaped'] = null;
+  if (o.shaped !== null) {
+    const sh = asRecord(o.shaped, `${prefix}.shaped`);
+    shaped = {
+      coverage: asNum(sh.coverage, `${prefix}.shaped.coverage`),
+      spillDb: asNum(sh.spillDb, `${prefix}.shaped.spillDb`),
+      directivityDbi: asNum(sh.directivityDbi, `${prefix}.shaped.directivityDbi`),
+    };
+  }
+
+  return {
+    schema: LAB_SCHEMA,
+    id: asStr(o.id, `${prefix}.id`, 64),
+    timestamp: asStr(o.timestamp, `${prefix}.timestamp`, 64),
+    appVersion: asStr(o.appVersion, `${prefix}.appVersion`, 32),
+    mode,
+    target,
+    orbit: {
+      altKm: asNum(orb.altKm, `${prefix}.orbit.altKm`),
+      incDeg: asNum(orb.incDeg, `${prefix}.orbit.incDeg`),
+      raanDeg: asNum(orb.raanDeg, `${prefix}.orbit.raanDeg`),
+      subLatDeg: asNum(orb.subLatDeg, `${prefix}.orbit.subLatDeg`),
+      subLonDeg: asNum(orb.subLonDeg, `${prefix}.orbit.subLonDeg`),
+      speedKmS: asNum(orb.speedKmS, `${prefix}.orbit.speedKmS`),
+    },
+    array: {
+      n: asNum(arr.n, `${prefix}.array.n`),
+      dx: asNum(arr.dx, `${prefix}.array.dx`),
+      dy: asNum(arr.dy, `${prefix}.array.dy`),
+      freqGHz: asNum(arr.freqGHz, `${prefix}.array.freqGHz`),
+      taper: taper as ArrayConfig['taper'],
+      q: asNum(arr.q, `${prefix}.array.q`),
+      efficiency: asNum(arr.efficiency, `${prefix}.array.efficiency`),
+    },
+    quant: {
+      mode: qMode as SimState['quant']['mode'],
+      phaseBits: asNum(q.phaseBits, `${prefix}.quant.phaseBits`),
+      ampBits: asNum(q.ampBits, `${prefix}.quant.ampBits`),
+      phaseRmsDeg: asNum(q.phaseRmsDeg, `${prefix}.quant.phaseRmsDeg`),
+      ampRmsDb: asNum(q.ampRmsDb, `${prefix}.quant.ampRmsDb`),
+      seed: asNum(q.seed, `${prefix}.quant.seed`),
+    },
+    metrics: {
+      directivityDbi: asNum(met.directivityDbi, `${prefix}.metrics.directivityDbi`),
+      gainDbi: asNum(met.gainDbi, `${prefix}.metrics.gainDbi`),
+      hpbwDeg: asNum(met.hpbwDeg, `${prefix}.metrics.hpbwDeg`),
+      sllDb: asNum(met.sllDb, `${prefix}.metrics.sllDb`),
+      pointingDeg: asNullableNum(met.pointingDeg, `${prefix}.metrics.pointingDeg`),
+      note: met.note === null ? null : asStr(met.note, `${prefix}.metrics.note`, 256),
+    },
+    links: {
+      downlink: validateLinkSnapshot(lnk.downlink, `${prefix}.links.downlink`),
+      uplink: validateLinkSnapshot(lnk.uplink, `${prefix}.links.uplink`),
+      selected: selected as LinkDirection,
+      limiting,
+    },
+    system: {
+      beams: asNum(sys.beams, `${prefix}.system.beams`),
+      rfPowerW: asNum(sys.rfPowerW, `${prefix}.system.rfPowerW`),
+      spectrumMHz: asNum(sys.spectrumMHz, `${prefix}.system.spectrumMHz`),
+      capacityMbps: asNum(sys.capacityMbps, `${prefix}.system.capacityMbps`),
+      perUserMbps: asNum(sys.perUserMbps, `${prefix}.system.perUserMbps`),
+      coverage: asNullableNum(sys.coverage, `${prefix}.system.coverage`),
+    },
+    shaped,
+    notes: asStr(o.notes, `${prefix}.notes`, MAX_NOTES),
+    configHash: asStr(o.configHash, `${prefix}.configHash`, 64),
+  };
+}
+
+/** Valida y reconstruye una sesión de laboratorio importada o leída de disco. */
+export function validateLabSession(raw: unknown): LabSession {
+  const o = asRecord(raw, 'session');
+  if (o.schema !== LAB_SCHEMA) {
+    throw new Error('El archivo no es una sesión BeamLab válida.');
+  }
+  if (!Array.isArray(o.samples) || o.samples.length > MAX_SAMPLES) {
+    throw new Error(`Lista de muestras inválida (máximo ${MAX_SAMPLES}).`);
+  }
+  return {
+    schema: LAB_SCHEMA,
+    id: asStr(o.id, 'id', 64),
+    title: asStr(o.title, 'title', MAX_STR),
+    course: asStr(o.course, 'course', MAX_STR),
+    author: asStr(o.author, 'author', MAX_STR),
+    notes: asStr(o.notes, 'notes', MAX_NOTES),
+    createdAt: asStr(o.createdAt, 'createdAt', 64),
+    updatedAt: asStr(o.updatedAt, 'updatedAt', 64),
+    appVersion: asStr(o.appVersion, 'appVersion', 32),
+    samples: o.samples.map((s, i) => validateSample(s, i)),
+  };
+}
 
 export const CSV_COLUMNS = [
   'sample_id', 'timestamp', 'session_id', 'app_version', 'mode',

@@ -44,39 +44,6 @@
   <div class="warn" id="fallback" hidden>No se pudo leer el manifiesto. Descarga la versión desde <a href="https://github.com/gcrownv-glitch/beamlab-leo/releases">GitHub Releases</a>.</div>
   <footer>Elaborado por Jhorel Kennedy Cornejo Cruz · IET UCSP · <a href="https://github.com/gcrownv-glitch/beamlab-leo">repositorio</a></footer>
 </main>
-<script>
-(async () => {
-  const list = document.getElementById('list');
-  try {
-    const r = await fetch('./versions.json', { cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const m = await r.json();
-    const versions = [...(m.versions || [])].sort((a, b) => {
-      const pa = a.version.split('.').map(Number), pb = b.version.split('.').map(Number);
-      for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pb[i] || 0) - (pa[i] || 0);
-      return 0;
-    });
-    if (!versions.length) throw new Error('sin versiones');
-    list.innerHTML = versions.map((v, i) => `
-      <div class="card">
-        <div class="row"><a class="ver" href="${v.html}" download>${v.version}</a>${i === 0 ? '<span class="latest">más reciente</span>' : ''}</div>
-        <div class="meta">${(v.size / 1024 / 1024).toFixed(2)} MB · ${v.date || ''}</div>
-        ${v.notes ? `<div class="notes">${v.notes}</div>` : ''}
-        <div class="hash">SHA-256 ${v.sha256 || ''}</div>
-        <div class="actions"><a href="${v.html}" download>Descargar HTML</a>${v.zip ? `<a href="${v.zip}" download>Descargar ZIP portable</a>` : ''}${v.release ? `<a href="${v.release}" target="_blank" rel="noopener">Release / notas</a>` : ''}</div>
-        ${v.downloads ? `<div class="downloads">
-          <a href="${v.downloads.windowsInstaller}" download>Windows · instalador <small>con desinstalador</small></a>
-          <a href="${v.downloads.windowsPortable}" download>Windows · portable <small>sin instalar</small></a>
-          <a href="${v.downloads.linuxAppImage}" download>Ubuntu · AppImage <small>portable</small></a>
-          <a href="${v.downloads.linuxDeb}" download>Ubuntu · .deb <small>paquete</small></a>
-          <a href="${v.downloads.macDmg}" download>macOS ARM64 · .dmg <small>Apple Silicon</small></a>
-        </div>` : ''}
-      </div>`).join('');
-  } catch (e) {
-    list.hidden = true;
-    document.getElementById('fallback').hidden = false;
-  }
-})();
-</script>
+<script src="./versiones.js" defer></script>
 </body>
 </html>

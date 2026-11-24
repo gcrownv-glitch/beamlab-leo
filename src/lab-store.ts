@@ -5,10 +5,11 @@
  * JSON. La web y Tauri tienen almacenamientos separados, así que el JSON es
  * también la forma de mover una práctica entre ambos.
  */
-import { createSession, LAB_SCHEMA, samplesToCsv, type LabSession } from './core/lab';
+import { createSession, samplesToCsv, validateLabSession, type LabSession } from './core/lab';
 import { saveText, type SaveResult } from './save';
 
 const STORAGE_KEY = 'beamlab:lab:session:v1';
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
 export class LabStore {
   session: LabSession;
@@ -21,9 +22,7 @@ export class LabStore {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
-      const data = JSON.parse(raw) as LabSession;
-      if (!data || data.schema !== LAB_SCHEMA || !Array.isArray(data.samples)) return null;
-      return data;
+      return validateLabSession(JSON.parse(raw));
     } catch {
       return null;
     }
@@ -78,12 +77,12 @@ export class LabStore {
   }
 
   async importJson(file: File): Promise<LabSession> {
-    const text = await file.text();
-    const data = JSON.parse(text) as LabSession;
-    if (!data || data.schema !== LAB_SCHEMA || !Array.isArray(data.samples)) {
-      throw new Error('El archivo no es una sesión BeamLab válida.');
+    if (file.size > MAX_IMPORT_BYTES) {
+      throw new Error('El archivo excede el tamaño máximo permitido (5 MB).');
     }
-    this.session = data;
+    const text = await file.text();
+    const session = validateLabSession(JSON.parse(text));
+    this.session = session;
     this.save();
     return this.session;
   }

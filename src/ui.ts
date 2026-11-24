@@ -768,27 +768,39 @@ export class UI {
     this.el('lab-count').textContent = `${s.samples.length} muestra${s.samples.length === 1 ? '' : 's'}`;
     const box = this.el('lab-samples');
     if (!s.samples.length) {
-      box.innerHTML = '<div class="lab-empty">Aún no hay muestras. Configura la simulación y pulsa “Tomar muestra”.</div>';
+      const empty = document.createElement('div');
+      empty.className = 'lab-empty';
+      empty.textContent = 'Aún no hay muestras. Configura la simulación y pulsa “Tomar muestra”.';
+      box.replaceChildren(empty);
       return;
     }
-    box.innerHTML = s.samples.slice().reverse().map((m) => {
+    const rows = s.samples.slice().reverse().map((m) => {
       const dl = m.links.downlink;
       const time = m.timestamp.slice(11, 19);
-      return `<div class="lab-row" data-id="${m.id}">
-        <b>${time} UTC · ${m.mode} · ${m.array.n}×${m.array.n}</b>
-        <span>${m.id} · ${m.quant.phaseBits}/${m.quant.ampBits} bits · C/N ${dl ? dl.cnDb.toFixed(1) : '—'} dB · SLL ${m.metrics.sllDb.toFixed(1)} dB</span>
-        <button class="lab-del" data-del="${m.id}" title="Eliminar muestra">✕</button>
-      </div>`;
-    }).join('');
-    for (const btn of box.querySelectorAll<HTMLButtonElement>('[data-del]')) {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.del;
-        if (!id) return;
-        this.lab.removeSample(id);
-        if (this.labSample?.id === id) this.labSample = null;
+      const row = document.createElement('div');
+      row.className = 'lab-row';
+      row.dataset.id = m.id;
+
+      const title = document.createElement('b');
+      title.textContent = `${time} UTC · ${m.mode} · ${m.array.n}×${m.array.n}`;
+
+      const info = document.createElement('span');
+      info.textContent = `${m.id} · ${m.quant.phaseBits}/${m.quant.ampBits} bits · C/N ${dl ? dl.cnDb.toFixed(1) : '—'} dB · SLL ${m.metrics.sllDb.toFixed(1)} dB`;
+
+      const del = document.createElement('button');
+      del.className = 'lab-del';
+      del.title = 'Eliminar muestra';
+      del.textContent = '✕';
+      del.addEventListener('click', () => {
+        this.lab.removeSample(m.id);
+        if (this.labSample?.id === m.id) this.labSample = null;
         this.renderLab();
       });
-    }
+
+      row.append(title, info, del);
+      return row;
+    });
+    box.replaceChildren(...rows);
   }
 
   private saveLabFields() {
@@ -936,7 +948,7 @@ export class UI {
   }
 
   private renderReuse(container: HTMLElement, count: number) {
-    container.innerHTML = '';
+    container.replaceChildren();
     for (let i = 0; i < count; i++) {
       const span = document.createElement('span');
       const dot = document.createElement('i');
@@ -1002,7 +1014,7 @@ export class UI {
     this.el('tour-title').textContent = step.title;
     this.el('tour-text').textContent = step.text;
     const dots = this.el('tour-dots');
-    dots.innerHTML = '';
+    dots.replaceChildren();
     for (let i = 0; i < this.tourSteps.length; i++) {
       const d = document.createElement('i');
       if (i === this.tourIndex) d.className = 'on';

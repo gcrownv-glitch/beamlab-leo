@@ -8,10 +8,11 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 |---|---|
 | **Repositorio** | `beamlab-leo` |
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
-| **Versión declarada en manifiestos** | `2.3.4` *(bump de versión diferido hasta completar todos los tramos)* |
-| **Rama activa** | `fix/tramo-2-rf-physics` (construida sobre `fix/tramo-1-beamforming-3d`) |
-| **Última actualización** | `2026-11-24T17:58:49-05:00` (`2026-11-24T22:58:49Z`) |
-| **Estado de verificación** | `tsc --noEmit` + `vite build` en verde · `vitest run`: **11 archivos / 48 pruebas aprobadas** |
+| **Versión declarada en manifiestos** | `2.3.4` *(estable local en `checkpoint-tramo-2`; futuras publicaciones saldrán como `beta`, p. ej. `2.4.0-beta.1`)* |
+| **Puntos de recuperación estables** | `main` (`25ce657`, v2.3.4 original) · rama `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2 verificados) |
+| **Rama activa** | `sec/tramo-3-tauri-xss` (construida sobre `fix/tramo-2-rf-physics`) |
+| **Última actualización** | `2026-11-24T18:09:11-05:00` (`2026-11-24T23:09:11Z`) |
+| **Estado de verificación** | `tsc --noEmit` + `vite build` en verde · `vitest run`: **12 archivos / 53 pruebas aprobadas** |
 
 ---
 
@@ -25,6 +26,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Tramo 2** | `94b9d13` | `2026-11-24T17:54:00-05:00` (`22:54:00Z`) | `fix/tramo-2-rf-physics` | Rigor físico RF/enlace: directividad con *scan loss*, VGA en dB, receptor satelital 290 K, pérdidas atmosféricas, capacidad celular y órbita excéntrica |
 | **Tramo 2** | `803adc3` | `2026-11-24T17:54:37-05:00` (`22:54:37Z`) | `fix/tramo-2-rf-physics` | Crear registro técnico de cambios con marcas de tiempo |
 | **Tramo 2** | `28599b1` | `2026-11-24T17:58:49-05:00` (`22:58:49Z`) | `fix/tramo-2-rf-physics` | Agregar conmutador de modelo C/I co-canal celular y SINR `C/(N+I)` manteniendo Cap. clúster y Cap. agregada separadas |
+| **Tramo 2** | `62d3b68` | `2026-11-24T17:59:27-05:00` (`22:59:27Z`) | `fix/tramo-2-rf-physics` | Documentar conmutador C/I y preferencias de trabajo local/versionado *(punto estable `checkpoint-tramo-2`)* |
+| **Tramo 3** | `791afdf` | `2026-11-24T18:09:11-05:00` (`23:09:11Z`) | `sec/tramo-3-tauri-xss` | Hardening de seguridad: `save_export` en Rust, permisos Tauri mínimos, CSP web/desktop, DOM sin `innerHTML`, validador `LabStore`, CSV injection y `Actualizar.ps1` *fail-closed* |
 
 ---
 
@@ -122,12 +125,40 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 
 ---
 
+### Tramo 3 — Hardening de seguridad (Tauri + Web + Portable + CSV)
+
+- **Commit:** `791afdf` (`2026-11-24T18:09:11-05:00`)
+
+#### 1. Escritura arbitraria y apertura de rutas en Tauri
+- **Causa raíz:** `save_binary(path, data)` aceptaba cualquier ruta desde JavaScript; combinado con el permiso `opener:allow-open-path`, un XSS en frontend podía escribir y ejecutar archivos en disco.
+- **Corrección (`src-tauri/src/lib.rs`, `src-tauri/capabilities/default.json`, `src/save.ts`):**
+  - Se reemplazó `save_binary` por `save_export(app, filename, data, open_after)` en Rust: abre el diálogo nativo desde Rust (`blocking_save_file`), restringe extensiones a lista blanca (`png`, `pdf`, `csv`, `json`), sanea el nombre (`sanitize_filename`), limita tamaño a 50 MB y solo abre (`open_path`) el mismo archivo `.png`/`.pdf` recién guardado.
+  - Se eliminaron `"dialog:default"` y `"opener:allow-open-path"` de `capabilities/default.json`.
+
+#### 2. CSP de producción/desarrollo y cabeceras HTTP
+- **Corrección (`src-tauri/tauri.conf.json`, `netlify.toml`, `vercel.json`):**
+  - En Tauri se separó `csp` de producción (sin `127.0.0.1:5173`, añadiendo `object-src 'none'; base-uri 'self'; frame-ancestors 'none'`) de `devCsp` (solo desarrollo).
+  - En `netlify.toml` y `vercel.json` se añadieron `Content-Security-Policy`, `X-Frame-Options: DENY` y `Permissions-Policy`.
+
+#### 3. Eliminación de `innerHTML`, validación estricta de sesiones y CSV injection
+- **Corrección (`src/ui.ts`, `public/versiones.html`, `public/versiones.js`, `src/core/lab.ts`, `src/lab-store.ts`):**
+  - Se eliminó todo `innerHTML` en `src/` (`renderLab`, `renderReuse`, `showTour`) y `public/versiones.html` (moviendo su script a `public/versiones.js` con nodos DOM seguros, `safeUrl()` y soporte de ordenamiento semver con `beta`).
+  - Se implementó `validateLabSession` en `src/core/lab.ts`, aplicado en `LabStore.load()` e `importJson()` (límite 5 MB, rechazo de claves extrañas y tipos inválidos).
+  - `csvCell` en `src/core/lab.ts` antepone `'` a cadenas que inicien con `=`, `+`, `-` o `@` (con espacios/tabs previos opcionales) manteniendo intactos los valores numéricos negativos.
+
+#### 4. Actualizador portable *fail-closed*
+- **Corrección (`portable/Actualizar.ps1`):** Se exige regex semver/beta, URL HTTPS limitada a `gcrownv-glitch.github.io/beamlab-leo/` o `github.com/gcrownv-glitch/beamlab-leo/releases/download/`, destino contenido dentro de `$root` y **SHA-256 obligatorio de 64 hex** (*fail-closed*).
+- **Pruebas (`tests/security.test.ts`):** 5 nuevas pruebas verificando CSV injection, `validateLabSession`, ausencia total de `innerHTML`, endurecimiento de Rust/Tauri/CSP y reglas de `Actualizar.ps1` (**12 archivos / 53 pruebas aprobadas**).
+
+---
+
 ## Invariantes que cualquier cambio futuro debe respetar
 
 1. **Oclusión terrestre en dos capas coherentes:** La visibilidad de superficie se evalúa con $\mathbf{N} \cdot (\mathbf{S} - \mathbf{P}) > 0$ tanto en `src/core/orbit.ts` (`elevationAngle`, `raySphere`) como en el *fragment shader* de `src/scene.ts`. Nunca usar máscaras CPU para tapar errores de proyección del shader.
 2. **Snapshots inmutables en `GainMap`:** Todo `GainMap` fijo a Tierra debe portar `snapshot` con el `(satEcef, frame)` usado al generarlo para que la escena pueda interpolar a 60–120 FPS sin deslizamiento de huellas.
 3. **Ausencia de haz = `EMPTY_GAIN`:** Con `beams.length === 0` (salvo `global`) o `shaped` sin sintetizar, `gainMap` debe ser `EMPTY_GAIN` (`max = 0`).
 4. **Invariantes RF:** `quantize*` aplica cuantización discreta antes de residuales continuos; `gridDirectivity` incluye $\cos^{2q}\theta$ en numerador y denominador sobre el disco visible; `marginDb < 0` equivale exactamente a `outage === true`.
+5. **Invariantes de seguridad:** Cero `innerHTML` en `src/` y `public/versiones.*`; Tauri usa `save_export` con diálogo en Rust y sin `opener:allow-open-path`; `LabStore` pasa siempre por `validateLabSession`; `Actualizar.ps1` aborta sin SHA-256 válido.
 
 ---
 
@@ -135,12 +166,12 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 
 | Tramo | Alcance resumido | Estado |
 |---|---|---|
-| **Tramo 3** | Seguridad: diálogo nativo en Rust (`save_binary`), CSP producción vs `devCsp`, eliminar `innerHTML` en `ui.ts` y `versiones.html`, SHA-256 *fail-closed* en `Actualizar.ps1`, neutralizar CSV injection | Pendiente |
+| **Tramo 3** | Seguridad: diálogo nativo en Rust (`save_export`), CSP producción vs `devCsp`, eliminar `innerHTML` en `ui.ts` y `versiones.html`, SHA-256 *fail-closed* en `Actualizar.ps1`, neutralizar CSV injection | Completado (`791afdf`) |
 | **Tramo 4** | Rendimiento: quitar `preserveDrawingBuffer`, saltar `computeGainMap` si `!showGain`, precomputar `cx/sx` en `patternFromWeights`, Web Worker para `synthesizeCoverage`, `SceneView.dispose()` completo | Pendiente |
 | **Tramo 5** | UX, Laboratorio y Móvil: arreglar LaTeX crudo en `index.html`, diferenciar cámaras `Satélite`/`Seguir`, cerrar todos los modales con `Escape`, `configHash` completo, *drawers* móviles (`≤ 760 px`) | Pendiente |
 | **Tramo 6** | DevOps/CI y Releases: corregir `build-launcher.ps1` y `BeamLabLEO.cs`, decidir política de `docs/portable/`, script único `bump-version.mjs`, pruebas en `desktop.yml` y `deploy.yml` | Pendiente |
 
 ### Decisiones y preferencias del usuario
 - **Capacidad celular (Tramo 2):** Mostrar **Cap. clúster** y **Cap. agregada** por separado + conmutador para activar/desactivar el modelo de **C/I co-canal** (ya implementado en `28599b1`).
-- **Trabajo local y versionado:** Mantener todo en local durante los tramos; la actualización de versión y publicación en GitHub se ejecutará al finalizar según indique el usuario.
+- **Estrategia de ramas y versiones:** Conservar `2.3.4` estable como punto de recuperación (`stable/v2.3.4-tramo2` / tag `checkpoint-tramo-2` en `62d3b68`) y publicar las siguientes iteraciones en GitHub como versiones **beta** (p. ej. `2.4.0-beta.1`) cuando se autorice al final.
 - **Política de `docs/portable/` (para Tramo 6):** Pendiente confirmar entre *migrar binarios a GitHub Releases* vs *conservar solo la última versión* al llegar al Tramo 6.

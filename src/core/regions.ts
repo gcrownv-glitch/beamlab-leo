@@ -120,6 +120,17 @@ export function polygonBBox(poly: [number, number][]): {
   return { latMin, latMax, lonMin, lonMax };
 }
 
+/** Índice de color sin colisiones entre celdas vecinas para reutilización 3, 4 o 7 en malla hexagonal odd-r. */
+export function cellColor(row: number, col: number, reuse: number): number {
+  const q = col - Math.floor(row / 2);
+  const r = row;
+  const mod = (n: number, m: number) => ((n % m) + m) % m;
+  if (reuse === 3) return mod(q - r, 3);
+  if (reuse === 4) return (q & 1) + 2 * (r & 1);
+  if (reuse === 7) return mod(q + 3 * r, 7);
+  return mod(q + 3 * r, Math.max(1, reuse));
+}
+
 /** Celdas hexagonales aproximadas (en lat/lon) dentro de un polígono. */
 export function buildGroundCells(
   poly: [number, number][],
@@ -131,16 +142,17 @@ export function buildGroundCells(
   for (let attempt = 0; attempt < 6; attempt++) {
     cells = [];
     const bb = polygonBBox(poly);
-    const dLat = (spacing / R_EARTH) / DEG;
+    const dLonBase = (spacing / R_EARTH) / DEG;
+    const dLat = dLonBase * (Math.sqrt(3) / 2);
     const midLat = ((bb.latMin + bb.latMax) / 2) * DEG;
-    const dLon = dLat / Math.max(0.15, Math.cos(midLat));
+    const dLon = dLonBase / Math.max(0.15, Math.cos(midLat));
     let row = 0;
     for (let lat = bb.latMin; lat <= bb.latMax + dLat * 0.5; lat += dLat) {
-      const offset = (row % 2) * dLon * 0.5;
+      const offset = (row & 1) * dLon * 0.5;
       let col = 0;
-      for (let lon = bb.lonMin - offset; lon <= bb.lonMax + dLon; lon += dLon) {
+      for (let lon = bb.lonMin - dLon + offset; lon <= bb.lonMax + dLon; lon += dLon) {
         if (pointInPolygon(lat, lon, poly)) {
-          cells.push({ lat, lon, row, col, color: ((col - row) % 3 + 3) % 3 });
+          cells.push({ lat, lon, row, col, color: cellColor(row, col, 3) });
         }
         col++;
       }

@@ -1,4 +1,6 @@
 import { C_LIGHT, TWO_PI } from './constants';
+import type { Vec3 } from './vec';
+import type { AntennaFrame } from './geometry';
 
 export type TaperType = 'uniform' | 'kaiser25' | 'kaiser30' | 'kaiser40' | 'hann';
 
@@ -187,6 +189,12 @@ export function compositePower(grid: PatternGrid, beams: Beam[], u: number, v: n
   return p * Math.pow(w2, q);
 }
 
+export interface GainMapSnapshot {
+  satEcef: Vec3;
+  frame: AntennaFrame;
+  groundFixed: boolean;
+}
+
 export interface GainMap {
   size: number;
   /** Potencia normalizada 0..1 */
@@ -194,6 +202,8 @@ export interface GainMap {
   max: number;
   /** Color + ganancia listos para la textura del globo (RGBA). */
   rgba: Uint8Array;
+  /** Snapshot ECEF de la antena con que se proyectó este mapa. */
+  snapshot?: GainMapSnapshot;
 }
 
 const BEAM_RGB: [number, number, number][] = [

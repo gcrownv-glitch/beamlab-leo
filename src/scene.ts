@@ -8,7 +8,8 @@ import { DEG, EARTH_UNITS, R_EARTH } from './core/constants';
 import { saveBlob, type SaveResult } from './save';
 import type { Derived, Quality, SimState } from './state';
 import { footprintRing, type AntennaFrame } from './core/geometry';
-import { groundTrack, maxCentralAngle, orbitPathEci } from './core/orbit';
+import { ecefToGeodetic, groundTrack, horizonOffNadir, maxCentralAngle, orbitPathEci } from './core/orbit';
+import { regionPolygon } from './core/regions';
 import type { Vec3 } from './core/vec';
 import type { Beam } from './core/array';
 import { BEAM_NUM } from './palette';
@@ -107,6 +108,7 @@ export class SceneView {
   private lastOrbit: unknown = null;
   private lastGain: unknown = null;
   private lastPhase: unknown = null;
+  private lastRegionKey = '';
   private prevSat = new THREE.Vector3();
   private lastCamMode = '';
 
@@ -209,7 +211,7 @@ export class SceneView {
     const geo = new THREE.SphereGeometry(EARTH_UNITS, 160, 80);
     geo.rotateX(Math.PI / 2);
 
-    this.gainTexture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+    this.gainTexture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1);
     this.gainTexture.needsUpdate = true;
 
     this.earthMat = new THREE.ShaderMaterial({
@@ -222,6 +224,11 @@ export class SceneView {
         uAntX: { value: new THREE.Vector3(1, 0, 0) },
         uAntY: { value: new THREE.Vector3(0, 1, 0) },
         uAntZ: { value: new THREE.Vector3(0, 0, 1) },
+        uGainSat: { value: new THREE.Vector3() },
+        uGainAntX: { value: new THREE.Vector3(1, 0, 0) },
+        uGainAntY: { value: new THREE.Vector3(0, 1, 0) },
+        uGainAntZ: { value: new THREE.Vector3(0, 0, 1) },
+        uUseGainSnap: { value: 0 },
         uShowGain: { value: 1 },
         uGainOpacity: { value: 0.9 },
       },
@@ -229,8 +236,10 @@ export class SceneView {
         varying vec2 vUv;
         varying vec3 vWorld;
         varying vec3 vNormal;
+        varying vec3 vLocal;
         void main() {
           vUv = uv;
+          vLocal = position;
           vec4 wp = modelMatrix * vec4(position, 1.0);
           vWorld = wp.xyz;
           vNormal = normalize(mat3(modelMatrix) * normal);
@@ -246,11 +255,17 @@ export class SceneView {
         uniform vec3 uAntX;
         uniform vec3 uAntY;
         uniform vec3 uAntZ;
+        uniform vec3 uGainSat;
+        uniform vec3 uGainAntX;
+        uniform vec3 uGainAntY;
+        uniform vec3 uGainAntZ;
+        uniform float uUseGainSnap;
         uniform float uShowGain;
         uniform float uGainOpacity;
         varying vec2 vUv;
         varying vec3 vWorld;
         varying vec3 vNormal;
+        varying vec3 vLocal;
 
         void main() {
           vec3 N = normalize(vNormal);
@@ -270,21 +285,43 @@ export class SceneView {
           col += vec3(0.08, 0.28, 0.6) * rim * 0.65;
 
           if (uShowGain > 0.5) {
-            vec3 d = normalize(vWorld - uSat);
-            float u = dot(d, uAntX);
-            float v = dot(d, uAntY);
-            float w = dot(d, uAntZ);
-            if (w > 0.0) {
-              vec2 guv = vec2(u, v) * 0.5 + 0.5;
-              vec4 g = texture2D(uGain, guv);
-              float db = g.a * 40.0 - 40.0;
-              float t = smoothstep(-7.0, -1.5, db);
-              float core = smoothstep(-3.0, -0.3, db);
-              vec3 beamCol = g.rgb;
-              float contour = smoothstep(0.43, 0.5, abs(fract(db / 6.0) - 0.5));
-              col += beamCol * t * 0.72 * uGainOpacity;
-              col += vec3(1.0, 0.98, 0.94) * core * 0.06 * uGainOpacity;
-              col += vec3(0.7, 0.95, 1.0) * contour * t * 0.08 * uGainOpacity;
+            vec3 dLive = normalize(vWorld - uSat);
+            float sinElev = dot(N, -dLive);
+            if (sinElev > 0.0) {
+              float horizonFade = smoothstep(0.0, 0.025, sinElev);
+              vec3 d = dLive;
+              vec3 ax = uAntX;
+              vec3 ay = uAntY;
+              vec3 az = uAntZ;
+              if (uUseGainSnap > 0.5) {
+                vec3 Nlocal = normalize(vLocal);
+                vec3 dSnap = normalize(vLocal - uGainSat);
+                float sinElevSnap = dot(Nlocal, -dSnap);
+                if (sinElevSnap > 0.0) {
+                  horizonFade *= smoothstep(0.0, 0.025, sinElevSnap);
+                  d = dSnap;
+                  ax = uGainAntX;
+                  ay = uGainAntY;
+                  az = uGainAntZ;
+                } else {
+                  horizonFade = 0.0;
+                }
+              }
+              float u = dot(d, ax);
+              float v = dot(d, ay);
+              float w = dot(d, az);
+              if (w > 0.0 && horizonFade > 0.0) {
+                vec2 guv = vec2(u, v) * 0.5 + 0.5;
+                vec4 g = texture2D(uGain, guv);
+                float db = g.a * 40.0 - 40.0;
+                float t = smoothstep(-7.0, -1.5, db) * horizonFade;
+                float core = smoothstep(-3.0, -0.3, db) * horizonFade;
+                vec3 beamCol = g.rgb;
+                float contour = smoothstep(0.43, 0.5, abs(fract(db / 6.0) - 0.5));
+                col += beamCol * t * 0.72 * uGainOpacity;
+                col += vec3(1.0, 0.98, 0.94) * core * 0.06 * uGainOpacity;
+                col += vec3(0.7, 0.95, 1.0) * contour * t * 0.08 * uGainOpacity;
+              }
             }
           }
 
@@ -564,6 +601,7 @@ export class SceneView {
     this.satGroup.quaternion.setFromRotationMatrix(basis);
 
     this.earthGroup.rotation.z = d.sat.gmst;
+    this.earthGroup.updateMatrixWorld();
     this.clouds.rotation.z += dt * 0.0018;
 
     const sun = sunDirection(state.simTime);
@@ -579,8 +617,19 @@ export class SceneView {
     u.uAntX.value.copy(antX);
     u.uAntY.value.copy(antY);
     u.uAntZ.value.copy(antZ);
-    u.uShowGain.value = state.showGain ? 1 : 0;
+    u.uShowGain.value = state.showGain && d.gainMap.max > 0 ? 1 : 0;
     u.uGainOpacity.value = state.mode === 'global' ? 0.22 : 0.9;
+
+    const snap = d.gainMap.snapshot;
+    if (snap && snap.groundFixed) {
+      u.uUseGainSnap.value = 1;
+      u.uGainSat.value.set(snap.satEcef.x * KM, snap.satEcef.y * KM, snap.satEcef.z * KM);
+      u.uGainAntX.value.set(snap.frame.x.x, snap.frame.x.y, snap.frame.x.z);
+      u.uGainAntY.value.set(snap.frame.y.x, snap.frame.y.y, snap.frame.y.z);
+      u.uGainAntZ.value.set(snap.frame.z.x, snap.frame.z.y, snap.frame.z.z);
+    } else {
+      u.uUseGainSnap.value = 0;
+    }
 
     if (this.lastOrbit !== state.orbit || this.trackPast.geometry.drawRange.count === 0) {
       this.lastOrbit = state.orbit;
@@ -598,7 +647,7 @@ export class SceneView {
 
     this.updateCoverageRing(d, state);
     this.updateBeams(d, state);
-    this.updateRegion(state);
+    this.updateRegion(state, d);
     this.updateCamera(dt, satPos, state);
     this.updateLabels(d, satPos);
 
@@ -607,8 +656,6 @@ export class SceneView {
     this.trackFuture.visible = state.showTrack;
     this.horizonRing.visible = state.showFootprint;
     this.graticule.visible = state.showGrid;
-    this.beamCone.visible = state.showCones && !!d.activeBeam;
-    this.regionLine.visible = state.mode === 'shaped';
     this.beamLines.visible = true;
     this.controls.update();
     this.composer.render();
@@ -714,6 +761,18 @@ export class SceneView {
   }
 
   private updateBeams(d: Derived, state: SimState) {
+    if (state.mode === 'shaped') {
+      this.beamLines.geometry.setDrawRange(0, 0);
+      this.activeRing.visible = false;
+      this.activeDisc.visible = false;
+      if (state.showCones && d.source === 'synthesis') {
+        this.updateShapedCone(d, state);
+      } else {
+        this.beamCone.visible = false;
+      }
+      return;
+    }
+
     const beams = d.beams;
     const satEcef: Vec3 = d.sat.rEcef;
     const frame: AntennaFrame = d.frame;
@@ -723,10 +782,14 @@ export class SceneView {
     (this.beamLines.material as THREE.LineBasicMaterial).opacity = state.mode === 'cellular' ? 0.38 : 0.9;
     const stride = beams.length > 160 ? 2 : 1;
     const ringCount = state.mode === 'cellular' ? 0 : beams.length;
+    const halfAngle = Math.min(
+      (d.activeMetrics.hpbwDeg * DEG) / 2,
+      horizonOffNadir(Math.max(10, d.sat.alt)) * 0.998,
+    );
 
     for (let bi = 0; bi < ringCount; bi += stride) {
       const b = beams[bi];
-      const ring = footprintRing(satEcef, frame, b, (d.activeMetrics.hpbwDeg * DEG) / 2, nSamples);
+      const ring = footprintRing(satEcef, frame, b, halfAngle, nSamples);
       if (ring.length < 3) continue;
       col.setHex(BEAM_COLORS[b.color % BEAM_COLORS.length]);
       for (let i = 0; i < ring.length; i++) {
@@ -756,7 +819,7 @@ export class SceneView {
 
     const active = d.activeBeam;
     if (active && beams.length > 0) {
-      const ring = footprintRing(satEcef, frame, active, (d.activeMetrics.hpbwDeg * DEG) / 2, 96);
+      const ring = footprintRing(satEcef, frame, active, halfAngle, 96);
       const ar = this.activeRing.geometry.getAttribute('position') as THREE.BufferAttribute;
       if (ring.length >= 3) {
         for (let i = 0; i < ar.count; i++) {
@@ -765,23 +828,34 @@ export class SceneView {
         }
         ar.needsUpdate = true;
         this.activeRing.geometry.computeBoundingSphere();
+        this.activeRing.visible = true;
+      } else {
+        this.activeRing.visible = false;
       }
-      this.activeRing.visible = true;
 
       const pt = activeGroundPoint(d);
       if (pt) {
-        const up = new THREE.Vector3(pt.x, pt.y, pt.z).normalize();
-        const footKm = (d.link?.slantKm ?? d.sat.alt) * Math.tan((d.activeMetrics.hpbwDeg * DEG) / 2);
-        const rad = Math.max(0.004, footKm * KM * 1.05);
-        this.activeDisc.position.copy(new THREE.Vector3(pt.x * KM, pt.y * KM, pt.z * KM)).addScaledVector(up, 0.002);
-        this.activeDisc.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), up);
-        this.activeDisc.scale.setScalar(rad);
-        (this.activeDisc.material as THREE.MeshBasicMaterial).color.setHex(BEAM_COLORS[active.color % BEAM_COLORS.length]);
-        this.activeDisc.visible = true;
+        if (state.mode === 'global' || d.activeMetrics.hpbwDeg / 2 > 10) {
+          this.activeDisc.visible = false;
+        } else {
+          const up = new THREE.Vector3(pt.x, pt.y, pt.z).normalize();
+          const footKm = (d.link?.slantKm ?? d.sat.alt) * Math.tan((d.activeMetrics.hpbwDeg * DEG) / 2);
+          const rad = Math.max(0.004, footKm * KM * 1.05);
+          this.activeDisc.position.copy(new THREE.Vector3(pt.x * KM, pt.y * KM, pt.z * KM)).addScaledVector(up, 0.002);
+          this.activeDisc.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), up);
+          this.activeDisc.scale.setScalar(rad);
+          (this.activeDisc.material as THREE.MeshBasicMaterial).color.setHex(BEAM_COLORS[active.color % BEAM_COLORS.length]);
+          this.activeDisc.visible = true;
+        }
 
         if (state.showCones) {
-          this.updateBeamCone(d, active);
+          this.updateBeamCone(d, active, halfAngle);
+        } else {
+          this.beamCone.visible = false;
         }
+      } else {
+        this.activeDisc.visible = false;
+        this.beamCone.visible = false;
       }
     } else {
       this.activeRing.visible = false;
@@ -795,8 +869,8 @@ export class SceneView {
    * sobre la Tierra, no con un disco plano en el espacio. Así el volumen
    * termina en la superficie y no sugiere señal detrás del planeta.
    */
-  private updateBeamCone(d: Derived, active: Beam): void {
-    const ring = footprintRing(d.sat.rEcef, d.frame, active, (d.activeMetrics.hpbwDeg * DEG) / 2, 48);
+  private updateBeamCone(d: Derived, active: Beam, halfAngle: number): void {
+    const ring = footprintRing(d.sat.rEcef, d.frame, active, halfAngle, 48);
     const pos = (this.beamCone.geometry.getAttribute('position') as THREE.BufferAttribute);
     if (ring.length < 3) {
       this.beamCone.visible = false;
@@ -815,27 +889,100 @@ export class SceneView {
     this.beamCone.visible = true;
   }
 
-  private updateRegion(state: SimState) {
-    if (state.mode !== 'shaped') {
-      this.regionLine.visible = false;
-      return;
-    }
+  private updateShapedCone(d: Derived, state: SimState): void {
+    const pos = this.beamCone.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const sat = new THREE.Vector3(d.sat.r.x, d.sat.r.y, d.sat.r.z).multiplyScalar(KM);
+    pos.setXYZ(0, sat.x, sat.y, sat.z);
     const lat = state.shapedCenter.lat * DEG;
     const lon = state.shapedCenter.lon * DEG;
     const gamma = state.shapedRadiusKm / R_EARTH;
-    const pos = this.regionLine.geometry.getAttribute('position') as THREE.BufferAttribute;
-    const N = pos.count;
-    for (let i = 0; i < N; i++) {
-      const brg = (2 * Math.PI * i) / N;
-      const la2 = Math.asin(Math.sin(lat) * Math.cos(gamma) + Math.cos(lat) * Math.sin(gamma) * Math.cos(brg));
+    for (let i = 0; i < 48; i++) {
+      const brg = (2 * Math.PI * i) / 48;
+      const la2 = Math.asin(Math.max(-1, Math.min(1, Math.sin(lat) * Math.cos(gamma) + Math.cos(lat) * Math.sin(gamma) * Math.cos(brg))));
       const lo2 = lon + Math.atan2(Math.sin(brg) * Math.sin(gamma) * Math.cos(lat), Math.cos(gamma) - Math.sin(lat) * Math.sin(la2));
-      pos.setXYZ(i, Math.cos(la2) * Math.cos(lo2) * R_EARTH * 1.004 * KM,
-        Math.cos(la2) * Math.sin(lo2) * R_EARTH * 1.004 * KM,
-        Math.sin(la2) * R_EARTH * 1.004 * KM);
+      const v = new THREE.Vector3(
+        Math.cos(la2) * Math.cos(lo2) * R_EARTH * KM,
+        Math.cos(la2) * Math.sin(lo2) * R_EARTH * KM,
+        Math.sin(la2) * R_EARTH * KM,
+      ).applyAxisAngle(Z_AXIS, d.sat.gmst);
+      pos.setXYZ(i + 1, v.x, v.y, v.z);
     }
     pos.needsUpdate = true;
-    this.regionLine.geometry.computeBoundingSphere();
-    this.regionLine.visible = true;
+    this.beamCone.geometry.computeBoundingSphere();
+    (this.beamCone.material as THREE.MeshBasicMaterial).color.setHex(0x34d399);
+    this.beamCone.visible = true;
+  }
+
+  private updateRegion(state: SimState, d: Derived) {
+    const pos = this.regionLine.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const N = pos.count;
+    const mat = this.regionLine.material as THREE.LineBasicMaterial;
+
+    if (state.mode === 'shaped') {
+      const synthesized = d.source === 'synthesis';
+      mat.color.setHex(synthesized ? 0x34d399 : 0xfbbf24);
+      mat.opacity = synthesized ? 0.95 : 0.65;
+      const key = `shaped|${state.shapedCenter.lat.toFixed(4)}|${state.shapedCenter.lon.toFixed(4)}|${state.shapedRadiusKm}`;
+      if (key !== this.lastRegionKey) {
+        const lat = state.shapedCenter.lat * DEG;
+        const lon = state.shapedCenter.lon * DEG;
+        const gamma = state.shapedRadiusKm / R_EARTH;
+        for (let i = 0; i < N; i++) {
+          const brg = (2 * Math.PI * i) / N;
+          const la2 = Math.asin(Math.max(-1, Math.min(1, Math.sin(lat) * Math.cos(gamma) + Math.cos(lat) * Math.sin(gamma) * Math.cos(brg))));
+          const lo2 = lon + Math.atan2(Math.sin(brg) * Math.sin(gamma) * Math.cos(lat), Math.cos(gamma) - Math.sin(lat) * Math.sin(la2));
+          pos.setXYZ(i, Math.cos(la2) * Math.cos(lo2) * R_EARTH * 1.004 * KM,
+            Math.cos(la2) * Math.sin(lo2) * R_EARTH * 1.004 * KM,
+            Math.sin(la2) * R_EARTH * 1.004 * KM);
+        }
+        pos.needsUpdate = true;
+        this.regionLine.geometry.setDrawRange(0, N);
+        this.regionLine.geometry.computeBoundingSphere();
+        this.lastRegionKey = key;
+      }
+      this.regionLine.visible = true;
+      return;
+    }
+
+    if (state.mode === 'cellular') {
+      const poly = regionPolygon(state.region);
+      if (!poly || poly.length < 3) {
+        this.regionLine.visible = false;
+        return;
+      }
+      mat.color.setHex(0xfbbf24);
+      mat.opacity = 0.85;
+      const key = `cell|${state.region}`;
+      if (key !== this.lastRegionKey) {
+        const closed = poly[0][0] === poly[poly.length - 1][0] && poly[0][1] === poly[poly.length - 1][1];
+        const edges = closed ? poly.length - 1 : poly.length;
+        const perEdge = Math.max(1, Math.floor(N / Math.max(1, edges)));
+        const pts: [number, number][] = [];
+        for (let e = 0; e < edges; e++) {
+          const [la1, lo1] = poly[e];
+          const [la2, lo2] = poly[(e + 1) % poly.length];
+          for (let k = 0; k < perEdge && pts.length < N; k++) {
+            const t = k / perEdge;
+            pts.push([la1 + (la2 - la1) * t, lo1 + (lo2 - lo1) * t]);
+          }
+        }
+        for (let i = 0; i < pts.length; i++) {
+          const la = pts[i][0] * DEG;
+          const lo = pts[i][1] * DEG;
+          pos.setXYZ(i, Math.cos(la) * Math.cos(lo) * R_EARTH * 1.004 * KM,
+            Math.cos(la) * Math.sin(lo) * R_EARTH * 1.004 * KM,
+            Math.sin(la) * R_EARTH * 1.004 * KM);
+        }
+        pos.needsUpdate = true;
+        this.regionLine.geometry.setDrawRange(0, pts.length);
+        this.regionLine.geometry.computeBoundingSphere();
+        this.lastRegionKey = key;
+      }
+      this.regionLine.visible = true;
+      return;
+    }
+
+    this.regionLine.visible = false;
   }
 
   private updateCamera(dt: number, satPos: THREE.Vector3, state: SimState) {
@@ -870,11 +1017,16 @@ export class SceneView {
     if (pt) {
       const local = new THREE.Vector3(pt.x * KM, pt.y * KM, pt.z * KM);
       const world = this.earthGroup.localToWorld(local.clone());
-      const up = local.clone().normalize();
+      const up = world.clone().normalize();
       const visible = up.dot(cam.clone().sub(world).normalize()) > 0.02;
-      const p = world.project(this.camera);
-      const lat = d.activeBeam?.target?.lat ?? d.sat.lat / DEG;
-      const lon = d.activeBeam?.target?.lon ?? d.sat.lon / DEG;
+      const p = world.clone().project(this.camera);
+      let lat = d.activeBeam?.target?.lat;
+      let lon = d.activeBeam?.target?.lon;
+      if (lat === undefined || lon === undefined) {
+        const geo = ecefToGeodetic(pt);
+        lat = geo.lat / DEG;
+        lon = geo.lon / DEG;
+      }
       this.setLabel(this.labels.target, p, visible, `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`, 16);
     } else {
       this.labels.target.style.opacity = '0';

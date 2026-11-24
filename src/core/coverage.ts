@@ -3,10 +3,9 @@ import type { Beam } from './array';
 import { type AntennaFrame, anglesForGroundPoint, beamGroundPoint } from './geometry';
 import { ecefToGeodetic, elevationAngle, horizonOffNadir } from './orbit';
 import type { Vec3 } from './vec';
-import type { GroundCell } from './regions';
+import { cellColor, type GroundCell } from './regions';
 
-export const cellColor = (row: number, col: number, reuse: number): number =>
-  (((col - row) % reuse) + reuse) % reuse;
+export { cellColor };
 
 /** Separación entre celdas en la superficie, a partir del HPBW y la altitud. */
 export function cellSpacingKm(altKm: number, hpbwDeg: number): number {
@@ -88,7 +87,7 @@ export function beamsVisibleLattice(
         u,
         v,
         amp: 1,
-        color: ((i - j) % reuse + reuse) % reuse,
+        color: cellColor(j, i, reuse),
         label: `${j + nMax}-${i + nMax}`,
         target: { lat: geo.lat / DEG, lon: geo.lon / DEG },
       });

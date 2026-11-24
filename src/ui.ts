@@ -606,8 +606,8 @@ export class UI {
         ? `${d.beams.length} haces sobre el disco visible`
         : '—';
     $('shape-info').textContent = d.shaped
-      ? `Cobertura ${(d.shaped.coverage * 100).toFixed(0)} % · derrame ${d.shaped.spillDb.toFixed(1)} dB · D ${d.shaped.directivityDb.toFixed(1)} dBi`
-      : 'Diseña la fase para iluminar la zona y anular el exterior.';
+      ? `Sintetizado · Cobertura ${(d.shaped.coverage * 100).toFixed(0)} % · derrame ${d.shaped.spillDb.toFixed(1)} dB · D ${d.shaped.directivityDb.toFixed(1)} dBi`
+      : 'Pendiente de sintetizar · ajusta centro/radio y pulsa «Sintetizar cobertura».';
 
     const phase = ((((d.sat.M % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI)) * 1000;
     const timeline = $('timeline') as HTMLInputElement;

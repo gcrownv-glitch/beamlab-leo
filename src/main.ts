@@ -264,7 +264,12 @@ class App {
         const [lat, lon] = this.state.region === 'visible' ? [-12.05, -77.04] : regionCenter(this.state.region);
         this.snapToRegion(lat, lon, false);
       } else {
-        this.snapToRegion(this.state.shapedCenter.lat, this.state.shapedCenter.lon, false);
+        const der = this.engine.derived;
+        const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, this.state.shapedCenter.lat * DEG, this.state.shapedCenter.lon * DEG);
+        const scanDeg = Math.acos(Math.max(-1, Math.min(1, ang.w))) / DEG;
+        if (ang.w <= 0.02 || scanDeg > 58) {
+          this.snapToRegion(this.state.shapedCenter.lat, this.state.shapedCenter.lon, false);
+        }
       }
     }
     this.refresh();
@@ -326,7 +331,12 @@ class App {
 
   private synthesize() {
     this.state.playing = false;
-    this.snapToRegion(this.state.shapedCenter.lat, this.state.shapedCenter.lon, false);
+    const der = this.engine.derived;
+    const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, this.state.shapedCenter.lat * DEG, this.state.shapedCenter.lon * DEG);
+    const scanDeg = Math.acos(Math.max(-1, Math.min(1, ang.w))) / DEG;
+    if (ang.w <= 0.02 || scanDeg > 58) {
+      this.snapToRegion(this.state.shapedCenter.lat, this.state.shapedCenter.lon, false);
+    }
     if (this.state.mode !== 'shaped') {
       this.engine.setMode('shaped');
       this.refresh();

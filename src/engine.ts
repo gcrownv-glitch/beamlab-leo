@@ -31,6 +31,7 @@ import {
   antennaBasis,
   ecefToGeodetic,
   elevationAngle,
+  horizonOffNadir,
   propagate,
   slantRange,
   type OrbitElements,
@@ -56,8 +57,8 @@ import type { Derived, Mode, PhaseView, QuantInfo, ShapedInfo, SimState, SystemI
 const ZERO_BEAM: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 0 };
 const SHAPED_BEAM: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 1 };
 const EMPTY_GAIN: GainMap = { size: 1, data: new Float32Array([0]), max: 0, rgba: new Uint8Array([0, 0, 0, 0]) };
-/** En GEO una bocina de 17° cubre el disco; en LEO hace falta ~134°. */
-const GLOBAL_HPBW = 134;
+/** En GEO una bocina de 17° cubre el disco; en LEO depende de la altitud (2 × horizonte). */
+const globalHpbwDeg = (altKm: number): number => (2 * horizonOffNadir(Math.max(100, altKm))) / DEG;
 
 export class Engine {
   state: SimState;
@@ -96,11 +97,17 @@ export class Engine {
   private lastQuantMs = 0;
 
   private patternDirty = true;
+  private hornDirty = false;
   private beamsDirty = true;
   private gainDirty = true;
   private lastBeamMs = 0;
   private lastGainMs = 0;
   private lastBeamSat = { x: Infinity, y: Infinity, z: Infinity };
+  private lastBeamFrame: AntennaFrame | null = null;
+  private quantSatEcef: Vec3 | null = null;
+  private quantFrame: AntennaFrame | null = null;
+  private synthSatEcef: Vec3 | null = null;
+  private synthFrame: AntennaFrame | null = null;
   private bodyBeam: { u: number; v: number } | null = null;
   private cachedMetrics: ArrayMetrics | null = null;
   private cachedActive: Beam | null = null;
@@ -114,7 +121,7 @@ export class Engine {
       dy: 0.5,
       freqGHz: state.antenna.freqGHz,
       taper: 'uniform',
-      q: qForHpbw(GLOBAL_HPBW),
+      q: qForHpbw(globalHpbwDeg(state.orbit.a - R_EARTH)),
       efficiency: 0.65,
     };
     this.hornGrid = computeBasePattern(this.hornCfg);
@@ -158,6 +165,8 @@ export class Engine {
     this.synthMetrics = null;
     this.synthCut = null;
     this.synthIdealCut = null;
+    this.synthSatEcef = null;
+    this.synthFrame = null;
     this.cachedMetrics = null;
     this.cachedActive = null;
     this.cachedPhase = null;
@@ -175,6 +184,8 @@ export class Engine {
     this.quantIdealCut = null;
     this.quantPhases = null;
     this.quantAmps = null;
+    this.quantSatEcef = null;
+    this.quantFrame = null;
     this.quantPointing = 0;
     this.quantMs = 0;
     this.lastQuantMs = 0;
@@ -211,6 +222,12 @@ export class Engine {
   setOrbit(orbit: OrbitElements, presetId?: string) {
     this.state.orbit = orbit;
     if (presetId) this.state.presetId = presetId;
+    const newQ = qForHpbw(globalHpbwDeg(orbit.a - R_EARTH));
+    if (Math.abs(newQ - this.hornCfg.q) > 1e-4) {
+      this.hornCfg = { ...this.hornCfg, q: newQ };
+      this.hornDirty = true;
+      this.gainDirty = true;
+    }
     this.cellKey = '';
     this.resetSynthesis();
     this.resetQuant();
@@ -278,9 +295,15 @@ export class Engine {
       this.baseMetrics = computeMetrics(s.antenna, this.baseGrid, ZERO_BEAM);
       this.hornGrid = computeBasePattern(this.hornCfg);
       this.patternDirty = false;
+      this.hornDirty = false;
       this.beamsDirty = true;
       this.gainDirty = true;
       this.cachedPhase = null;
+    } else if (this.hornDirty) {
+      this.hornGrid = computeBasePattern(this.hornCfg);
+      this.hornDirty = false;
+      this.cachedMetrics = null;
+      this.gainDirty = true;
     }
     if (this.cachedPhase && this.cachedPhase.n !== s.antenna.n) this.cachedPhase = null;
 
@@ -288,7 +311,7 @@ export class Engine {
     let beamSet = initial ? null : this.derived.beamSet;
     let beamsChanged = initial;
 
-    const spotInterval = 110;
+    const spotInterval = 16;
     const cellInterval = 150;
     const moved = Math.hypot(
       sat.rEcef.x - this.lastBeamSat.x,
@@ -308,6 +331,7 @@ export class Engine {
       this.beamsDirty = false;
       this.lastBeamMs = now;
       this.lastBeamSat = { x: sat.rEcef.x, y: sat.rEcef.y, z: sat.rEcef.z };
+      this.lastBeamFrame = frame;
       this.gainDirty = true;
       this.cachedPhase = null;
     }
@@ -359,6 +383,7 @@ export class Engine {
     let quantInfo: QuantInfo | null = null;
     let quantPhases: Float64Array | null = null;
     let quantAmps: Float64Array | null = null;
+    let quantUpdated = false;
 
     if (quantEnabled && source === 'synthesis' && this.synth) {
       activePattern = this.synth.grid;
@@ -417,6 +442,10 @@ export class Engine {
         this.quantMs = performance.now() - t0;
         this.quantKey = key;
         this.lastQuantMs = now;
+        this.quantSatEcef = { x: sat.rEcef.x, y: sat.rEcef.y, z: sat.rEcef.z };
+        this.quantFrame = frame;
+        this.gainDirty = true;
+        quantUpdated = true;
         this.cachedPhase = null;
       }
       if (this.quantPattern && this.quantMetrics) {
@@ -465,19 +494,40 @@ export class Engine {
 
     let gainMap = initial ? EMPTY_GAIN : this.derived.gainMap;
     const gainInterval = s.mode === 'cellular' ? 850 : 160;
-    if (this.gainDirty && (now - this.lastGainMs > gainInterval || initial)) {
+    if ((beams.length === 0 && s.mode !== 'global') || (s.mode === 'shaped' && !synthActive)) {
+      gainMap = EMPTY_GAIN;
+      this.gainDirty = false;
+      this.lastGainMs = now;
+    } else if (this.gainDirty && (now - this.lastGainMs > gainInterval || initial || quantUpdated)) {
       const count = beams.length;
       const size = count > 1600 ? 128 : count > 800 ? 160 : count > 400 ? 192 : count > 180 ? 224 : count > 80 ? 256 : count > 30 ? 320 : 384;
+      let snapSat: Vec3;
+      let snapFrame: AntennaFrame;
+      let groundFixed: boolean;
       if (source === 'synthesis') {
+        snapSat = this.synthSatEcef ?? sat.rEcef;
+        snapFrame = this.synthFrame ?? frame;
+        groundFixed = true;
         gainMap = computeGainMap(pattern, [SHAPED_BEAM], patternQ, size);
       } else if (quantEnabled && s.mode !== 'cellular' && activePattern !== pattern && activePattern) {
+        snapSat = this.quantSatEcef ?? sat.rEcef;
+        snapFrame = this.quantFrame ?? frame;
+        groundFixed = s.mode === 'spot' ? s.spotFixed : false;
         gainMap = computeGainMap(activePattern, [SHAPED_BEAM], patternQ, size);
       } else {
-        gainMap = computeGainMap(pattern, beams.length ? beams : [ZERO_BEAM], patternQ, size, s.mode === 'cellular' ? 'max' : 'sum');
+        snapSat = this.lastBeamFrame ? this.lastBeamSat : sat.rEcef;
+        snapFrame = this.lastBeamFrame ?? frame;
+        groundFixed = (s.mode === 'cellular' && s.region !== 'visible') || (s.mode === 'spot' && s.spotFixed);
+        gainMap = computeGainMap(pattern, beams, patternQ, size, s.mode === 'cellular' ? 'max' : 'sum');
       }
       if (s.mode === 'cellular' || s.mode === 'shaped' || s.mode === 'spot') {
-        this.maskGainMap(gainMap, sat.rEcef, frame, s, active);
+        this.maskGainMap(gainMap, snapSat, snapFrame, s, active);
       }
+      gainMap.snapshot = {
+        satEcef: { x: snapSat.x, y: snapSat.y, z: snapSat.z },
+        frame: snapFrame,
+        groundFixed,
+      };
       this.gainDirty = false;
       this.lastGainMs = now;
     }
@@ -627,7 +677,7 @@ export class Engine {
       const area = regionAreaKm2(poly);
       const footRadius = sat.alt * Math.tan((Math.max(1.2, this.baseMetrics.hpbwDeg) * DEG) / 2);
       const coverageFraction = area > 0
-        ? Math.min(1, (this.cells.length * Math.PI * footRadius * footRadius) / area)
+        ? Math.min(1, (res.visibleCells * Math.PI * footRadius * footRadius) / area)
         : 0;
       return {
         beams: res.beams,
@@ -902,6 +952,8 @@ export class Engine {
     this.synth = finalResult;
     this.synthComputeMs = performance.now() - t0;
     this.synthKey = this.synthesisKey();
+    this.synthSatEcef = { x: sat.rEcef.x, y: sat.rEcef.y, z: sat.rEcef.z };
+    this.synthFrame = frame;
     const info: ShapedInfo = {
       coverage: finalResult.insideCoverage,
       spillDb: finalResult.outsideMaxDb,
@@ -931,10 +983,25 @@ export class Engine {
     const shapedLat = s.shapedCenter.lat * DEG;
     const shapedLon = s.shapedCenter.lon * DEG;
     const shapedRadius = (s.shapedRadiusKm * 1.06) / R_EARTH;
-    const spotLat = s.spotTarget.lat * DEG;
-    const spotLon = s.spotTarget.lon * DEG;
+    let spotLat = s.spotTarget.lat * DEG;
+    let spotLon = s.spotTarget.lon * DEG;
     let spotRadius = 0;
     if (s.mode === 'spot' && active) {
+      if (s.spotFixed && active.target) {
+        spotLat = active.target.lat * DEG;
+        spotLon = active.target.lon * DEG;
+      } else {
+        const gp = beamGroundPoint(sat, frame, active);
+        if (!gp) {
+          map.data.fill(0);
+          map.rgba.fill(0);
+          map.max = 0;
+          return;
+        }
+        const g = ecefToGeodetic(gp);
+        spotLat = g.lat;
+        spotLon = g.lon;
+      }
       const ring = footprintRing(sat, frame, active, (this.baseMetrics.hpbwDeg * DEG) / 2, 64);
       for (const p of ring) {
         const g = ecefToGeodetic(p);
@@ -981,6 +1048,14 @@ export class Engine {
         }
       }
     }
+    let anyPositive = false;
+    for (let i = 0; i < map.data.length; i++) {
+      if (map.data[i] > 0) {
+        anyPositive = true;
+        break;
+      }
+    }
+    if (!anyPositive) map.max = 0;
   }
 
   private measureSynthesis(

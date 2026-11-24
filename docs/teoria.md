@@ -421,7 +421,15 @@ $$
 C_{cl\acute{u}ster}=N_{colores}\cdot\min(C_{DL},C_{UL}),
 $$
 
-y en modo celular se reporta por separado la cota agregada ideal $C_{agregada}=N_{visibles}\cdot\min(C_{DL},C_{UL})$ (sin degradación C/I co-canal).
+y en modo celular se reporta por separado la cota agregada ideal $C_{agregada}=N_{visibles}\cdot\min(C_{DL},C_{UL})$ (sin degradación C/I co-canal), con un conmutador opcional para activar el modelo **C/I co-canal**, donde cada haz de igual color $k\neq 0$ aporta interferencia según el patrón del arreglo:
+
+$$
+\frac{C}{I}=\frac{P_0}{\sum_{k\neq 0,\,c_k=c_0}|AF(u_0-u_k,v_0-v_k)|^2},
+\qquad
+\frac{C}{N+I}=\left[\left(\frac{C}{N}\right)^{-1}+\left(\frac{C}{I}\right)^{-1}\right]^{-1},
+$$
+
+y la selección de MODCOD y margen se evalúan sobre $C/(N+I)$ manteniendo separadas la capacidad por clúster y la capacidad agregada.
 
 ### 5.2 MODCOD y umbral
 

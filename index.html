@@ -308,6 +308,13 @@
               </label>
               <button class="btn small" id="cell-generate">Regenerar</button>
             </div>
+            <div class="field">
+              <span>Modelo de interferencia</span>
+              <div class="segmented" id="cell-ci-mode">
+                <button data-ci="0" class="active">Sin C/I (cota)</button>
+                <button data-ci="1">Con C/I co-canal</button>
+              </div>
+            </div>
             <div class="info-row" id="cell-info">—</div>
             <p class="hint" id="cell-selected">Haz clic en el globo para inspeccionar una celda.</p>
             <div class="reuse-legend" id="reuse-legend"></div>
@@ -385,7 +392,7 @@
             <div><span>FSPL</span><b id="lk-fspl">—</b></div>
             <div><span id="lk-prx-label">P<sub>rx</sub> VSAT</span><b id="lk-prx">—</b></div>
             <div><span>C/N₀</span><b id="lk-cn0">—</b></div>
-            <div><span>C/N</span><b id="lk-cn">—</b></div>
+            <div><span id="lk-cn-label">C/N</span><b id="lk-cn">—</b></div>
             <div><span>MODCOD</span><b id="lk-modcod">—</b></div>
             <div><span>Margen</span><b id="lk-margin">—</b></div>
             <div><span id="lk-gt-label">G/T VSAT</span><b id="lk-gt">—</b></div>

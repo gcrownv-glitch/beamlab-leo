@@ -14,9 +14,11 @@ import {
   SAT_ANTENNA_TEMP_K,
   SAT_NOISE_FIGURE_DB,
 } from '../src/core/link';
-import { ecefToGeodetic, propagate } from '../src/core/orbit';
+import { beamsForGroundCells, cellSpacingKm, coChannelCiDb } from '../src/core/coverage';
+import { antennaBasis, ecefToGeodetic, propagate } from '../src/core/orbit';
 import { elementsOverPoint } from '../src/core/presets';
 import { quantizedBeamWeights } from '../src/core/quantization';
+import { buildGroundCells, regionPolygon } from '../src/core/regions';
 import { Engine } from '../src/engine';
 import { defaultState } from '../src/state';
 
@@ -180,5 +182,80 @@ describe('rigor físico de RF y enlace (Tramo 2)', () => {
     const pole = ecefToGeodetic({ x: 0, y: 0, z: R_EARTH + 550 });
     expect(pole.lat).toBeCloseTo(Math.PI / 2, 12);
     expect(Number.isNaN(pole.lat)).toBe(false);
+  });
+
+  it('coChannelCiDb crece con mayor factor de reutilización y con taper Kaiser', () => {
+    const epoch = Date.UTC(2026, 10, 24, 18, 0, 0);
+    const orbit = elementsOverPoint(550, 53, -9.2, -75.0, epoch, 0, 0.0001);
+    const sat = propagate(orbit, epoch, false);
+    const frame = antennaBasis(sat.rEcef);
+
+    const kaiserCfg: ArrayConfig = { ...cfg, taper: 'kaiser30' };
+    const uniformCfg: ArrayConfig = { ...cfg, taper: 'uniform' };
+    const kGrid = computeBasePattern(kaiserCfg);
+    const uGrid = computeBasePattern(uniformCfg);
+    const hpbw = computeMetrics(kaiserCfg, kGrid, { id: 0, u: 0, v: 0, amp: 1, color: 0 }).hpbwDeg;
+    const cells = buildGroundCells(regionPolygon('peru')!, cellSpacingKm(sat.alt, hpbw), 2500);
+
+    const set3 = beamsForGroundCells(cells, sat.rEcef, frame, 3, 10, 0.98);
+    const set7 = beamsForGroundCells(cells, sat.rEcef, frame, 7, 10, 0.98);
+    const pickCenter = (beams: Beam[]) =>
+      beams.reduce((best, b) => (b.u * b.u + b.v * b.v < best.u * best.u + best.v * best.v ? b : best), beams[0]);
+
+    const ci3 = coChannelCiDb(kGrid, set3.beams, pickCenter(set3.beams))!;
+    const ci7 = coChannelCiDb(kGrid, set7.beams, pickCenter(set7.beams))!;
+    const ci3Uniform = coChannelCiDb(uGrid, set3.beams, pickCenter(set3.beams))!;
+
+    expect(ci7).toBeGreaterThan(ci3);
+    expect(ci3).toBeGreaterThan(ci3Uniform);
+  });
+
+  it('linkBudget combina C/N y C/I en SINR = C/(N+I) y Engine.setCellularCi actualiza clúster y agregada', () => {
+    const clean = linkBudget({
+      slantKm: 550,
+      freqGHz: 12,
+      txPowerW: 20,
+      txGainDbi: 26.2,
+      rxGainDbi: 34,
+      noiseFigureDb: 1.5,
+      bandwidthMHz: 100,
+      elevationDeg: 60,
+    });
+    const degraded = linkBudget({
+      slantKm: 550,
+      freqGHz: 12,
+      txPowerW: 20,
+      txGainDbi: 26.2,
+      rxGainDbi: 34,
+      noiseFigureDb: 1.5,
+      bandwidthMHz: 100,
+      elevationDeg: 60,
+      coChannelCiDb: 11,
+    });
+    expect(clean.ciDb).toBeNull();
+    expect(clean.sinrDb).toBeCloseTo(clean.cnDb, 9);
+    expect(degraded.ciDb).toBe(11);
+    expect(degraded.sinrDb).toBeLessThan(11);
+    expect(degraded.sinrDb).toBeLessThan(degraded.cnDb);
+    expect(degraded.throughputMbps).toBeLessThan(clean.throughputMbps);
+    expect(degraded.outage).toBe(degraded.marginDb < 0);
+
+    const state = defaultState();
+    state.mode = 'cellular';
+    state.region = 'peru';
+    state.reuse = 3;
+    const engine = new Engine(state);
+    const ideal = engine.derived;
+    expect(ideal.links.downlink!.ciDb).toBeNull();
+
+    engine.setCellularCi(true);
+    engine.update(performance.now() + 5000);
+    const withCi = engine.derived;
+    const dlCi = withCi.links.downlink!;
+    expect(dlCi.ciDb).not.toBeNull();
+    expect(dlCi.sinrDb).toBeLessThan(dlCi.cnDb);
+    const perBeam = Math.min(dlCi.throughputMbps, withCi.links.uplink!.throughputMbps);
+    expect(withCi.system.capacityMbps).toBeCloseTo(state.reuse * perBeam, 6);
+    expect(withCi.system.aggregateCapacityMbps).toBeCloseTo(withCi.beamSet!.visibleCells * perBeam, 6);
   });
 });

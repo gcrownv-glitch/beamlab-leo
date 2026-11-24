@@ -18,6 +18,7 @@ export interface LinkParams {
   atmosphericLossDb?: number;
   implementationMarginDb?: number;
   usersPerBeam?: number;
+  coChannelCiDb?: number | null;
 }
 
 /**
@@ -59,6 +60,8 @@ export interface LinkResult {
   noiseDbm: number;
   cn0DbHz: number;
   cnDb: number;
+  ciDb: number | null;
+  sinrDb: number;
   gtDbK: number;
   tsysK: number;
   extraLossDb: number;
@@ -137,8 +140,12 @@ export function linkBudget(p: LinkParams): LinkResult {
   const cnDb = rxPowerDbm - noiseDbm;
   const gtDbK = p.rxGainDbi - 10 * Math.log10(tsysK);
 
+  const ciDb = p.coChannelCiDb != null && Number.isFinite(p.coChannelCiDb) ? p.coChannelCiDb : null;
+  const sinrDb = ciDb != null
+    ? -10 * Math.log10(Math.pow(10, -cnDb / 10) + Math.pow(10, -ciDb / 10))
+    : cnDb;
   const implementationMarginDb = Math.max(0, p.implementationMarginDb ?? 1);
-  const effectiveCnDb = cnDb - implementationMarginDb;
+  const effectiveCnDb = sinrDb - implementationMarginDb;
   let selected: (typeof MODCODS)[number] | null = null;
   for (const m of MODCODS) {
     if (effectiveCnDb >= m.minCnDb) selected = m;
@@ -160,6 +167,8 @@ export function linkBudget(p: LinkParams): LinkResult {
     noiseDbm,
     cn0DbHz,
     cnDb,
+    ciDb,
+    sinrDb,
     gtDbK,
     tsysK,
     extraLossDb,

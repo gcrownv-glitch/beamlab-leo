@@ -104,6 +104,7 @@ export interface SimState {
   activeBeam: number;
   region: RegionId;
   reuse: number;
+  cellularCi: boolean;
   spotTarget: { lat: number; lon: number };
   spotFixed: boolean;
   shapedCenter: { lat: number; lon: number };
@@ -174,6 +175,7 @@ export function defaultState(): SimState {
     activeBeam: 0,
     region: 'peru',
     reuse: 3,
+    cellularCi: false,
     spotTarget: { lat: -12.05, lon: -77.04 },
     spotFixed: true,
     shapedCenter: { lat: -12.05, lon: -77.04 },

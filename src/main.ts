@@ -134,6 +134,10 @@ class App {
       this.engine.setReuse(n);
       this.refresh();
     },
+    setCellularCi: (enabled) => {
+      this.engine.setCellularCi(enabled);
+      this.refresh();
+    },
     regenerate: () => {
       this.engine.setRegion(this.state.region);
       this.engine.invalidateBeams();

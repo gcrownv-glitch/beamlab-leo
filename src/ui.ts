@@ -44,6 +44,7 @@ export interface UIHandlers {
   setSpotFixed(v: boolean): void;
   setRegion(id: RegionId): void;
   setReuse(n: number): void;
+  setCellularCi(enabled: boolean): void;
   regenerate(): void;
   setShapedCenter(lat: number, lon: number): void;
   setShapedRadius(km: number): void;
@@ -342,6 +343,11 @@ export class UI {
     ($('cell-reuse') as HTMLSelectElement).addEventListener('change', (e) => {
       this.h.setReuse(Number((e.target as HTMLSelectElement).value));
     });
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('#cell-ci-mode button')) {
+      btn.addEventListener('click', () => {
+        this.h.setCellularCi(btn.dataset.ci === '1');
+      });
+    }
     $('cell-generate').addEventListener('click', () => this.h.regenerate());
 
     $('shape-lima').addEventListener('click', () => this.h.setShapedCenter(-12.05, -77.04));
@@ -536,6 +542,9 @@ export class UI {
       $('shape-radius-val').textContent = `${s.shapedRadiusKm} km`;
       ($('cell-region') as HTMLSelectElement).value = s.region;
       ($('cell-reuse') as HTMLSelectElement).value = String(s.reuse);
+      for (const btn of document.querySelectorAll<HTMLButtonElement>('#cell-ci-mode button')) {
+        btn.classList.toggle('active', (btn.dataset.ci === '1') === s.cellularCi);
+      }
       ($('fps-cap') as HTMLSelectElement).value = String(s.fpsCap);
       ($('quality') as HTMLSelectElement).value = s.quality;
 
@@ -601,7 +610,7 @@ export class UI {
     this.updateQuant(d);
 
     $('cell-info').textContent = d.beamSet
-      ? `${d.beamSet.totalCells} celdas · ${d.beamSet.visibleCells} visibles`
+      ? `${d.beamSet.totalCells} celdas · ${d.beamSet.visibleCells} visibles${s.cellularCi && d.link?.ciDb != null ? ` · C/I ${d.link.ciDb.toFixed(1)} dB` : ''}`
       : s.mode === 'cellular'
         ? `${d.beams.length} haces sobre el disco visible`
         : '—';
@@ -662,6 +671,7 @@ export class UI {
     $('lk-gt-label').textContent = uplink ? 'G/T sat' : 'G/T VSAT';
     if (!l) {
       $('link-badge').textContent = 'sin haz';
+      $('lk-cn-label').textContent = 'C/N';
       for (const id of ['lk-eirp', 'lk-fspl', 'lk-prx', 'lk-cn0', 'lk-cn', 'lk-modcod', 'lk-margin', 'lk-gt', 'lk-elev', 'lk-slant']) {
         $(id).textContent = '—';
       }
@@ -684,7 +694,13 @@ export class UI {
     $('lk-fspl').textContent = `${l.fsplDb.toFixed(1)} dB`;
     $('lk-prx').textContent = `${l.rxPowerDbm.toFixed(1)} dBm`;
     $('lk-cn0').textContent = `${l.cn0DbHz.toFixed(1)} dBHz`;
-    $('lk-cn').textContent = `${l.cnDb.toFixed(1)} dB`;
+    if (l.ciDb !== null) {
+      $('lk-cn-label').textContent = 'C/(N+I)';
+      $('lk-cn').textContent = `${l.sinrDb.toFixed(1)} dB`;
+    } else {
+      $('lk-cn-label').textContent = 'C/N';
+      $('lk-cn').textContent = `${l.cnDb.toFixed(1)} dB`;
+    }
     $('lk-modcod').textContent = l.modcod;
     $('lk-margin').textContent = `${l.marginDb >= 0 ? '+' : ''}${l.marginDb.toFixed(1)} dB`;
     $('lk-gt').textContent = `${l.gtDbK.toFixed(1)} dB/K`;
@@ -705,7 +721,11 @@ export class UI {
     const ul = d.links.uplink;
     if (dl && ul) {
       const limit = d.system.limitingLink === 'uplink' ? 'subida' : d.system.limitingLink === 'downlink' ? 'bajada' : '—';
-      $('link-balance').textContent = `DL ${dl.cnDb.toFixed(1)} dB · ${dl.throughputMbps.toFixed(0)} Mbps   |   UL ${ul.cnDb.toFixed(1)} dB · ${ul.throughputMbps.toFixed(0)} Mbps   |   limita ${limit}`;
+      const ciPart = dl.ciDb !== null ? `   |   C/I ${dl.ciDb.toFixed(1)} dB` : '';
+      const dlVal = dl.ciDb !== null ? dl.sinrDb : dl.cnDb;
+      const ulVal = ul.ciDb !== null ? ul.sinrDb : ul.cnDb;
+      const metricTag = dl.ciDb !== null ? 'SINR ' : '';
+      $('link-balance').textContent = `DL ${metricTag}${dlVal.toFixed(1)} dB · ${dl.throughputMbps.toFixed(0)} Mbps   |   UL ${metricTag}${ulVal.toFixed(1)} dB · ${ul.throughputMbps.toFixed(0)} Mbps${ciPart}   |   limita ${limit}`;
     } else {
       $('link-balance').textContent = 'Balance DL/UL no disponible.';
     }
@@ -720,7 +740,11 @@ export class UI {
     $('sys-cap-label').textContent = s.mode === 'cellular' ? 'Cap. clúster' : 'Cap. sistema';
     $('sys-capacity').textContent = fmtCap(sys.capacityMbps);
     $('sys-coverage').textContent = sys.coverageFraction == null ? '—' : `${(sys.coverageFraction * 100).toFixed(0)} %`;
-    $('sys-agg-row').hidden = s.mode !== 'cellular';
+    const aggRow = $('sys-agg-row');
+    aggRow.hidden = s.mode !== 'cellular';
+    aggRow.title = s.cellularCi
+      ? 'Capacidad agregada de los haces visibles (N_vis × C_haz) con degradación C/I co-canal'
+      : 'Cota agregada ideal de los haces visibles (N_vis × C_haz), sin degradación C/I co-canal';
     $('sys-aggregate').textContent = fmtCap(sys.aggregateCapacityMbps);
   }
 

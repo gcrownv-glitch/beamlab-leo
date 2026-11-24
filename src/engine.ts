@@ -42,6 +42,7 @@ import {
   beamsVisibleLattice,
   beamToTarget,
   cellSpacingKm,
+  coChannelCiDb,
 } from './core/coverage';
 import {
   buildGroundCells,
@@ -279,6 +280,10 @@ export class Engine {
     this.beamsDirty = true;
     this.gainDirty = true;
     this.resetQuant();
+  }
+
+  setCellularCi(enabled: boolean) {
+    this.state.cellularCi = enabled;
   }
 
   update(now = performance.now()) {
@@ -555,6 +560,9 @@ export class Engine {
     const upGainScale = 20 * Math.log10(upFreqGHz / s.antenna.freqGHz);
     const terminalUpGain = s.rxGainDbi > 0 ? s.rxGainDbi + upGainScale : s.rxGainDbi;
     const satUpGain = activeMetrics.gainDb + upGainScale;
+    const ciDb = s.mode === 'cellular' && s.cellularCi && active
+      ? coChannelCiDb(this.baseGrid, beams, active)
+      : null;
     const downlink = active
       ? linkBudget({
           slantKm: rangeKm,
@@ -567,6 +575,7 @@ export class Engine {
           elevationDeg,
           rainMarginDb: s.rainMarginDb,
           usersPerBeam: s.usersPerBeam,
+          coChannelCiDb: ciDb,
         })
       : null;
     const uplink = active
@@ -582,6 +591,7 @@ export class Engine {
           elevationDeg,
           rainMarginDb: s.rainMarginDb,
           usersPerBeam: s.usersPerBeam,
+          coChannelCiDb: ciDb,
         })
       : null;
     const link = s.linkDirection === 'uplink' ? uplink : downlink;

@@ -1,5 +1,5 @@
 import { DEG, R_EARTH } from './constants';
-import type { Beam } from './array';
+import { patternPowerAt, type Beam, type PatternGrid } from './array';
 import { type AntennaFrame, anglesForGroundPoint, beamGroundPoint } from './geometry';
 import { ecefToGeodetic, elevationAngle, horizonOffNadir } from './orbit';
 import type { Vec3 } from './vec';
@@ -122,4 +122,22 @@ export function beamToTarget(
     elevationDeg: elev / DEG,
     rangeKm: ang.range,
   };
+}
+
+/**
+ * Relación portadora a interferencia co-canal C/I [dB] en el centro del haz
+ * activo debida a los demás haces del mismo color de reutilización.
+ */
+export function coChannelCiDb(grid: PatternGrid, beams: Beam[], active: Beam): number | null {
+  const c0 = patternPowerAt(grid, 0, 0);
+  if (c0 <= 0) return null;
+  const c = active.amp * active.amp * c0;
+  let iSum = 0;
+  for (let i = 0; i < beams.length; i++) {
+    const b = beams[i];
+    if (b.id === active.id || b.color !== active.color) continue;
+    iSum += b.amp * b.amp * patternPowerAt(grid, active.u - b.u, active.v - b.v);
+  }
+  if (iSum <= 1e-15) return null;
+  return 10 * Math.log10(c / iSum);
 }

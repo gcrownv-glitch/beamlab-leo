@@ -10,8 +10,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
 | **Versión declarada en manifiestos** | `2.3.4` *(bump de versión diferido hasta completar todos los tramos)* |
 | **Rama activa** | `fix/tramo-2-rf-physics` (construida sobre `fix/tramo-1-beamforming-3d`) |
-| **Última actualización** | `2026-11-24T17:54:00-05:00` (`2026-11-24T22:54:00Z`) |
-| **Estado de verificación** | `tsc --noEmit` + `vite build` en verde · `vitest run`: **11 archivos / 46 pruebas aprobadas** |
+| **Última actualización** | `2026-11-24T17:58:49-05:00` (`2026-11-24T22:58:49Z`) |
+| **Estado de verificación** | `tsc --noEmit` + `vite build` en verde · `vitest run`: **11 archivos / 48 pruebas aprobadas** |
 
 ---
 
@@ -23,6 +23,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Tramo 1** | `3648784` | `2026-11-24T17:22:28-05:00` (`22:22:28Z`) | `fix/tramo-1-beamforming-3d` | Eliminar rayos X en cara trasera, deslizamiento de huellas, haces fantasma y bugs de los 4 modos |
 | **Tramo 1** | `d084261` | `2026-11-24T17:22:29-05:00` (`22:22:29Z`) | `fix/tramo-1-beamforming-3d` | Agregar pruebas unitarias de regresión 3D, snapshots y coloreado hexagonal |
 | **Tramo 2** | `94b9d13` | `2026-11-24T17:54:00-05:00` (`22:54:00Z`) | `fix/tramo-2-rf-physics` | Rigor físico RF/enlace: directividad con *scan loss*, VGA en dB, receptor satelital 290 K, pérdidas atmosféricas, capacidad celular y órbita excéntrica |
+| **Tramo 2** | `803adc3` | `2026-11-24T17:54:37-05:00` (`22:54:37Z`) | `fix/tramo-2-rf-physics` | Crear registro técnico de cambios con marcas de tiempo |
+| **Tramo 2** | `28599b1` | `2026-11-24T17:58:49-05:00` (`22:58:49Z`) | `fix/tramo-2-rf-physics` | Agregar conmutador de modelo C/I co-canal celular y SINR `C/(N+I)` manteniendo Cap. clúster y Cap. agregada separadas |
 
 ---
 
@@ -81,7 +83,7 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 
 ### Tramo 2 — Rigor físico y matemático de RF y enlace
 
-- **Commit:** `94b9d13` (`2026-11-24T17:54:00-05:00`)
+- **Commits:** `94b9d13` (`2026-11-24T17:54:00-05:00`) y `28599b1` (`2026-11-24T17:58:49-05:00`)
 
 #### 1. Directividad exacta (`gridDirectivity`) y normalización sobre disco visible
 - **Causa raíz:** `gridDirectivity(grid, q)` asumía pico unitario en el numerador sin multiplicar por $\cos^{2q}\theta_0$, reportando directividad cuantizada mayor que la ideal al escanear (p. ej. `26,9 dBi` vs `26,2 dBi` en el ejemplo por defecto sobre Lima). Además, `patternFromWeights` normalizaba sobre `[-2.2, 2.2]²` incluyendo la región no radiante $u^2+v^2 > 1$.
@@ -107,9 +109,16 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 
 #### 4. Órbita excéntrica y estabilidad numérica
 - **Corrección (`src/core/presets.ts`, `src/core/orbit.ts`):**
-  - `elementsOverPoint` convierte la anomalía verdadera $\nu = u$ a anomalía excéntrica $E$ y anomalía media $M_0 = E - e\sin E$ cuando $e > 0$.
+  - `elementsOverPoint` convierte la anomalía verdadera $\nu = u$ a anomalía excéntrica $E$ y anomalía media $M_0 = E - e\sin E$ para $e > 0$.
   - `ecefToGeodetic` acota `r.z / rho` en `[-1, 1]` antes de `Math.asin`.
-- **Documentación y pruebas:** Se actualizó `docs/teoria.md` (§2.4, §2.7, §3.3, §5.1–§5.3, §6), se ajustó `tests/quantization.test.ts` y se creó `tests/physics.test.ts` (**11 archivos / 46 pruebas aprobadas**).
+
+#### 5. Conmutador de interferencia co-canal C/I y SINR `C/(N+I)` (`28599b1`)
+- **Motivación:** El usuario solicitó mantener **Cap. clúster** y **Cap. agregada** visibles por separado, añadiendo además un botón para alternar entre cota ideal sin interferencia y un modelo con **C/I co-canal**.
+- **Corrección (`src/core/coverage.ts`, `src/core/link.ts`, `src/state.ts`, `src/engine.ts`, `index.html`, `src/ui.ts`, `src/main.ts`):**
+  - Se implementó `coChannelCiDb(grid, beams, active)` sumando la interferencia de todos los haces visibles del mismo color (`b.id !== active.id && b.color === active.color`) evaluados en $(u_{\text{activo}} - u_b, v_{\text{activo}} - v_b)$ sobre `baseGrid`.
+  - `linkBudget` acepta `coChannelCiDb` opcional, calcula `sinrDb` $= -10\log_{10}(10^{-C/N/10} + 10^{-C/I/10})$ y selecciona MODCOD y `marginDb` sobre `sinrDb - implementationMarginDb`.
+  - Se añadió `SimState.cellularCi` (`false` por defecto), `Engine.setCellularCi()`, y el selector `#cell-ci-mode` (*Sin C/I (cota)* / *Con C/I co-canal*) en el bloque celular. Cuando está activo, la tarjeta de enlace cambia la etiqueta `C/N` a `C/(N+I)`, muestra el `C/I` en el balance y en `#cell-info`, y recalcula tanto **Cap. clúster** como **Cap. agregada**.
+- **Documentación y pruebas:** Se actualizó `docs/teoria.md` (§2.4, §2.7, §3.3, §5.1–§5.3, §6), se ajustó `tests/quantization.test.ts` y se creó `tests/physics.test.ts` (**11 archivos / 48 pruebas aprobadas**).
 
 ---
 
@@ -131,6 +140,7 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Tramo 5** | UX, Laboratorio y Móvil: arreglar LaTeX crudo en `index.html`, diferenciar cámaras `Satélite`/`Seguir`, cerrar todos los modales con `Escape`, `configHash` completo, *drawers* móviles (`≤ 760 px`) | Pendiente |
 | **Tramo 6** | DevOps/CI y Releases: corregir `build-launcher.ps1` y `BeamLabLEO.cs`, decidir política de `docs/portable/`, script único `bump-version.mjs`, pruebas en `desktop.yml` y `deploy.yml` | Pendiente |
 
-### Decisiones pendientes del usuario
-- **Subida de versión:** Se acordó definir el bump de versión al concluir todos los tramos.
-- **Política de `docs/portable/` (para Tramo 6):** Pendiente confirmar entre *migrar binarios a GitHub Releases* vs *conservar solo la última versión*.
+### Decisiones y preferencias del usuario
+- **Capacidad celular (Tramo 2):** Mostrar **Cap. clúster** y **Cap. agregada** por separado + conmutador para activar/desactivar el modelo de **C/I co-canal** (ya implementado en `28599b1`).
+- **Trabajo local y versionado:** Mantener todo en local durante los tramos; la actualización de versión y publicación en GitHub se ejecutará al finalizar según indique el usuario.
+- **Política de `docs/portable/` (para Tramo 6):** Pendiente confirmar entre *migrar binarios a GitHub Releases* vs *conservar solo la última versión* al llegar al Tramo 6.

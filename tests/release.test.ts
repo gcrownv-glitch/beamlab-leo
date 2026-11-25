@@ -30,7 +30,7 @@ describe('Tramo 6 — Versionado, empaquetado portable y CI/CD', () => {
     const cargoVer = cargo.match(/^\s*version\s*=\s*"([^"]+)"/m)?.[1];
     const cffVer = cff.match(/^version:\s*([^\s#]+)/m)?.[1];
 
-    expect(pkg.version).toBe('2.4.0-beta.1');
+    expect(pkg.version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/);
     expect(tauri.version).toBe(pkg.version);
     expect(cargoVer).toBe(pkg.version);
     expect(cffVer).toBe(pkg.version);
@@ -67,7 +67,8 @@ describe('Tramo 6 — Versionado, empaquetado portable y CI/CD', () => {
     expect(deploy).toContain('npm test');
   });
 
-  it('docs/portable/versions.json registra latest estable 2.3.4 y latestBeta 2.4.0-beta.1 con SHA-256 válido', () => {
+  it('docs/portable/versions.json registra latest estable 2.3.4 y latestBeta coherente con SHA-256 válido', () => {
+    const pkg = JSON.parse(readRepo('package.json')) as { version: string };
     const manifest = JSON.parse(readRepo('docs/portable/versions.json')) as {
       latest: string;
       latestBeta: string | null;
@@ -82,17 +83,22 @@ describe('Tramo 6 — Versionado, empaquetado portable y CI/CD', () => {
     };
 
     expect(manifest.latest).toBe('2.3.4');
-    expect(manifest.latestBeta).toBe('2.4.0-beta.1');
+    if (pkg.version.includes('-')) {
+      expect(manifest.latestBeta).toBe(pkg.version);
+    }
 
-    const beta = manifest.versions.find((v) => v.version === '2.4.0-beta.1');
-    expect(beta).toBeDefined();
-    expect(beta!.channel).toBe('beta');
-    expect(beta!.sha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(beta!.html).toMatch(/^https:\/\/github\.com\/gcrownv-glitch\/beamlab-leo\/releases\/download\/v2\.4\.0-beta\.1\//);
-    expect(beta!.downloads.windowsPortable).toMatch(/beamlab-leo\.exe$/);
-    expect(beta!.downloads.windowsInstaller).toMatch(/setup\.exe$/);
-    expect(beta!.downloads.macDmg).toMatch(/\.dmg$/);
-    expect(beta!.downloads.linuxAppImage).toMatch(/\.AppImage$/);
-    expect(beta!.downloads.linuxDeb).toMatch(/\.deb$/);
+    const current = manifest.versions.find((v) => v.version === pkg.version);
+    expect(current).toBeDefined();
+    if (pkg.version.includes('-')) {
+      expect(current!.channel).toBe('beta');
+    }
+    expect(current!.sha256).toMatch(/^[0-9a-f]{64}$/);
+    const escapedTag = `v${pkg.version}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    expect(current!.html).toMatch(new RegExp(`^https://github\\.com/gcrownv-glitch/beamlab-leo/releases/download/${escapedTag}/`));
+    expect(current!.downloads.windowsPortable).toMatch(/beamlab-leo\.exe$/);
+    expect(current!.downloads.windowsInstaller).toMatch(/setup\.exe$/);
+    expect(current!.downloads.macDmg).toMatch(/\.dmg$/);
+    expect(current!.downloads.linuxAppImage).toMatch(/\.AppImage$/);
+    expect(current!.downloads.linuxDeb).toMatch(/\.deb$/);
   });
 });

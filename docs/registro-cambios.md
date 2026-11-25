@@ -8,11 +8,11 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 |---|---|
 | **Repositorio** | `beamlab-leo` |
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
-| **Versión declarada en manifiestos** | `2.4.0-beta.1` *(canal pre-release beta; la versión estable `2.3.4` se conserva intacta en `checkpoint-tramo-2` y en `main`)* |
-| **Puntos de recuperación estables** | `main` (`25ce657`, v2.3.4 original) · rama `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2 verificados) |
-| **Rama activa** | `beta` / `rel/tramo-6-devops-beta` (tag `v2.4.0-beta.1`) |
-| **Última actualización** | `2026-11-24T19:32:18-05:00` (`2026-11-25T00:32:18Z`) |
-| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build:portable` en verde · `vitest run`: **15 archivos / 66 pruebas aprobadas** |
+| **Versión declarada en manifiestos** | `2.4.0-beta.2` *(canal pre-release beta desplegado en web antes de portar instaladores; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
+| **Puntos de recuperación estables** | `stable/v2.3.4-orig` (`25ce657`, v2.3.4 original) · `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2) · tag/Release `v2.3.4` intacto en GitHub |
+| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.2`) |
+| **Última actualización** | `2026-11-24T20:01:07-05:00` (`2026-11-25T01:01:07Z`) |
+| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` en verde · `vitest run`: **15 archivos / 67 pruebas aprobadas** |
 
 ---
 
@@ -34,6 +34,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Tramo 5** | `0eba8b9` | `2026-11-24T19:13:10-05:00` (`00:13:10Z`) | `ux/tramo-5-mobile-lab` | Renderizar KaTeX inline, diferenciar 3 modos de cámara, cierre global con `Escape`, `#btn-shot` PNG real, trazabilidad de `LabSample` y *drawers* móviles (`≤ 760 px`) |
 | **Tramo 5** | `a774846` | `2026-11-24T19:14:14-05:00` (`00:14:14Z`) | `ux/tramo-5-mobile-lab` | Actualizar registro técnico con Tramo 5 |
 | **Tramo 6** | `f6ac5d7` | `2026-11-24T19:32:18-05:00` (`00:32:18Z`) | `rel/tramo-6-devops-beta` (`beta`) | Aligerar `docs/portable/`, script `bump-version.mjs`, soporte SemVer/beta en lanzador y updater, hardening CI y bump a `2.4.0-beta.1` |
+| **Tramo 6** | `6dbc374` | `2026-11-24T19:33:37-05:00` (`00:33:37Z`) | `rel/tramo-6-devops-beta` (`v2.4.0-beta.1`) | Actualizar registro técnico con Tramo 6 y respaldo local |
+| **Fix Conformada** | `f9ad6f6` | `2026-11-24T19:58:18-05:00` (`00:58:18Z`) | `rel/tramo-6-devops-beta` | Cerrar brecha `(u, v)` en campo lejano para radios 60–80 km, normalizar contra pico radiado real, respaldo síncrono de Web Worker y aviso 32×32 |
 
 ---
 
@@ -240,13 +242,18 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
   - `deploy.yml` exige `bump-version.mjs --check` y `npm test`, tomando los artefactos portables generados en `release/` durante el build.
 - **Pruebas y verificación (`tests/release.test.ts`):** 5 nuevas pruebas verificando orden SemVer con beta, sincronía exacta de los 4 manifiestos, `BeamLabLEO.cs`, workflows `desktop.yml`/`deploy.yml` y estructura de `docs/portable/versions.json` (**15 archivos / 66 pruebas aprobadas**), además de `npm run build:portable` ejecutado con éxito en local.
 
+#### 4. Corrección de síntesis conformada y despliegue web `2.4.0-beta.2` (`f9ad6f6`)
+- **Causa raíz detectada tras `v2.4.0-beta.1`:** En modo **Conformada**, `prepareShapedSynthesis()` mezclaba el muestreo cercano y lejano en un único `thin(outside, 500)` y dejaba una franja sin muestrear en `(u, v)` para radios de `60–80 km`, permitiendo lóbulos espurios y cobertura `0 %`; adicionalmente, `measureSynthesis()` comparaba contra el pico sin factor de elemento (`cos^{2q}θ`) rechazando haces anchos (`350–400 km`), y `worker.onerror` no degradaba a cálculo síncrono en entornos sin Worker `Blob`/`data:`.
+- **Corrección (`src/engine.ts`, `src/core/synthesis.ts`, `src/main.ts`, `src/ui.ts`, `tests/shaped.test.ts`):** Muestreo separado en guarda cercano (`300`) + campo lejano (`400`, `farMinR = maxInUv + 0.03`), normalización contra `peakRadiatedPower()`, respaldo síncrono en `App.synthesize()` y aviso claro cuando `n > 20` (`32×32`).
+- **Despliegue web previo:** Se respaldó `25ce657` en `stable/v2.3.4-orig`, se actualizó a `2.4.0-beta.2` y se desplegó primero en `main` (GitHub Pages) para validación web antes de etiquetar los instaladores desktop/portables.
+
 ---
 
 ## Constancia de respaldos, aligeramiento y artefactos en local
 
 Para trazabilidad y recuperación inmediata ante cualquier eventualidad:
 1. **Repositorio local (`C:\Users\Jhorel Cornejo\.gemini\antigravity\scratch\beamlab-leo`):**
-   - **Versión estable original intacta:** rama `main` en commit `25ce657` (`v2.3.4`), sin modificar.
+   - **Versión estable original intacta:** rama `stable/v2.3.4-orig` en commit `25ce657` (`v2.3.4`), preservada en local y en GitHub junto con el tag/Release `v2.3.4`.
    - **Versión estable verificada (Tramos 0–2) intacta:** rama `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` en commit `62d3b68`.
    - **Ramas por tramo preservadas localmente:** `fix/tramo-1-beamforming-3d` (`d084261`), `fix/tramo-2-rf-physics` (`62d3b68`), `sec/tramo-3-tauri-xss` (`6342a30`), `perf/tramo-4-worker-render` (`1808e62`), `ux/tramo-5-mobile-lab` (`a774846`) y `rel/tramo-6-devops-beta` / `beta` (`f6ac5d7` + commit de documentación).
    - **Historial previo de `docs/portable/`:** al aligerar la rama `beta` (`git rm --sparse` de los `.html` y `.zip` en `docs/portable/`), los commits históricos en `main` (`25ce657`) y `stable/v2.3.4-tramo2` (`62d3b68`) siguen conservando las referencias originales en local y en GitHub Releases (`v2.3.1`–`v2.3.4`).

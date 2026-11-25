@@ -1,4 +1,4 @@
-﻿import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, copyFileSync } from 'node:fs';
+﻿import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, copyFileSync, rmSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { createHash } from 'node:crypto';
 
@@ -6,7 +6,49 @@ const root = process.cwd();
 const dist = join(root, 'dist');
 const outDir = join(root, 'release', 'portable');
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-const version = pkg.version;
+const version = String(pkg.version);
+const isBeta = version.includes('-');
+
+function parseSemver(ver) {
+  const m = String(ver || '').match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/);
+  if (!m) return { major: 0, minor: 0, patch: 0, pre: null };
+  return {
+    major: Number(m[1]),
+    minor: Number(m[2]),
+    patch: Number(m[3]),
+    pre: m[4] ? m[4].split('.') : null,
+  };
+}
+
+function compareSemverDesc(a, b) {
+  const pa = parseSemver(a);
+  const pb = parseSemver(b);
+  for (const k of ['major', 'minor', 'patch']) {
+    if (pa[k] !== pb[k]) return pb[k] - pa[k];
+  }
+  if (pa.pre === null && pb.pre === null) return 0;
+  if (pa.pre === null) return -1;
+  if (pb.pre === null) return 1;
+  const len = Math.max(pa.pre.length, pb.pre.length);
+  for (let i = 0; i < len; i++) {
+    const ia = pa.pre[i];
+    const ib = pb.pre[i];
+    if (ia === undefined) return 1;
+    if (ib === undefined) return -1;
+    const na = /^\d+$/.test(ia) ? Number(ia) : null;
+    const nb = /^\d+$/.test(ib) ? Number(ib) : null;
+    if (na !== null && nb !== null) {
+      if (na !== nb) return nb - na;
+    } else if (na !== null) {
+      return 1;
+    } else if (nb !== null) {
+      return -1;
+    } else if (ia !== ib) {
+      return ib.localeCompare(ia);
+    }
+  }
+  return 0;
+}
 
 const mime = {
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
@@ -52,56 +94,64 @@ html = html.replace(
   () => `<!-- BeamLab LEO ${version} · archivo portable autónomo · Jhorel Kennedy Cornejo Cruz -->\n    <title>`,
 );
 
+// Limpia el directorio temporal portable antes de empaquetar para no arrastrar HTML antiguos en el ZIP.
+rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 const outFile = join(outDir, `BeamLabLEO-${version}.html`);
 writeFileSync(outFile, html, 'utf8');
 
-// Archivo histórico: permite descargar versiones anteriores desde Pages.
+// Solo el manifiesto ligero versions.json queda en docs/portable/; los binarios van a GitHub Releases.
 const archiveDir = join(root, 'docs', 'portable');
 mkdirSync(archiveDir, { recursive: true });
-writeFileSync(join(archiveDir, `BeamLabLEO-${version}.html`), html, 'utf8');
 
 const sha256 = createHash('sha256').update(html).digest('hex');
-const baseUrl = 'https://gcrownv-glitch.github.io/beamlab-leo';
+const releaseBase = `https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v${version}`;
 const manifestFile = join(archiveDir, 'versions.json');
-let manifest = { schema: 1, latest: version, versions: [] };
+let manifest = { schema: 1, latest: version, latestBeta: null, versions: [] };
 if (existsSync(manifestFile)) {
   try { manifest = JSON.parse(readFileSync(manifestFile, 'utf8')); } catch { /* se regenera */ }
 }
 const entry = {
   version,
+  channel: isBeta ? 'beta' : 'stable',
   date: new Date().toISOString().slice(0, 10),
-  notes: process.env.PORTABLE_NOTES ?? 'Cobertura celular solo por región y versión visible en la cabecera.',
-  html: `${baseUrl}/BeamLabLEO-${version}.html`,
-  zip: `${baseUrl}/BeamLabLEO-${version}-portable.zip`,
+  notes: process.env.PORTABLE_NOTES ?? 'Correcciones de 3D, física RF/C-I, seguridad Tauri/XSS, rendimiento Web Worker y UX móvil.',
+  html: `${releaseBase}/BeamLabLEO-${version}.html`,
+  zip: `${releaseBase}/BeamLabLEO-${version}-portable.zip`,
   release: `https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v${version}`,
   downloads: {
-    windowsPortable: `https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v${version}/beamlab-leo.exe`,
-    windowsInstaller: `https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v${version}/BeamLab.LEO_${version}_x64-setup.exe`,
-    linuxAppImage: `https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v${version}/BeamLab.LEO_${version}_amd64.AppImage`,
-    linuxDeb: `https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v${version}/BeamLab.LEO_${version}_amd64.deb`,
-    macDmg: `https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v${version}/BeamLab.LEO_${version}_aarch64.dmg`,
+    windowsPortable: `${releaseBase}/beamlab-leo.exe`,
+    windowsInstaller: `${releaseBase}/BeamLab.LEO_${version}_x64-setup.exe`,
+    linuxAppImage: `${releaseBase}/BeamLab.LEO_${version}_amd64.AppImage`,
+    linuxDeb: `${releaseBase}/BeamLab.LEO_${version}_amd64.deb`,
+    macDmg: `${releaseBase}/BeamLab.LEO_${version}_aarch64.dmg`,
   },
   size: Buffer.byteLength(html),
   sha256,
 };
 const versions = (manifest.versions ?? []).filter((v) => v.version !== version);
 versions.push(entry);
-versions.sort((a, b) => {
-  const pa = a.version.split('.').map(Number);
-  const pb = b.version.split('.').map(Number);
-  for (let i = 0; i < 3; i++) if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pb[i] ?? 0) - (pa[i] ?? 0);
-  return 0;
-});
-manifest = { schema: 1, latest: versions[0]?.version ?? version, versions };
+versions.sort((a, b) => compareSemverDesc(a.version, b.version));
+
+const latestStable = versions.find((v) => !String(v.version).includes('-'));
+const latestBetaEntry = versions.find((v) => String(v.version).includes('-'));
+const latest = latestStable?.version ?? versions[0]?.version ?? version;
+const latestBeta = latestBetaEntry && compareSemverDesc(latestBetaEntry.version, latest) < 0
+  ? latestBetaEntry.version
+  : null;
+
+manifest = { schema: 1, latest, latestBeta, versions };
 writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
 writeFileSync(join(outDir, 'versions.json'), JSON.stringify(manifest, null, 2) + '\n', 'utf8');
 
 // Lanzador local de versiones: no requiere servidor ni instalación.
 const files = readdirSync(outDir)
-  .filter((f) => /^BeamLabLEO-\d+\.\d+\.\d+\.html$/.test(f))
-  .sort()
-  .reverse();
+  .filter((f) => /^BeamLabLEO-\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\.html$/.test(f))
+  .sort((a, b) => {
+    const va = a.match(/^BeamLabLEO-(.+)\.html$/)?.[1] ?? '';
+    const vb = b.match(/^BeamLabLEO-(.+)\.html$/)?.[1] ?? '';
+    return compareSemverDesc(va, vb);
+  });
 const cards = files.map((f) => {
   const v = f.match(/BeamLabLEO-(.+)\.html/)?.[1] ?? f;
   return `<a class="v" href="./${f}"><b>${v}</b><span>${v === version ? 'versión actual' : 'versión anterior'}</span></a>`;

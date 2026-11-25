@@ -1,4 +1,5 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path $csc)) {
@@ -36,7 +37,4 @@ $pkg = Get-Content (Join-Path $root 'package.json') -Raw | ConvertFrom-Json
 $zip = Join-Path $root ("release\BeamLabLEO-{0}-portable.zip" -f $pkg.version)
 Remove-Item $zip -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $outDir '*') -DestinationPath $zip -CompressionLevel Optimal
-$archive = Join-Path $root 'docs\portable'
-New-Item -ItemType Directory -Force $archive | Out-Null
-Copy-Item -Path $zip -Destination (Join-Path $archive ("BeamLabLEO-{0}-portable.zip" -f $pkg.version)) -Force
 Write-Output "ZIP: $zip"

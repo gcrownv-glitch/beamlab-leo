@@ -24,13 +24,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: node scripts/bump-version.mjs --check
       - run: npm test
       - run: npm run build
       - run: node scripts/build-portable.mjs
       - run: |
-          cp -f docs/portable/BeamLabLEO-*.html dist/
+          cp -f release/portable/BeamLabLEO-*.html dist/ 2>/dev/null || true
           cp -f docs/portable/versions.json dist/
-          cp -f docs/portable/*.zip dist/ 2>/dev/null || true
+          cp -f release/*.zip dist/ 2>/dev/null || true
           cp -f portable/Actualizar.cmd portable/Actualizar.ps1 portable/LEEME.txt dist/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

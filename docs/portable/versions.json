@@ -1,7 +1,26 @@
 {
   "schema": 1,
   "latest": "2.3.4",
+  "latestBeta": "2.4.0-beta.1",
   "versions": [
+    {
+      "version": "2.4.0-beta.1",
+      "channel": "beta",
+      "date": "2026-11-25",
+      "notes": "Beta 1 (Tramos 1-6): corrección 3D sin rayos X ni deslizamiento, rigor RF y C/I celular, seguridad Tauri/XSS, Web Worker de síntesis, KaTeX/cámaras/drawers móviles y empaquetado multiplataforma.",
+      "html": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.1/BeamLabLEO-2.4.0-beta.1.html",
+      "zip": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.1/BeamLabLEO-2.4.0-beta.1-portable.zip",
+      "release": "https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.4.0-beta.1",
+      "downloads": {
+        "windowsPortable": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.1/beamlab-leo.exe",
+        "windowsInstaller": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.1/BeamLab.LEO_2.4.0-beta.1_x64-setup.exe",
+        "linuxAppImage": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.1/BeamLab.LEO_2.4.0-beta.1_amd64.AppImage",
+        "linuxDeb": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.1/BeamLab.LEO_2.4.0-beta.1_amd64.deb",
+        "macDmg": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.1/BeamLab.LEO_2.4.0-beta.1_aarch64.dmg"
+      },
+      "size": 4597628,
+      "sha256": "ebea26d4bc7b123bbb2cca6b62b76408f0c59030bea7180c582b4bad83156c39"
+    },
     {
       "version": "2.3.4",
       "date": "2026-11-17",

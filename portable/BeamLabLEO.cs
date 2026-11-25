@@ -6,6 +6,88 @@ using System.Windows.Forms;
 
 internal static class BeamLabPortable
 {
+    private sealed class SemVer : IComparable<SemVer>
+    {
+        public int Major;
+        public int Minor;
+        public int Patch;
+        public string[] Pre;
+
+        public static SemVer TryParse(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return null;
+            int plus = raw.IndexOf('+');
+            if (plus >= 0) raw = raw.Substring(0, plus);
+            int dash = raw.IndexOf('-');
+            string core = dash >= 0 ? raw.Substring(0, dash) : raw;
+            string prePart = dash >= 0 ? raw.Substring(dash + 1) : null;
+
+            string[] nums = core.Split('.');
+            if (nums.Length != 3) return null;
+            int maj, min, pat;
+            if (!int.TryParse(nums[0], out maj) || maj < 0) return null;
+            if (!int.TryParse(nums[1], out min) || min < 0) return null;
+            if (!int.TryParse(nums[2], out pat) || pat < 0) return null;
+
+            string[] pre = null;
+            if (prePart != null)
+            {
+                if (prePart.Length == 0) return null;
+                pre = prePart.Split('.');
+                for (int i = 0; i < pre.Length; i++)
+                {
+                    if (string.IsNullOrEmpty(pre[i])) return null;
+                }
+            }
+
+            var sv = new SemVer();
+            sv.Major = maj;
+            sv.Minor = min;
+            sv.Patch = pat;
+            sv.Pre = pre;
+            return sv;
+        }
+
+        public int CompareTo(SemVer other)
+        {
+            if (other == null) return 1;
+            if (Major != other.Major) return Major.CompareTo(other.Major);
+            if (Minor != other.Minor) return Minor.CompareTo(other.Minor);
+            if (Patch != other.Patch) return Patch.CompareTo(other.Patch);
+            if (Pre == null && other.Pre == null) return 0;
+            if (Pre == null) return 1;
+            if (other.Pre == null) return -1;
+
+            int max = Math.Max(Pre.Length, other.Pre.Length);
+            for (int i = 0; i < max; i++)
+            {
+                if (i >= Pre.Length) return -1;
+                if (i >= other.Pre.Length) return 1;
+                int na, nb;
+                bool isA = int.TryParse(Pre[i], out na);
+                bool isB = int.TryParse(other.Pre[i], out nb);
+                if (isA && isB)
+                {
+                    if (na != nb) return na.CompareTo(nb);
+                }
+                else if (isA)
+                {
+                    return -1;
+                }
+                else if (isB)
+                {
+                    return 1;
+                }
+                else
+                {
+                    int c = string.CompareOrdinal(Pre[i], other.Pre[i]);
+                    if (c != 0) return c;
+                }
+            }
+            return 0;
+        }
+    }
+
     [STAThread]
     private static void Main()
     {
@@ -53,24 +135,24 @@ internal static class BeamLabPortable
 
     private static string FindTarget(string root)
     {
-        string launcher = Path.Combine(root, "index.html");
-        if (File.Exists(launcher)) return launcher;
-
-        return Directory.GetFiles(root, "BeamLabLEO-*.html")
+        string best = Directory.GetFiles(root, "BeamLabLEO-*.html")
             .Select(path => new { Path = path, Version = ParseVersion(path) })
             .Where(x => x.Version != null)
             .OrderByDescending(x => x.Version)
             .Select(x => x.Path)
             .FirstOrDefault();
+        if (best != null) return best;
+
+        string launcher = Path.Combine(root, "index.html");
+        return File.Exists(launcher) ? launcher : null;
     }
 
-    private static Version ParseVersion(string path)
+    private static SemVer ParseVersion(string path)
     {
         string name = Path.GetFileNameWithoutExtension(path);
         const string prefix = "BeamLabLEO-";
         if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return null;
-        Version version;
-        return Version.TryParse(name.Substring(prefix.Length), out version) ? version : null;
+        return SemVer.TryParse(name.Substring(prefix.Length));
     }
 
     private static string FindBrowser()

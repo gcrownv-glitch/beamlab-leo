@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "Si usas BeamLab LEO en un trabajo académico, cita el repositorio."
 title: "BeamLab LEO: simulador interactivo de beamforming satelital"
-version: 2.3.4
-date-released: "2026-11-12"
+version: 2.4.0-beta.1
+date-released: "2026-11-25"
 authors:
   - family-names: Cornejo Cruz
     given-names: Jhorel Kennedy

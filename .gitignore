@@ -12,4 +12,6 @@ coverage/
 .DS_Store
 docs/_guion.html
 docs/presentacion/_guion.html
+docs/portable/*.html
+docs/portable/*.zip
 release/

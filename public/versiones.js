@@ -92,21 +92,30 @@
         .sort((a, b) => compareSemverDesc(a.version, b.version));
       if (!versions.length) throw new Error('sin versiones');
 
+      const latestStableVer = versions.find((v) => !v.version.includes('-'))?.version ?? '';
       const cards = versions.map((v, i) => {
         const card = el('div', 'card');
+        const isBeta = v.version.includes('-') || v.channel === 'beta';
 
         const row = el('div', 'row');
+        const titleGroup = el('div');
         const htmlHref = safeUrl(v.html);
         if (htmlHref) {
           const verLink = el('a', 'ver', v.version);
           verLink.href = htmlHref;
           verLink.setAttribute('download', '');
-          row.appendChild(verLink);
+          titleGroup.appendChild(verLink);
         } else {
-          row.appendChild(el('span', 'ver', v.version));
+          titleGroup.appendChild(el('span', 'ver', v.version));
         }
-        if (i === 0) {
-          row.appendChild(el('span', 'latest', 'más reciente'));
+        if (isBeta) {
+          titleGroup.appendChild(el('span', 'badge-beta', 'beta'));
+        }
+        row.appendChild(titleGroup);
+        if (v.version === latestStableVer) {
+          row.appendChild(el('span', 'latest', i === 0 ? 'estable · más reciente' : 'estable'));
+        } else if (i === 0) {
+          row.appendChild(el('span', 'latest', 'pre-release más reciente'));
         }
         card.appendChild(row);
 

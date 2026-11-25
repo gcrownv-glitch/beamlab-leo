@@ -14,9 +14,24 @@ permissions:
   contents: write
 
 jobs:
+  verify:
+    name: Verificar versiones, pruebas y build web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/bump-version.mjs --check
+      - run: npm test
+      - run: npm run build
+
   linux:
     name: Linux · Ubuntu · deb + AppImage
-    runs-on: ubuntu-22.04
+    needs: [verify]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install system dependencies
@@ -44,6 +59,7 @@ jobs:
 
   macos:
     name: macOS · Apple Silicon cross · dmg
+    needs: [verify]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +83,8 @@ jobs:
           path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
 
   windows:
-    name: Windows · nsis + exe
+    name: Windows · nsis + portable exe + zip
+    needs: [verify]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,6 +98,8 @@ jobs:
           workspaces: src-tauri
       - run: npm ci
       - run: npm run build
+      - run: node scripts/build-portable.mjs
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-launcher.ps1
       - run: npx tauri build --bundles nsis
       - uses: actions/upload-artifact@v4
         with:
@@ -88,7 +107,9 @@ jobs:
           if-no-files-found: error
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/*.exe
+            src-tauri/target/release/beamlab-leo.exe
+            release/BeamLabLEO-*.zip
+            release/portable/BeamLabLEO-*.html
 
   release:
     name: Publicar artefactos en GitHub Releases
@@ -104,16 +125,18 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: BeamLab LEO ${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: ${{ contains(github.ref_name, '-') && 'false' || 'true' }}
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: release-assets/**/*
           body: |
             BeamLab LEO ${{ github.ref_name }}.
 
-            - Windows: instalador NSIS y ejecutable Tauri.
-            - Linux Ubuntu: .deb y AppImage.
-            - macOS Apple Silicon: .dmg.
-            - Web y HTML portable: https://gcrownv-glitch.github.io/beamlab-leo/
+            - Windows: instalador NSIS (`*-setup.exe`), ejecutable portable Tauri (`beamlab-leo.exe`) y paquete HTML/ZIP portable (`BeamLabLEO-*-portable.zip`).
+            - macOS Apple Silicon: paquete `.dmg`.
+            - Linux Ubuntu: paquetes `.AppImage` y `.deb`.
+            - Web y catálogo de versiones: https://gcrownv-glitch.github.io/beamlab-leo/versiones.html
 
-            Artefactos sin firma. macOS puede pedir clic derecho → Abrir.
-
+            Las etiquetas `-beta.*` se publican como **pre-release** manteniendo la última versión estable (`v2.3.4`) intacta.
+            Artefactos sin firma comercial: macOS puede pedir clic derecho → Abrir.

@@ -10,9 +10,9 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
 | **Versión declarada en manifiestos** | `2.3.4` *(estable local en `checkpoint-tramo-2`; futuras publicaciones saldrán como `beta`, p. ej. `2.4.0-beta.1`)* |
 | **Puntos de recuperación estables** | `main` (`25ce657`, v2.3.4 original) · rama `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2 verificados) |
-| **Rama activa** | `perf/tramo-4-worker-render` (construida sobre `sec/tramo-3-tauri-xss`) |
-| **Última actualización** | `2026-11-24T18:28:21-05:00` (`2026-11-24T23:28:21Z`) |
-| **Estado de verificación** | `tsc --noEmit` + `vite build` en verde · `vitest run`: **13 archivos / 57 pruebas aprobadas** |
+| **Rama activa** | `ux/tramo-5-mobile-lab` (construida sobre `perf/tramo-4-worker-render`) |
+| **Última actualización** | `2026-11-24T19:13:10-05:00` (`2026-11-25T00:13:10Z`) |
+| **Estado de verificación** | `tsc --noEmit` + `vite build` en verde · `vitest run`: **14 archivos / 61 pruebas aprobadas** · verificación visual escritorio/móvil (`390×844`) |
 
 ---
 
@@ -30,6 +30,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Tramo 3** | `791afdf` | `2026-11-24T18:09:11-05:00` (`23:09:11Z`) | `sec/tramo-3-tauri-xss` | Hardening de seguridad: `save_export` en Rust, permisos Tauri mínimos, CSP web/desktop, DOM sin `innerHTML`, validador `LabStore`, CSV injection y `Actualizar.ps1` *fail-closed* |
 | **Tramo 3** | `6342a30` | `2026-11-24T18:09:53-05:00` (`23:09:53Z`) | `sec/tramo-3-tauri-xss` | Registrar checkpoint estable `checkpoint-tramo-2`, política beta y Tramo 3 |
 | **Tramo 4** | `b795140` | `2026-11-24T18:28:21-05:00` (`23:28:21Z`) | `perf/tramo-4-worker-render` | Factorizar `patternFromWeights`, mover síntesis conformada a Web Worker, omitir `gainMap` oculto, quitar `preserveDrawingBuffer` y completar `SceneView.dispose()` |
+| **Tramo 4** | `1808e62` | `2026-11-24T18:29:00-05:00` (`23:29:00Z`) | `perf/tramo-4-worker-render` | Actualizar registro técnico con Tramo 4 |
+| **Tramo 5** | `0eba8b9` | `2026-11-24T19:13:10-05:00` (`00:13:10Z`) | `ux/tramo-5-mobile-lab` | Renderizar KaTeX inline, diferenciar 3 modos de cámara, cierre global con `Escape`, `#btn-shot` PNG real, trazabilidad de `LabSample` y *drawers* móviles (`≤ 760 px`) |
 
 ---
 
@@ -178,6 +180,41 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 
 ---
 
+### Tramo 5 — UX, Laboratorio, Móvil y Accesibilidad
+
+- **Commit:** `0eba8b9` (`2026-11-24T19:13:10-05:00` / `2026-11-25T00:13:10Z`)
+
+#### 1. KaTeX inline y sincronización física en el modal de Teoría
+- **Causa raíz:** `UI.renderMath()` solo procesaba `.math[data-tex]` en modo bloque, dejando texto LaTeX crudo (`\(2^b\)`, `\(2^a\)`, `e^{jk(...)}`) visible en `#t-quant` y `#t-synth`, y las cifras de `#t-quant`/`#t-taper` seguían con los valores anteriores al Tramo 2 (`65×65`, `0,5 dB`).
+- **Corrección (`index.html`, `src/ui.ts`, `src/styles.css`):**
+  - Se extendió `UI.renderMath()` para renderizar `.math-inline[data-tex]` con `displayMode: false`.
+  - Se reemplazaron las expresiones crudas por `.math-inline`, se actualizó la ecuación de directividad `D` incluyendo $P_e(\theta)$ y se sincronizó el texto de cuantización (`97×97`, `129×129` en `32×32`, paso de `2 dB` y aplicación posterior de residuales RMS).
+
+#### 2. Tres modos de cámara realmente distintos (`earth`, `sat`, `follow`)
+- **Causa raíz:** `SceneView.updateCamera()` trataba `'sat'` y `'follow'` de forma idéntica (ambos trasladaban cámara y pivote con `delta`).
+- **Corrección (`src/scene.ts`):**
+  - `'earth'`: órbita libre centrada en el origen terrestre (reencuadrando si se venía de zoom cercano al satélite).
+  - `'sat'`: cámara embarcada detrás/sobre el satélite mirando hacia nadir y el subpunto/huella con horizonte alineado a la radial local (`controls.enabled = false`, vectores *scratch* sin alocaciones por frame).
+  - `'follow'`: seguimiento libre que traslada el pivote sobre el satélite permitiendo rotar y hacer zoom a su alrededor.
+
+#### 3. Modales (`Escape`/backdrop) y captura rápida real en `#btn-shot`
+- **Corrección (`index.html`, `src/ui.ts`, `src/main.ts`):**
+  - `#btn-shot` ejecuta `exportScene()` con notificación real (`Captura rápida PNG`), eliminando el handler muerto `screenshot`.
+  - `#lab` y `#update` cierran al hacer clic en el fondo (*backdrop*), y `Escape` en `UI.onKey()` cierra `#help`, `#lab`, `#update` y `#tour` incluso cuando el foco está dentro de un `<input>`, `<select>` o `<textarea>`.
+
+#### 4. Trazabilidad completa de muestras en Laboratorio
+- **Corrección (`src/core/lab.ts`, `src/lab-sheet.ts`):**
+  - `buildSample()` incluye `simTime` (resolución de 1 s), `region`, `reuse`, `cellularCi`, `spotFixed`, `shapedRadiusKm` y todos los parámetros del balance de enlace en `configHash`.
+  - Se extrajo `buildLabSheetData(state, d, sample)` usada por `buildLabSheet()` para leer íntegramente órbita, arreglo, patrón exacto, enlace, sistema y haz conformado desde la muestra `sample` guardada (usando el estado vivo solo como respaldo cuando `sample === null`).
+
+#### 5. *Drawers* responsivos en móvil (`≤ 760 px`)
+- **Corrección (`index.html`, `src/styles.css`, `src/ui.ts`):**
+  - Se reemplazó `.panel, .panel-tab { display: none; }` en `@media (max-width: 760px)` por paneles tipo *drawer* superpuestos (`z-index: 45`), botones de barra superior `#btn-mobile-orbit` / `#btn-mobile-antenna`, topbar compacta sin solapamiento del crédito y modales `#help`/`#lab` apilados en 1 columna.
+  - En pantallas `≤ 760 px`, ambos paneles inician contraídos y abrir uno colapsa automáticamente el opuesto.
+- **Pruebas y verificación (`tests/ux.test.ts`):** 4 nuevas pruebas automatizadas (**14 archivos / 61 pruebas aprobadas**), `npm run build` en verde y verificación visual en navegador (`1280×800` y `390×844`) con 0 errores de consola/WebGL.
+
+---
+
 ## Invariantes que cualquier cambio futuro debe respetar
 
 1. **Oclusión terrestre en dos capas coherentes:** La visibilidad de superficie se evalúa con $\mathbf{N} \cdot (\mathbf{S} - \mathbf{P}) > 0$ tanto en `src/core/orbit.ts` (`elevationAngle`, `raySphere`) como en el *fragment shader* de `src/scene.ts`. Nunca usar máscaras CPU para tapar errores de proyección del shader.
@@ -186,6 +223,7 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 4. **Invariantes RF:** `quantize*` aplica cuantización discreta antes de residuales continuos; `gridDirectivity` incluye $\cos^{2q}\theta$ en numerador y denominador sobre el disco visible; `marginDb < 0` equivale exactamente a `outage === true`.
 5. **Invariantes de seguridad:** Cero `innerHTML` en `src/` y `public/versiones.*`; Tauri usa `save_export` con diálogo en Rust y sin `opener:allow-open-path`; `LabStore` pasa siempre por `validateLabSession`; `Actualizar.ps1` aborta sin SHA-256 válido.
 6. **Invariantes de rendimiento:** `patternFromWeights` se mantiene factorizado en 2 pasos 1D; `Engine.compute()` no ejecuta `computeGainMap` con `showGain === false`; `SceneView` no activa `preserveDrawingBuffer` y `dispose()` libera listeners, controles y recursos WebGL.
+7. **Invariantes de UX y Laboratorio:** Toda expresión matemática en `index.html` usa `.math[data-tex]` o `.math-inline[data-tex]`; `buildLabSheetData` prioriza siempre los datos del `sample` histórico sobre el estado vivo; en `≤ 760 px` los paneles laterales permanecen accesibles como *drawers* mutuamente excluyentes.
 
 ---
 
@@ -195,8 +233,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 |---|---|---|
 | **Tramo 3** | Seguridad: diálogo nativo en Rust (`save_export`), CSP producción vs `devCsp`, eliminar `innerHTML` en `ui.ts` y `versiones.html`, SHA-256 *fail-closed* en `Actualizar.ps1`, neutralizar CSV injection | Completado (`791afdf`) |
 | **Tramo 4** | Rendimiento: quitar `preserveDrawingBuffer`, saltar `computeGainMap` si `!showGain`, precomputar `cx/sx` en `patternFromWeights`, Web Worker para `synthesizeCoverage`, `SceneView.dispose()` completo | Completado (`b795140`) |
-| **Tramo 5** | UX, Laboratorio y Móvil: arreglar LaTeX crudo en `index.html`, diferenciar cámaras `Satélite`/`Seguir`, cerrar todos los modales con `Escape`, `configHash` completo, *drawers* móviles (`≤ 760 px`) | Pendiente |
-| **Tramo 6** | DevOps/CI y Releases: corregir `build-launcher.ps1` y `BeamLabLEO.cs`, decidir política de `docs/portable/`, script único `bump-version.mjs`, pruebas en `desktop.yml` y `deploy.yml` | Pendiente |
+| **Tramo 5** | UX, Laboratorio y Móvil: KaTeX inline en `index.html`, diferenciar cámaras `Tierra`/`Satélite`/`Seguir`, cierre global con `Escape`, `#btn-shot` PNG real, `configHash` completo y `buildLabSheetData`, *drawers* móviles (`≤ 760 px`) | Completado (`0eba8b9`) |
+| **Tramo 6** | DevOps/CI y Releases: corregir `build-launcher.ps1` y `BeamLabLEO.cs`, decidir política de `docs/portable/`, script único `bump-version.mjs`, pruebas en `desktop.yml` y `deploy.yml`, publicación **beta** multiplataforma | Pendiente |
 
 ### Decisiones y preferencias del usuario
 - **Capacidad celular (Tramo 2):** Mostrar **Cap. clúster** y **Cap. agregada** por separado + conmutador para activar/desactivar el modelo de **C/I co-canal** (ya implementado en `28599b1`).

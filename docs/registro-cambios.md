@@ -8,11 +8,11 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 |---|---|
 | **Repositorio** | `beamlab-leo` |
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
-| **Versión declarada en manifiestos** | `2.3.4` *(estable local en `checkpoint-tramo-2`; futuras publicaciones saldrán como `beta`, p. ej. `2.4.0-beta.1`)* |
+| **Versión declarada en manifiestos** | `2.4.0-beta.1` *(canal pre-release beta; la versión estable `2.3.4` se conserva intacta en `checkpoint-tramo-2` y en `main`)* |
 | **Puntos de recuperación estables** | `main` (`25ce657`, v2.3.4 original) · rama `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2 verificados) |
-| **Rama activa** | `ux/tramo-5-mobile-lab` (construida sobre `perf/tramo-4-worker-render`) |
-| **Última actualización** | `2026-11-24T19:13:10-05:00` (`2026-11-25T00:13:10Z`) |
-| **Estado de verificación** | `tsc --noEmit` + `vite build` en verde · `vitest run`: **14 archivos / 61 pruebas aprobadas** · verificación visual escritorio/móvil (`390×844`) |
+| **Rama activa** | `beta` / `rel/tramo-6-devops-beta` (tag `v2.4.0-beta.1`) |
+| **Última actualización** | `2026-11-24T19:32:18-05:00` (`2026-11-25T00:32:18Z`) |
+| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build:portable` en verde · `vitest run`: **15 archivos / 66 pruebas aprobadas** |
 
 ---
 
@@ -32,6 +32,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Tramo 4** | `b795140` | `2026-11-24T18:28:21-05:00` (`23:28:21Z`) | `perf/tramo-4-worker-render` | Factorizar `patternFromWeights`, mover síntesis conformada a Web Worker, omitir `gainMap` oculto, quitar `preserveDrawingBuffer` y completar `SceneView.dispose()` |
 | **Tramo 4** | `1808e62` | `2026-11-24T18:29:00-05:00` (`23:29:00Z`) | `perf/tramo-4-worker-render` | Actualizar registro técnico con Tramo 4 |
 | **Tramo 5** | `0eba8b9` | `2026-11-24T19:13:10-05:00` (`00:13:10Z`) | `ux/tramo-5-mobile-lab` | Renderizar KaTeX inline, diferenciar 3 modos de cámara, cierre global con `Escape`, `#btn-shot` PNG real, trazabilidad de `LabSample` y *drawers* móviles (`≤ 760 px`) |
+| **Tramo 5** | `a774846` | `2026-11-24T19:14:14-05:00` (`00:14:14Z`) | `ux/tramo-5-mobile-lab` | Actualizar registro técnico con Tramo 5 |
+| **Tramo 6** | `f6ac5d7` | `2026-11-24T19:32:18-05:00` (`00:32:18Z`) | `rel/tramo-6-devops-beta` (`beta`) | Aligerar `docs/portable/`, script `bump-version.mjs`, soporte SemVer/beta en lanzador y updater, hardening CI y bump a `2.4.0-beta.1` |
 
 ---
 
@@ -215,6 +217,46 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 
 ---
 
+### Tramo 6 — DevOps, aligeramiento del repositorio y lanzamiento Beta `v2.4.0-beta.1`
+
+- **Commit:** `f6ac5d7` (`2026-11-24T19:32:18-05:00` / `2026-11-25T00:32:18Z`)
+
+#### 1. Sincronización única de versiones (`scripts/bump-version.mjs`)
+- **Corrección (`scripts/bump-version.mjs`, `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, `CITATION.cff`):**
+  - Se creó `scripts/bump-version.mjs` con modos `--check` y `<version>` (soporte SemVer completo con sufijos `-beta.*`), sincronizando los 4 manifiestos (+ `Cargo.lock` si existe) y actualizando `date-released` en `CITATION.cff`.
+  - Se agregaron los scripts `version:check` y `version:bump` en `package.json` y se sincronizó el proyecto a **`2.4.0-beta.1`**.
+
+#### 2. Empaquetado portable limpio, lanzador C# compatible con beta y soporte SemVer en cliente
+- **Corrección (`scripts/build-portable.mjs`, `scripts/build-launcher.ps1`, `portable/BeamLabLEO.cs`, `src/update.ts`, `public/versiones.js`, `public/versiones.html`):**
+  - `build-portable.mjs` limpia `release/portable/` antes de construir, elimina la copia de HTML pesados a `docs/portable/`, soporta orden SemVer con prereleases (`2.4.0 > 2.4.0-beta.2 > 2.4.0-beta.1 > 2.3.4`), distingue `latest` (última estable `2.3.4`) y `latestBeta` (`2.4.0-beta.1`) en `docs/portable/versions.json`, y apunta las descargas de HTML/ZIP/instaladores a GitHub Releases.
+  - `build-launcher.ps1` silencia `Write-Progress` en `Compress-Archive` para ejecuciones no interactivas en CI/consola y deja el ZIP en `release/` (fuera de git).
+  - `portable/BeamLabLEO.cs` prioriza el archivo `BeamLabLEO-*.html` de versión SemVer más alta (incluyendo `-beta.*`) y usa `index.html` solo como respaldo (compatible con C# 5 / .NET Framework 4.0 `csc.exe`).
+  - `src/update.ts` implementa `compare()` SemVer 2.0.0 completo y evalúa `latestBeta` únicamente cuando la instancia instalada ya está en canal beta; `public/versiones.js`/`.html` muestran insignias diferenciadas `beta` / `estable`.
+
+#### 3. Aligeramiento del repositorio y CI/CD multiplataforma
+- **Corrección (`.gitignore`, `docs/portable/`, `.github/workflows/desktop.yml`, `.github/workflows/deploy.yml`):**
+  - Se excluyeron `docs/portable/*.html` y `docs/portable/*.zip` en `.gitignore` y se removieron los binarios portables históricos del índice git (`git rm --sparse`), manteniendo únicamente el manifiesto ligero `docs/portable/versions.json`.
+  - `desktop.yml` añade el job previo `verify` (`bump-version.mjs --check`, `npm test`, `npm run build`), genera el paquete portable HTML + `BeamLabLEO.exe` + ZIP junto con `beamlab-leo.exe` y el instalador NSIS en Windows, compila `.dmg` (macOS Apple Silicon) y `.AppImage` + `.deb` (Linux Ubuntu), y publica etiquetas `-beta.*` como **Pre-release** (`prerelease: true`, `make_latest: false`).
+  - `deploy.yml` exige `bump-version.mjs --check` y `npm test`, tomando los artefactos portables generados en `release/` durante el build.
+- **Pruebas y verificación (`tests/release.test.ts`):** 5 nuevas pruebas verificando orden SemVer con beta, sincronía exacta de los 4 manifiestos, `BeamLabLEO.cs`, workflows `desktop.yml`/`deploy.yml` y estructura de `docs/portable/versions.json` (**15 archivos / 66 pruebas aprobadas**), además de `npm run build:portable` ejecutado con éxito en local.
+
+---
+
+## Constancia de respaldos, aligeramiento y artefactos en local
+
+Para trazabilidad y recuperación inmediata ante cualquier eventualidad:
+1. **Repositorio local (`C:\Users\Jhorel Cornejo\.gemini\antigravity\scratch\beamlab-leo`):**
+   - **Versión estable original intacta:** rama `main` en commit `25ce657` (`v2.3.4`), sin modificar.
+   - **Versión estable verificada (Tramos 0–2) intacta:** rama `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` en commit `62d3b68`.
+   - **Ramas por tramo preservadas localmente:** `fix/tramo-1-beamforming-3d` (`d084261`), `fix/tramo-2-rf-physics` (`62d3b68`), `sec/tramo-3-tauri-xss` (`6342a30`), `perf/tramo-4-worker-render` (`1808e62`), `ux/tramo-5-mobile-lab` (`a774846`) y `rel/tramo-6-devops-beta` / `beta` (`f6ac5d7` + commit de documentación).
+   - **Historial previo de `docs/portable/`:** al aligerar la rama `beta` (`git rm --sparse` de los `.html` y `.zip` en `docs/portable/`), los commits históricos en `main` (`25ce657`) y `stable/v2.3.4-tramo2` (`62d3b68`) siguen conservando las referencias originales en local y en GitHub Releases (`v2.3.1`–`v2.3.4`).
+2. **Artefactos portables compilados localmente (carpeta `release/`, excluida de git por `.gitignore`):**
+   - `release/portable/BeamLabLEO-2.4.0-beta.1.html` (4,38 MB, SHA-256 registrado en `docs/portable/versions.json`).
+   - `release/portable/BeamLabLEO.exe` (lanzador .NET Framework compilado localmente).
+   - `release/BeamLabLEO-2.4.0-beta.1-portable.zip` (2,37 MB, paquete portable completo).
+
+---
+
 ## Invariantes que cualquier cambio futuro debe respetar
 
 1. **Oclusión terrestre en dos capas coherentes:** La visibilidad de superficie se evalúa con $\mathbf{N} \cdot (\mathbf{S} - \mathbf{P}) > 0$ tanto en `src/core/orbit.ts` (`elevationAngle`, `raySphere`) como en el *fragment shader* de `src/scene.ts`. Nunca usar máscaras CPU para tapar errores de proyección del shader.
@@ -224,19 +266,21 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 5. **Invariantes de seguridad:** Cero `innerHTML` en `src/` y `public/versiones.*`; Tauri usa `save_export` con diálogo en Rust y sin `opener:allow-open-path`; `LabStore` pasa siempre por `validateLabSession`; `Actualizar.ps1` aborta sin SHA-256 válido.
 6. **Invariantes de rendimiento:** `patternFromWeights` se mantiene factorizado en 2 pasos 1D; `Engine.compute()` no ejecuta `computeGainMap` con `showGain === false`; `SceneView` no activa `preserveDrawingBuffer` y `dispose()` libera listeners, controles y recursos WebGL.
 7. **Invariantes de UX y Laboratorio:** Toda expresión matemática en `index.html` usa `.math[data-tex]` o `.math-inline[data-tex]`; `buildLabSheetData` prioriza siempre los datos del `sample` histórico sobre el estado vivo; en `≤ 760 px` los paneles laterales permanecen accesibles como *drawers* mutuamente excluyentes.
+8. **Invariantes de versionado y CI:** Los 4 manifiestos (`package.json`, `Cargo.toml`, `tauri.conf.json`, `CITATION.cff`) deben coincidir siempre (`node scripts/bump-version.mjs --check`); `docs/portable/` solo versiona `versions.json`; las etiquetas `-beta.*` deben publicarse como pre-release sin sobreescribir el release estable `v2.3.4`.
 
 ---
 
-## Hoja de ruta restante (pendiente)
+## Hoja de ruta ejecutada
 
 | Tramo | Alcance resumido | Estado |
 |---|---|---|
+| **Tramo 0–2** | Tipado estricto, eliminación de código muerto, corrección 3D (`spot`, `cellular`, `global`, `shaped`), rigor RF/enlace y modelo C/I co-canal | Completado (`62d3b68`) |
 | **Tramo 3** | Seguridad: diálogo nativo en Rust (`save_export`), CSP producción vs `devCsp`, eliminar `innerHTML` en `ui.ts` y `versiones.html`, SHA-256 *fail-closed* en `Actualizar.ps1`, neutralizar CSV injection | Completado (`791afdf`) |
 | **Tramo 4** | Rendimiento: quitar `preserveDrawingBuffer`, saltar `computeGainMap` si `!showGain`, precomputar `cx/sx` en `patternFromWeights`, Web Worker para `synthesizeCoverage`, `SceneView.dispose()` completo | Completado (`b795140`) |
 | **Tramo 5** | UX, Laboratorio y Móvil: KaTeX inline en `index.html`, diferenciar cámaras `Tierra`/`Satélite`/`Seguir`, cierre global con `Escape`, `#btn-shot` PNG real, `configHash` completo y `buildLabSheetData`, *drawers* móviles (`≤ 760 px`) | Completado (`0eba8b9`) |
-| **Tramo 6** | DevOps/CI y Releases: corregir `build-launcher.ps1` y `BeamLabLEO.cs`, decidir política de `docs/portable/`, script único `bump-version.mjs`, pruebas en `desktop.yml` y `deploy.yml`, publicación **beta** multiplataforma | Pendiente |
+| **Tramo 6** | DevOps/CI y Releases: `bump-version.mjs`, corrección de `build-launcher.ps1` y `BeamLabLEO.cs`, aligeramiento de `docs/portable/`, validación en `desktop.yml`/`deploy.yml`, publicación **beta** `v2.4.0-beta.1` | Completado (`f6ac5d7`) |
 
-### Decisiones y preferencias del usuario
-- **Capacidad celular (Tramo 2):** Mostrar **Cap. clúster** y **Cap. agregada** por separado + conmutador para activar/desactivar el modelo de **C/I co-canal** (ya implementado en `28599b1`).
-- **Estrategia de ramas y versiones:** Conservar `2.3.4` estable como punto de recuperación (`stable/v2.3.4-tramo2` / tag `checkpoint-tramo-2` en `62d3b68`) y publicar las siguientes iteraciones en GitHub como versiones **beta** (p. ej. `2.4.0-beta.1`) cuando se autorice al final.
-- **Política de `docs/portable/` (para Tramo 6):** Pendiente confirmar entre *migrar binarios a GitHub Releases* vs *conservar solo la última versión* al llegar al Tramo 6.
+### Decisiones y preferencias aplicadas
+- **Capacidad celular (Tramo 2):** Mostrar **Cap. clúster** y **Cap. agregada** por separado + conmutador para activar/desactivar el modelo de **C/I co-canal** (`28599b1`).
+- **Estrategia de ramas y versiones:** Conservar `2.3.4` estable en `main` (`25ce657`) y `checkpoint-tramo-2` (`62d3b68`), y publicar la versión unificada como pre-release **`v2.4.0-beta.1`**.
+- **Política de `docs/portable/` (Tramo 6):** Se aligeró la rama retirando los binarios `.html` y `.zip` hacia GitHub Releases, conservando `docs/portable/versions.json` en git y dejando constancia de los artefactos y puntos de recuperación en local.

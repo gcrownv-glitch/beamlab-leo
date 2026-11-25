@@ -33,6 +33,7 @@ class App {
   private uiAccum = 0;
   private nextFrame = 0;
   private synthWorker: Worker | null = null;
+  private synthWorkerDisabled = false;
   private synthReqId = 0;
   renderedFrames = 0;
 
@@ -335,11 +336,12 @@ class App {
   }
 
   private getSynthWorker(): Worker | null {
-    if (typeof Worker === 'undefined') return null;
+    if (this.synthWorkerDisabled || typeof Worker === 'undefined') return null;
     if (!this.synthWorker) {
       try {
         this.synthWorker = new SynthWorker();
       } catch {
+        this.synthWorkerDisabled = true;
         return null;
       }
     }
@@ -397,6 +399,16 @@ class App {
       this.ui.setSynthesisBusy(false, 'No se pudo sintetizar. Prueba con otro radio o centro.');
     };
 
+    const runSyncFallback = () => {
+      window.setTimeout(() => {
+        try {
+          finish(runShapedSynthesisJob(prep.job));
+        } catch (e) {
+          fail((e as Error).message);
+        }
+      }, 16);
+    };
+
     const worker = this.getSynthWorker();
     if (worker) {
       worker.onmessage = (ev: MessageEvent<SynthWorkerResponse>) => {
@@ -405,19 +417,23 @@ class App {
         else fail(ev.data.error);
       };
       worker.onerror = () => {
-        fail('Error en el Web Worker de síntesis.');
+        // En entornos sin Blob/Data Worker (p. ej. file:// o webviews restrictivos), degradar a cálculo síncrono.
+        this.synthWorker?.terminate();
+        this.synthWorker = null;
+        this.synthWorkerDisabled = true;
+        runSyncFallback();
       };
-      worker.postMessage({ id: reqId, job: prep.job });
-      return;
+      try {
+        worker.postMessage({ id: reqId, job: prep.job });
+        return;
+      } catch {
+        this.synthWorker?.terminate();
+        this.synthWorker = null;
+        this.synthWorkerDisabled = true;
+      }
     }
 
-    window.setTimeout(() => {
-      try {
-        finish(runShapedSynthesisJob(prep.job));
-      } catch (e) {
-        fail((e as Error).message);
-      }
-    }, 16);
+    runSyncFallback();
   }
 
   private refresh() {

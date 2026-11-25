@@ -180,32 +180,16 @@ export function synthesizeCoverage(
   const im = Float32Array.from(wi);
   const grid = patternFromWeights(cfg, re, im);
 
-  // Evaluación de la cobertura sintetizada.
-  const beam: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 0 };
-  let covered = 0;
-  let sumDb = 0;
-  let insideCount = 0;
-  for (const s of inside) {
-    if (!s.inside) continue;
-    insideCount++;
-    const p = compositePower(grid, [beam], s.u, s.v, cfg.q);
-    const db = 10 * Math.log10(Math.max(p, 1e-12));
-    if (db >= -3) covered++;
-    sumDb += db;
-  }
-  let outsideMaxDb = -Infinity;
-  for (const s of outside) {
-    const p = compositePower(grid, [beam], s.u, s.v, cfg.q);
-    outsideMaxDb = Math.max(outsideMaxDb, 10 * Math.log10(Math.max(p, 1e-12)));
-  }
+  // Evaluación de la cobertura sintetizada respecto al máximo radiado real.
+  const metrics = measureSynthesis(grid, inside, outside, cfg.q);
 
   return {
     re,
     im,
     grid,
-    insideCoverage: covered / Math.max(1, insideCount),
-    insideMeanDb: sumDb / Math.max(1, insideCount),
-    outsideMaxDb,
+    insideCoverage: metrics.coverage,
+    insideMeanDb: metrics.mean,
+    outsideMaxDb: metrics.spill,
     conditionNote: `λ=${lambda.toExponential(1)} · ${inside.length} puntos internos`,
   };
 }
@@ -229,6 +213,22 @@ export interface ShapedSynthesisOutput {
   computeMs: number;
 }
 
+function peakRadiatedPower(grid: PatternGrid, q: number): number {
+  const n = grid.size;
+  let peak = 1e-12;
+  for (let iv = 0; iv < n; iv++) {
+    const v = -1 + (2 * (iv + 0.5)) / n;
+    for (let iu = 0; iu < n; iu++) {
+      const u = -1 + (2 * (iu + 0.5)) / n;
+      const w2 = 1 - u * u - v * v;
+      if (w2 <= 0) continue;
+      const p = grid.power[iv * n + iu] * Math.pow(w2, q);
+      if (p > peak) peak = p;
+    }
+  }
+  return peak;
+}
+
 export function measureSynthesis(
   grid: PatternGrid,
   inside: DirectionSample[],
@@ -236,20 +236,28 @@ export function measureSynthesis(
   q: number,
 ): { coverage: number; mean: number; spill: number } {
   const beam: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 0 };
+  let pMax = peakRadiatedPower(grid, q);
+  for (const p of inside) {
+    pMax = Math.max(pMax, compositePower(grid, [beam], p.u, p.v, q));
+  }
+  for (const p of outside) {
+    pMax = Math.max(pMax, compositePower(grid, [beam], p.u, p.v, q));
+  }
+
   let covered = 0;
   let count = 0;
   let sum = 0;
   for (const p of inside) {
     if (!p.inside) continue;
     count++;
-    const power = compositePower(grid, [beam], p.u, p.v, q);
+    const power = compositePower(grid, [beam], p.u, p.v, q) / pMax;
     const db = 10 * Math.log10(Math.max(power, 1e-12));
     if (db >= -3) covered++;
     sum += db;
   }
   let spill = -Infinity;
   for (const p of outside) {
-    const power = compositePower(grid, [beam], p.u, p.v, q);
+    const power = compositePower(grid, [beam], p.u, p.v, q) / pMax;
     spill = Math.max(spill, 10 * Math.log10(Math.max(power, 1e-12)));
   }
   return {

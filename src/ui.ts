@@ -652,7 +652,9 @@ export class UI {
         : '—';
     $('shape-info').textContent = d.shaped
       ? `Sintetizado · Cobertura ${(d.shaped.coverage * 100).toFixed(0)} % · derrame ${d.shaped.spillDb.toFixed(1)} dB · D ${d.shaped.directivityDb.toFixed(1)} dBi`
-      : 'Pendiente de sintetizar · ajusta centro/radio y pulsa «Sintetizar cobertura».';
+      : s.antenna.n > 20
+        ? `Arreglo ${s.antenna.n}×${s.antenna.n} supera el límite de síntesis (máx. 20×20). Cambia a 8×8 o 16×16 para sintetizar.`
+        : 'Pendiente de sintetizar · ajusta centro/radio y pulsa «Sintetizar cobertura».';
 
     const phase = ((((d.sat.M % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI)) * 1000;
     const timeline = $('timeline') as HTMLInputElement;

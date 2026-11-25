@@ -916,15 +916,20 @@ export class Engine {
       }
     }
 
-    const maxR = Math.min(0.94, totalKm / Math.max(1, center.range));
-    const farStep = 0.12;
-    for (let u = -0.9; u <= 0.9 + 1e-9; u += farStep) {
-      for (let v = -0.9; v <= 0.9 + 1e-9; v += farStep) {
-        if (u * u + v * v > 0.9) continue;
+    let maxInUv = 0;
+    for (const p of inside) {
+      maxInUv = Math.max(maxInUv, Math.hypot(p.u - center.u, p.v - center.v));
+    }
+    const farMinR = Math.min(0.92, maxInUv + 0.03);
+    const farOutside: DirectionSample[] = [];
+    const farStep = 0.085;
+    for (let u = -0.96; u <= 0.96 + 1e-9; u += farStep) {
+      for (let v = -0.96; v <= 0.96 + 1e-9; v += farStep) {
+        if (u * u + v * v > 0.96) continue;
         const du = u - center.u;
         const dv = v - center.v;
-        if (Math.hypot(du, dv) <= maxR) continue;
-        outside.push({ u, v, desired: 0, inside: false, lat: 0, lon: 0, weight: 0.28 });
+        if (Math.hypot(du, dv) <= farMinR) continue;
+        farOutside.push({ u, v, desired: 0, inside: false, lat: 0, lon: 0, weight: 0.45 });
       }
     }
 
@@ -946,7 +951,7 @@ export class Engine {
         baseHpbwDeg: this.baseMetrics.hpbwDeg,
         centerBeam,
         inside: thin(inside, 900),
-        outside: thin(outside, 500),
+        outside: [...thin(outside, 300), ...thin(farOutside, 400)],
       },
       satEcef: { x: sat.rEcef.x, y: sat.rEcef.y, z: sat.rEcef.z },
       frame,

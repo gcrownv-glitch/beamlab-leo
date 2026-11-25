@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { synthesizeCoverage } from '../src/core/synthesis';
+import { Engine } from '../src/engine';
+import { defaultState } from '../src/state';
 import {
   computeBasePattern,
   computeMetrics,
@@ -73,5 +75,22 @@ describe('haz conformado con geometría real', () => {
     expect(res.outsideMaxDb).toBeLessThan(-12);
     expect(d).toBeGreaterThan(16);
     expect(d).toBeLessThan(28);
+  }, 120000);
+
+  it('converge en todo el rango de radios (40-400 km) para arreglos 8×8 y 16×16 sin rechazos espurios', () => {
+    for (const n of [8, 16]) {
+      for (const radiusKm of [40, 60, 70, 80, 100, 200, 300, 400]) {
+        const state = defaultState();
+        state.mode = 'shaped';
+        state.antenna.n = n;
+        state.shapedRadiusKm = radiusKm;
+        const engine = new Engine(state);
+        const info = engine.synthesizeShaped();
+        expect(info.coverage, `n=${n}, r=${radiusKm}`).toBeGreaterThanOrEqual(0.5);
+        if (n === 16 && radiusKm <= 200) {
+          expect(info.coverage, `n=${n}, r=${radiusKm}`).toBeGreaterThanOrEqual(0.8);
+        }
+      }
+    }
   }, 120000);
 });

@@ -44,6 +44,12 @@
         </div>
 
         <nav class="top-actions" aria-label="Acciones">
+          <button class="btn ghost small mobile-only" id="btn-mobile-orbit" aria-controls="panel-orbit" aria-expanded="false" title="Panel de órbita">
+            <span>Órbita</span>
+          </button>
+          <button class="btn ghost small mobile-only" id="btn-mobile-antenna" aria-controls="panel-antenna" aria-expanded="false" title="Panel de antena y enlace">
+            <span>Antena</span>
+          </button>
           <button class="btn ghost" id="btn-tour" title="Guía de presentación (T)">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
             <span>Guía</span>
@@ -56,7 +62,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-4.8 8.1A2.8 2.8 0 0 0 7.6 21h8.8a2.8 2.8 0 0 0 2.4-3.9L14 9V3" fill="none" stroke="currentColor" stroke-width="1.6" /><path d="M7.2 15h9.6" stroke="currentColor" stroke-width="1.4" /></svg>
             <span>Lab</span>
           </button>
-          <button class="btn icon" id="btn-shot" title="Ficha de laboratorio (P)">
+          <button class="btn icon" id="btn-shot" title="Captura rápida PNG" aria-label="Captura rápida PNG">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l1.6-2h6.8L17 8h3v11H4z" fill="none" stroke="currentColor" stroke-width="1.6" /><circle cx="12" cy="13" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
           </button>
         </nav>
@@ -537,15 +543,15 @@
               <section id="t-taper">
                 <h3>3 · Taper: ganar sidelobes o ganar cobertura</h3>
                 <p>Una amplitud uniforme da la mayor directividad pero lóbulos laterales de −13 dB. Un taper (Kaiser, Chebyshev, Hann) reduce los lóbulos a costa de ensanchar el haz y perder algo de ganancia.</p>
-                <div class="math" data-tex="D=\frac{4\pi\,|AF|^2_{\max}}{\displaystyle\int |AF(\theta,\phi)|^2\sin\theta\,d\theta\,d\phi}"></div>
+                <div class="math" data-tex="D = \frac{4\pi\,\max_{\Omega}\big(|AF|^2 P_e(\theta)\big)}{\displaystyle\iint_{\text{visible}} |AF(\theta,\phi)|^2 P_e(\theta)\,\sin\theta\,d\theta\,d\phi}, \qquad G = \eta\,D"></div>
                 <p>El HPBW de una apertura uniforme se aproxima por <em>θ₃dB ≈ 0.886 λ/L</em>. Duplicar la apertura reduce el haz a la mitad.</p>
               </section>
               <section id="t-quant">
                 <h3>4 · Cuantización y errores reales</h3>
-                <p>Un desfasador digital de <em>b</em> bits solo puede dar \(2^b\) fases; un VGA de amplitud, \(2^a\) niveles. El simulador cuantiza las excitaciones, añade un error residual gaussiano (calibración/temperatura) y calcula el <strong>patrón exacto del haz activo</strong> a partir de esos pesos, no una copia desplazada del patrón ideal.</p>
+                <p>Un desfasador digital de <em>b</em> bits solo puede dar <span class="math-inline" data-tex="2^b"></span> fases; un atenuador escalonado (VGA) de <em>a</em> bits, <span class="math-inline" data-tex="2^a"></span> niveles sobre un rango de 32 dB. El simulador cuantiza primero las excitaciones, aplica después los errores residuales RMS (calibración/temperatura) y calcula el <strong>patrón exacto del haz activo</strong> a partir de esos pesos, no una copia desplazada del patrón ideal.</p>
                 <div class="math" data-tex="\Delta_\phi=\frac{2\pi}{2^b},\qquad \sigma_\phi=\frac{\Delta_\phi}{\sqrt{12}},\qquad \sigma_{total}^2=\sigma_{cuant}^2+\sigma_{cal}^2"></div>
-                <p><strong>Tiempo real:</strong> patrón 2D 65×65 y corte exacto de 481 puntos, actualizado con throttle (~4 Hz). <strong>Análisis:</strong> patrón 257×257 bajo demanda. El corte directo evita que la interpolación de una rejilla gruesa invente lóbulos.</p>
-                <p>Por defecto: 5 bits de fase (11,25°), 4 bits de amplitud (0,5 dB), 2° RMS de fase y 0,2 dB RMS de amplitud. La opción <strong>Ideal</strong> desactiva cuantización y errores para comparar.</p>
+                <p><strong>Tiempo real:</strong> patrón 2D 97×97 (129×129 en arreglos 32×32) y corte exacto de 481 puntos, actualizado con throttle (~4 Hz). <strong>Análisis:</strong> patrón 257×257 bajo demanda. El corte directo evita que la interpolación de una rejilla gruesa invente lóbulos.</p>
+                <p>Por defecto: 5 bits de fase (11,25°), 4 bits de amplitud (paso de 2 dB), 2° RMS de fase y 0,2 dB RMS de amplitud. La opción <strong>Ideal</strong> desactiva cuantización y errores para comparar.</p>
               </section>
               <section id="t-foot">
                 <h3>5 · De ángulo a huella</h3>
@@ -558,7 +564,7 @@
                 <h3>6 · Haces conformados por síntesis</h3>
                 <p>Para iluminar una zona (no un punto) se resuelve un problema de mínimos cuadrados complejos: encontrar <em>w</em> tal que el campo valga 1 en la zona y 0 fuera.</p>
                 <div class="math" data-tex="\min_{w}\;\|A w-d\|^2+\lambda\|w\|^2\;\;\Longrightarrow\;\;(A^H A+\lambda I)\,w=A^H d"></div>
-                <p><em>A</em> contiene las fases <em>e^{jk(x_m u_k+y_n v_k)}</em> evaluadas en cada punto de la Tierra. Es la versión digital de un reflector conformado con múltiples alimentadores: se ajustan amplitudes y fases para esculpir el diagrama.</p>
+                <p><em>A</em> contiene las fases <span class="math-inline" data-tex="e^{jk(x_m u_k + y_n v_k)}"></span> evaluadas en cada punto de la Tierra. Es la versión digital de un reflector conformado con múltiples alimentadores: se ajustan amplitudes y fases para esculpir el diagrama.</p>
               </section>
               <section id="t-link">
                 <h3>7 · Del patrón al enlace</h3>

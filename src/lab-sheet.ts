@@ -5,13 +5,98 @@
  * escena a la izquierda, datos a la derecha y pie con la trazabilidad. El PDF
  * usa la misma imagen, así que ambos formatos cuentan la misma historia.
  */
-import type { Derived, SimState } from './state';
+import type { Derived, LinkDirection, SimState } from './state';
 import type { LabSample, LabSession } from './core/lab';
 import { APP_VERSION } from './version';
 import { jsPDF } from 'jspdf';
 import { saveBlob, type SaveResult } from './save';
 
 export type SheetFormat = 'png' | 'pdf';
+
+export interface LabSheetData {
+  orbit: {
+    altKm: number;
+    incDeg: number;
+    raanDeg: number;
+    subLatDeg: number;
+    subLonDeg: number;
+    speedKmS: number;
+  };
+  array: {
+    n: number;
+    freqGHz: number;
+    dx: number;
+    taper: string;
+    efficiency: number;
+  };
+  pattern: {
+    directivityDbi: number;
+    gainDbi: number;
+    hpbwDeg: number;
+    sllDb: number;
+    phaseBits: number;
+    ampBits: number;
+    phaseRmsDeg: number;
+    ampRmsDb: number;
+    seed: number;
+    pointingDeg: number | null;
+  };
+  links: {
+    downlink: { cnDb: number; modcod: string; throughputMbps: number } | null;
+    uplink: { cnDb: number; modcod: string; throughputMbps: number } | null;
+    limiting: LinkDirection | null;
+    capacityMbps: number;
+    coverage: number | null;
+  };
+  shaped: { coverage: number; spillDb: number; directivityDbi: number } | null;
+}
+
+/** Extrae todos los valores de la ficha desde la muestra guardada (o del estado vivo si no hay muestra). */
+export function buildLabSheetData(state: SimState, d: Derived, sample: LabSample | null): LabSheetData {
+  const arr = sample?.array ?? state.antenna;
+  const qCfg = sample?.quant ?? state.quant;
+  return {
+    orbit: {
+      altKm: sample?.orbit.altKm ?? d.sat.alt,
+      incDeg: sample?.orbit.incDeg ?? (state.orbit.i * 180) / Math.PI,
+      raanDeg: sample?.orbit.raanDeg ?? (state.orbit.raan * 180) / Math.PI,
+      subLatDeg: sample?.orbit.subLatDeg ?? (d.sat.lat * 180) / Math.PI,
+      subLonDeg: sample?.orbit.subLonDeg ?? (d.sat.lon * 180) / Math.PI,
+      speedKmS: sample?.orbit.speedKmS ?? d.sat.speed,
+    },
+    array: {
+      n: arr.n,
+      freqGHz: arr.freqGHz,
+      dx: arr.dx,
+      taper: arr.taper,
+      efficiency: arr.efficiency,
+    },
+    pattern: {
+      directivityDbi: sample ? sample.metrics.directivityDbi : d.activeMetrics.directivityDb,
+      gainDbi: sample ? sample.metrics.gainDbi : d.activeMetrics.gainDb,
+      hpbwDeg: sample ? sample.metrics.hpbwDeg : d.activeMetrics.hpbwDeg,
+      sllDb: sample ? sample.metrics.sllDb : d.activeMetrics.sllDb,
+      phaseBits: qCfg.phaseBits,
+      ampBits: qCfg.ampBits,
+      phaseRmsDeg: qCfg.phaseRmsDeg,
+      ampRmsDb: qCfg.ampRmsDb,
+      seed: qCfg.seed,
+      pointingDeg: sample ? sample.metrics.pointingDeg : (d.quant?.pointingErrorDeg ?? null),
+    },
+    links: {
+      downlink: sample ? sample.links.downlink : d.links.downlink,
+      uplink: sample ? sample.links.uplink : d.links.uplink,
+      limiting: sample ? sample.links.limiting : d.system.limitingLink,
+      capacityMbps: sample ? sample.system.capacityMbps : d.system.capacityMbps,
+      coverage: sample ? sample.system.coverage : d.system.coverageFraction,
+    },
+    shaped: sample
+      ? sample.shaped
+      : d.shaped
+        ? { coverage: d.shaped.coverage, spillDb: d.shaped.spillDb, directivityDbi: d.shaped.directivityDb }
+        : null,
+  };
+}
 
 const W = 1600;
 const H = 1000;
@@ -106,44 +191,45 @@ export function buildLabSheet(
   if (sample) y = textLine(ctx, `Muestra ${sample.id}`, px + 18, y, 16, amber, '11px "Cascadia Mono", Consolas, monospace');
   y += 4;
 
+  const data = buildLabSheetData(state, d, sample);
+
   section('Órbita y geometría');
-  row('Altitud', fmt(sample?.orbit.altKm ?? d.sat.alt, 0, ' km'));
-  row('Inclinación', fmt((sample?.orbit.incDeg ?? state.orbit.i * 180 / Math.PI), 1, '°'));
-  row('RAAN', fmt((sample?.orbit.raanDeg ?? state.orbit.raan * 180 / Math.PI), 1, '°'));
-  row('Subpunto', `${fmt(sample?.orbit.subLatDeg ?? d.sat.lat * 180 / Math.PI, 2)} / ${fmt(sample?.orbit.subLonDeg ?? d.sat.lon * 180 / Math.PI, 2)}`);
-  row('Velocidad', fmt(sample?.orbit.speedKmS ?? d.sat.speed, 2, ' km/s'));
+  row('Altitud', fmt(data.orbit.altKm, 0, ' km'));
+  row('Inclinación', fmt(data.orbit.incDeg, 1, '°'));
+  row('RAAN', fmt(data.orbit.raanDeg, 1, '°'));
+  row('Subpunto', `${fmt(data.orbit.subLatDeg, 2)} / ${fmt(data.orbit.subLonDeg, 2)}`);
+  row('Velocidad', fmt(data.orbit.speedKmS, 2, ' km/s'));
 
   section('Arreglo');
-  row('Elementos', `${state.antenna.n}×${state.antenna.n}`);
-  row('Frecuencia', `${state.antenna.freqGHz} GHz`);
-  row('Separación', `${state.antenna.dx.toFixed(2)} λ`);
-  row('Taper', state.antenna.taper);
-  row('Eficiencia', `${(state.antenna.efficiency * 100).toFixed(0)} %`);
+  row('Elementos', `${data.array.n}×${data.array.n}`);
+  row('Frecuencia', `${data.array.freqGHz} GHz`);
+  row('Separación', `${data.array.dx.toFixed(2)} λ`);
+  row('Taper', data.array.taper);
+  row('Eficiencia', `${(data.array.efficiency * 100).toFixed(0)} %`);
 
-  const m = d.activeMetrics;
   section('Patrón exacto');
-  row('D / G', `${m.directivityDb.toFixed(1)} / ${m.gainDb.toFixed(1)} dBi`);
-  row('HPBW / SLL', `${m.hpbwDeg.toFixed(1)}° / ${m.sllDb.toFixed(1)} dB`);
-  row('Cuantización', `${state.quant.phaseBits} b fase · ${state.quant.ampBits ? `${state.quant.ampBits} b amp` : 'amp fija'}`);
-  row('Residuales', `${state.quant.phaseRmsDeg}° / ${state.quant.ampRmsDb} dB`);
-  row('Semilla', String(state.quant.seed));
-  row('Apuntamiento', d.quant?.pointingErrorDeg != null ? fmt(d.quant.pointingErrorDeg, 2, '°') : '—');
+  row('D / G', `${data.pattern.directivityDbi.toFixed(1)} / ${data.pattern.gainDbi.toFixed(1)} dBi`);
+  row('HPBW / SLL', `${data.pattern.hpbwDeg.toFixed(1)}° / ${data.pattern.sllDb < -90 ? '—' : `${data.pattern.sllDb.toFixed(1)} dB`}`);
+  row('Cuantización', `${data.pattern.phaseBits} b fase · ${data.pattern.ampBits ? `${data.pattern.ampBits} b amp` : 'amp fija'}`);
+  row('Residuales', `${data.pattern.phaseRmsDeg}° / ${data.pattern.ampRmsDb} dB`);
+  row('Semilla', String(data.pattern.seed));
+  row('Apuntamiento', data.pattern.pointingDeg != null ? fmt(data.pattern.pointingDeg, 2, '°') : '—');
 
   section('Enlace');
-  const dl = sample?.links.downlink ?? d.links.downlink;
-  const ul = sample?.links.uplink ?? d.links.uplink;
+  const dl = data.links.downlink;
+  const ul = data.links.uplink;
   row('DL C/N · MODCOD', dl ? `${dl.cnDb.toFixed(1)} dB · ${dl.modcod}` : '—');
   row('UL C/N · MODCOD', ul ? `${ul.cnDb.toFixed(1)} dB · ${ul.modcod}` : '—');
   row('Throughput DL/UL', dl && ul ? `${dl.throughputMbps.toFixed(0)} / ${ul.throughputMbps.toFixed(0)} Mbps` : '—');
-  row('Limita', d.system.limitingLink ?? '—', amber);
-  row('Cap. sistema', `${fmt(d.system.capacityMbps, 0)} Mbps`);
-  row('Cobertura', d.system.coverageFraction != null ? `${(d.system.coverageFraction * 100).toFixed(0)} %` : '—');
+  row('Limita', data.links.limiting ?? '—', amber);
+  row('Cap. sistema', `${fmt(data.links.capacityMbps, 0)} Mbps`);
+  row('Cobertura', data.links.coverage != null ? `${(data.links.coverage * 100).toFixed(0)} %` : '—');
 
-  if (d.shaped) {
+  if (data.shaped) {
     section('Haz conformado');
-    row('Cobertura', `${(d.shaped.coverage * 100).toFixed(0)} %`);
-    row('Derrame', `${d.shaped.spillDb.toFixed(1)} dB`);
-    row('Diseño', `D ${d.shaped.directivityDb.toFixed(1)} dBi`);
+    row('Cobertura', `${(data.shaped.coverage * 100).toFixed(0)} %`);
+    row('Derrame', `${data.shaped.spillDb.toFixed(1)} dB`);
+    row('Diseño', `D ${data.shaped.directivityDbi.toFixed(1)} dBi`);
   }
 
   // Pie

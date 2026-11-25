@@ -670,7 +670,7 @@ export class SceneView {
     this.updateCoverageRing(d, state);
     this.updateBeams(d, state);
     this.updateRegion(state, d);
-    this.updateCamera(dt, satPos, state);
+    this.updateCamera(dt, satPos, xAxis, yAxis, zAxis, state);
     this.updateLabels(d, satPos);
 
     this.orbitLine.visible = state.showOrbit;
@@ -679,7 +679,7 @@ export class SceneView {
     this.horizonRing.visible = state.showFootprint;
     this.graticule.visible = state.showGrid;
     this.beamLines.visible = true;
-    this.controls.update();
+    if (state.cameraMode !== 'sat') this.controls.update();
     this.composer.render();
   }
 
@@ -1007,27 +1007,76 @@ export class SceneView {
     this.regionLine.visible = false;
   }
 
-  private updateCamera(dt: number, satPos: THREE.Vector3, state: SimState) {
+  /**
+   * Gestiona los tres modos de cámara:
+   * - 'earth': órbita libre centrada en el planeta.
+   * - 'sat': vista embarcada detrás/sobre el satélite apuntando hacia nadir y su huella.
+   * - 'follow': seguimiento libre que traslada el pivote con el satélite permitiendo orbitar alrededor.
+   */
+  private updateCamera(
+    dt: number,
+    satPos: THREE.Vector3,
+    xAxis: THREE.Vector3,
+    yAxis: THREE.Vector3,
+    zAxis: THREE.Vector3,
+    state: SimState,
+  ) {
     if (state.cameraMode !== this.lastCamMode) {
       this.lastCamMode = state.cameraMode;
       if (state.cameraMode === 'earth') {
+        this.camera.up.set(0, 0, 1);
+        this.controls.enabled = true;
+        this.controls.minDistance = 7.02;
+        this.controls.maxDistance = 46;
         this.controls.target.set(0, 0, 0);
-      } else {
+        if (this.camera.position.length() < 15.5) {
+          this.tmpDir.copy(this.camera.position);
+          if (this.tmpDir.lengthSq() < 1e-6) this.tmpDir.set(0, -16.5, 8.6);
+          this.tmpDir.normalize();
+          this.camera.position.copy(this.tmpDir).multiplyScalar(16.5);
+        }
+      } else if (state.cameraMode === 'follow') {
+        this.camera.up.set(0, 0, 1);
+        this.controls.enabled = true;
+        this.controls.minDistance = 0.55;
+        this.controls.maxDistance = 18;
         this.controls.target.copy(satPos);
-        const dir = this.tmpDir.copy(satPos).normalize();
-        this.camera.position.copy(satPos).addScaledVector(dir, 0.9);
-        this.camera.position.y -= 0.7;
-        this.camera.position.z += 0.5;
+        this.tmpDir.copy(zAxis).negate();
+        this.camera.position
+          .copy(satPos)
+          .addScaledVector(this.tmpDir, 1.45)
+          .addScaledVector(xAxis, -1.15)
+          .addScaledVector(yAxis, 0.45);
       }
       this.prevSat.copy(satPos);
-    } else if (state.cameraMode !== 'earth') {
+    }
+
+    if (state.cameraMode === 'sat') {
+      this.controls.enabled = false;
+      const h = Math.max(0.35, satPos.length() - R_EARTH * KM);
+      this.tmpDir.copy(zAxis).negate();
+      this.camera.position
+        .copy(satPos)
+        .addScaledVector(this.tmpDir, 0.28 + h * 0.25)
+        .addScaledVector(xAxis, -(0.42 + h * 0.35));
+      this.tmpLocal
+        .copy(this.tmpDir)
+        .multiplyScalar(R_EARTH * KM)
+        .addScaledVector(xAxis, 0.2 + h * 0.25);
+      this.camera.up.copy(this.tmpDir);
+      this.camera.lookAt(this.tmpLocal);
+      this.controls.target.copy(this.tmpLocal);
+      this.prevSat.copy(satPos);
+      void dt;
+      return;
+    }
+
+    if (state.cameraMode === 'follow') {
       const delta = this.tmpDelta.copy(satPos).sub(this.prevSat);
       this.camera.position.add(delta);
       this.controls.target.copy(satPos);
-      this.prevSat.copy(satPos);
-    } else {
-      this.prevSat.copy(satPos);
     }
+    this.prevSat.copy(satPos);
     void dt;
   }
 

@@ -60,7 +60,6 @@ export interface UIHandlers {
   setQuant(patch: Partial<QuantState>): void;
   exportLabSheet(format: SheetFormat, session: LabSession, sample: LabSample | null): Promise<SaveResult>;
   exportScene(): Promise<SaveResult>;
-  screenshot(): void;
   setFpsCap(cap: number): void;
   setQuality(quality: Quality): void;
 }
@@ -353,9 +352,12 @@ export class UI {
     $('shape-lima').addEventListener('click', () => this.h.setShapedCenter(-12.05, -77.04));
     $('shape-run').addEventListener('click', () => this.h.synthesize());
 
-    $('btn-shot').addEventListener('click', () => this.openLab());
+    $('btn-shot').addEventListener('click', () => void this.exportScene());
     $('btn-lab').addEventListener('click', () => this.openLab());
     $('lab-close').addEventListener('click', () => this.closeLab());
+    $('lab').addEventListener('click', (e) => {
+      if (e.target === $('lab')) this.closeLab();
+    });
     $('lab-sample').addEventListener('click', () => this.takeSample());
     $('lab-png').addEventListener('click', () => void this.exportSheet('png'));
     $('lab-pdf').addEventListener('click', () => void this.exportSheet('pdf'));
@@ -369,6 +371,9 @@ export class UI {
     }
     $('update-close').addEventListener('click', () => this.hideUpdate());
     $('update-continue').addEventListener('click', () => this.hideUpdate());
+    $('update').addEventListener('click', (e) => {
+      if (e.target === $('update')) this.hideUpdate();
+    });
     $('update-skip').addEventListener('click', () => {
       const modal = this.el('update');
       const version = modal.dataset.version;
@@ -389,19 +394,23 @@ export class UI {
     $('dock-toggle').addEventListener('click', () => {
       $('dock').classList.toggle('collapsed');
     });
+    if (window.innerWidth <= 760) {
+      $('panel-orbit').classList.add('collapsed');
+      $('panel-antenna').classList.add('collapsed');
+    }
+    $('btn-mobile-orbit').addEventListener('click', () => this.togglePanel('panel-orbit'));
+    $('btn-mobile-antenna').addEventListener('click', () => this.togglePanel('panel-antenna'));
     for (const b of document.querySelectorAll<HTMLButtonElement>('.collapse')) {
       b.addEventListener('click', () => {
-        const panel = document.getElementById(b.dataset.target ?? '');
-        panel?.classList.toggle('collapsed');
-        this.syncPanelTabs();
+        const target = b.dataset.target ?? '';
+        if (target) this.togglePanel(target);
       });
     }
     for (const id of ['tab-orbit', 'tab-antenna']) {
       const tab = document.getElementById(id);
       tab?.addEventListener('click', () => {
-        const panel = document.getElementById(tab.getAttribute('aria-controls') ?? '');
-        panel?.classList.toggle('collapsed');
-        this.syncPanelTabs();
+        const target = tab.getAttribute('aria-controls') ?? '';
+        if (target) this.togglePanel(target);
       });
     }
     this.syncPanelTabs();
@@ -409,29 +418,49 @@ export class UI {
     window.addEventListener('keydown', (e) => this.onKey(e));
   }
 
-  /** Muestra las pestañas de borde solo para los paneles contraídos. */
+  /** Muestra las pestañas de borde solo para los paneles contraídos y sincroniza los toggles móviles. */
   private syncPanelTabs() {
-    const pairs: [string, string][] = [
-      ['panel-orbit', 'tab-orbit'],
-      ['panel-antenna', 'tab-antenna'],
+    const pairs: [string, string, string][] = [
+      ['panel-orbit', 'tab-orbit', 'btn-mobile-orbit'],
+      ['panel-antenna', 'tab-antenna', 'btn-mobile-antenna'],
     ];
-    for (const [panelId, tabId] of pairs) {
+    for (const [panelId, tabId, mobId] of pairs) {
       const panel = document.getElementById(panelId);
       const tab = document.getElementById(tabId);
-      if (!panel || !tab) continue;
+      const mob = document.getElementById(mobId);
+      if (!panel) continue;
       const collapsed = panel.classList.contains('collapsed');
-      tab.classList.toggle('visible', collapsed);
-      tab.setAttribute('aria-expanded', String(!collapsed));
+      if (tab) {
+        tab.classList.toggle('visible', collapsed);
+        tab.setAttribute('aria-expanded', String(!collapsed));
+      }
+      if (mob) {
+        mob.classList.toggle('active', !collapsed);
+        mob.setAttribute('aria-expanded', String(!collapsed));
+      }
     }
   }
 
   private togglePanel(panelId: string) {
     const panel = document.getElementById(panelId);
-    panel?.classList.toggle('collapsed');
+    if (!panel) return;
+    const willOpen = panel.classList.contains('collapsed');
+    if (willOpen && window.innerWidth <= 760) {
+      const otherId = panelId === 'panel-orbit' ? 'panel-antenna' : 'panel-orbit';
+      document.getElementById(otherId)?.classList.add('collapsed');
+    }
+    panel.classList.toggle('collapsed');
     this.syncPanelTabs();
   }
 
   private onKey(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      this.toggleHelp(false);
+      this.closeLab();
+      this.hideUpdate();
+      this.closeTour();
+      return;
+    }
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
     if (e.code === 'Space') {
@@ -447,10 +476,6 @@ export class UI {
     else if (e.key.toLowerCase() === 'p') this.openLab();
     else if (e.key === '[') this.togglePanel('panel-orbit');
     else if (e.key === ']') this.togglePanel('panel-antenna');
-    else if (e.key === 'Escape') {
-      this.toggleHelp(false);
-      this.closeTour();
-    }
   }
 
   private renderMath() {
@@ -458,6 +483,17 @@ export class UI {
       try {
         katex.render(el.dataset.tex ?? '', el, {
           displayMode: true,
+          throwOnError: false,
+          strict: 'ignore',
+        });
+      } catch {
+        el.textContent = el.dataset.tex ?? '';
+      }
+    });
+    document.querySelectorAll<HTMLElement>('.math-inline[data-tex]').forEach((el) => {
+      try {
+        katex.render(el.dataset.tex ?? '', el, {
+          displayMode: false,
           throwOnError: false,
           strict: 'ignore',
         });

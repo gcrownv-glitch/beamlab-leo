@@ -223,10 +223,6 @@ class App {
       this.ui.syncControls(this.state);
       this.ui.update(this.state, this.engine.derived);
     },
-    screenshot: () => {
-      this.scene?.capture();
-      this.ui.toast('Captura guardada.');
-    },
     exportScene: () => this.scene?.capture() ?? Promise.resolve({ saved: false, error: 'La escena todavía no está lista.' }),
     exportLabSheet: (format, session, sample) => {
       if (!this.scene) return Promise.resolve({ saved: false, error: 'La escena todavía no está lista.' });

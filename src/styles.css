@@ -125,6 +125,7 @@ html, body {
 }
 
 .top-actions { display: flex; align-items: center; gap: 8px; }
+.mobile-only { display: none; }
 
 /* ---------- buttons ---------- */
 .btn {
@@ -872,6 +873,7 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; background: #
   font-size: 14px;
 }
 .math .katex { color: #d7fbff; }
+.math-inline .katex { color: #d7fbff; font-size: 1.02em; }
 .refs { margin: 6px 0; padding-left: 18px; }
 .refs li { font-size: 11px; line-height: 1.7; color: var(--text-2); }
 .fine { font-size: 10px; color: var(--faint); }
@@ -954,10 +956,43 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; background: #
   .users-control { display: none; }
 }
 @media (max-width: 760px) {
-  .panel { display: none; }
-  .panel-tab { display: none; }
+  .topbar { padding: 0 10px; gap: 8px; }
+  .brand { min-width: 0; gap: 7px; }
+  .brand-mark { width: 26px; height: 26px; flex-shrink: 0; }
+  .brand-name { font-size: 14px; }
+  .brand-version, .brand-credit { display: none; }
+  .top-actions { gap: 5px; margin-left: auto; }
+  .mobile-only { display: inline-flex; }
+  .panel {
+    z-index: 45;
+    top: 64px;
+    bottom: 64px;
+    width: min(320px, calc(100vw - 16px));
+    max-width: calc(100vw - 16px);
+  }
+  .panel-left { left: 8px; }
+  .panel-right { right: 8px; }
+  .panel-tab { height: 86px; z-index: 35; }
   .dock { left: 10px; right: 10px; bottom: 66px; height: 150px; }
   .tour { width: calc(100vw - 40px); bottom: 230px; }
-  .brand { min-width: 0; }
   .top-actions .btn span { display: none; }
+  .top-actions .btn.mobile-only span { display: inline; }
+  .top-actions .btn.mobile-only.active {
+    border-color: rgba(34, 211, 238, 0.55);
+    background: rgba(34, 211, 238, 0.16);
+    color: #d7fbff;
+  }
+  .modal-card, .lab-card { width: calc(100vw - 16px); height: min(88vh, 820px); }
+  .modal-body { grid-template-columns: 1fr; overflow-y: auto; }
+  .help-nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 8px 10px;
+  }
+  .lab-body { grid-template-columns: 1fr; overflow-y: auto; }
+  .lab-side { border-right: 0; border-bottom: 1px solid var(--line); overflow-y: visible; }
+  .lab-main { overflow: visible; }
 }

@@ -81,20 +81,47 @@
 
         <div class="panel-body">
           <label class="field">
-            <span>Constelación / misión</span>
+            <span>Constelación / satélite</span>
             <select id="orbit-preset">
-              <option value="starlink">Starlink · LEO 550 km</option>
-              <option value="iss">ISS · LEO 420 km</option>
-              <option value="oneweb">OneWeb · LEO 1200 km</option>
-              <option value="sso">Heliosíncrona · 600 km</option>
-              <option value="custom">Personalizada</option>
+              <optgroup label="Starlink · Generación V1.0">
+                <option value="starlink-1007">STARLINK-1007 · NORAD 44713 (V1.0 · 550 km)</option>
+                <option value="starlink-2150">STARLINK-2150 · NORAD 47751 (V1.0 · 540 km)</option>
+              </optgroup>
+              <optgroup label="Starlink · Generación V1.5 (enlaces láser)">
+                <option value="starlink-3005">STARLINK-3005 · NORAD 49131 (V1.5 Polar · 570 km)</option>
+                <option value="starlink-5241">STARLINK-5241 · NORAD 55623 (V1.5 Grupo 5 · 530 km)</option>
+              </optgroup>
+              <optgroup label="Starlink · Generación V2 Mini">
+                <option value="starlink-30001">STARLINK-30001 · NORAD 55693 (V2 Mini · 530 km)</option>
+                <option value="starlink-31005">STARLINK-31005 · NORAD 58695 (V2 Mini DTC · 360 km)</option>
+              </optgroup>
+              <optgroup label="Starlink · Generación V2 Completo">
+                <option value="starlink-v2-sim">STARLINK-V2-SIM-01 / 02 (IFT-3/IFT-4 · 340 km)</option>
+              </optgroup>
+              <optgroup label="Starlink · Generación V3">
+                <option value="starlink-40001">STARLINK-40001 (V3 Starship · 480 km)</option>
+                <option value="starlink-40012">STARLINK-40012 (V3 VLEO · 350 km)</option>
+              </optgroup>
+              <optgroup label="GEO · Flota Amazonas (Hispasat)">
+                <option value="amazonas-2">Amazonas 2 · NORAD 35942 (GEO 72°O)</option>
+                <option value="amazonas-3">Amazonas 3 · NORAD 39078 (GEO 61°O)</option>
+                <option value="amazonas-5">Amazonas 5 · NORAD 42934 (GEO 61°O)</option>
+                <option value="amazonas-nexus">Amazonas Nexus · NORAD 55508 (GEO 61°O)</option>
+              </optgroup>
+              <optgroup label="Referencia y personalizada">
+                <option value="starlink" selected>Starlink · Referencia LEO 550 km</option>
+                <option value="iss">ISS · NORAD 25544 (LEO 420 km)</option>
+                <option value="oneweb">OneWeb · LEO 1200 km</option>
+                <option value="sso">Heliosíncrona · SSO 600 km</option>
+                <option value="custom">Personalizada</option>
+              </optgroup>
             </select>
           </label>
           <p class="hint" id="preset-note">Constelación de banda ancha, 550 km, 53°.</p>
 
           <div class="slider-row">
             <div class="slider-label"><span>Altitud</span><b id="alt-val">550 km</b></div>
-            <input id="altitude" type="range" min="300" max="2000" step="10" value="550" />
+            <input id="altitude" type="range" min="300" max="36000" step="10" value="550" />
           </div>
           <div class="slider-row">
             <div class="slider-label"><span>Inclinación</span><b id="inc-val">53.0°</b></div>

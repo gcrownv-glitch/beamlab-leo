@@ -186,7 +186,7 @@ export class SceneView {
     this.controls.zoomSpeed = 0.85;
     this.controls.enablePan = false;
     this.controls.minDistance = 7.02;
-    this.controls.maxDistance = 46;
+    this.controls.maxDistance = 140;
     this.controls.target.set(0, 0, 0);
     this.controls.update();
 
@@ -614,6 +614,8 @@ export class SceneView {
   update(state: SimState, d: Derived, dt: number) {
     const satPos = this.tmpSatPos.set(d.sat.r.x, d.sat.r.y, d.sat.r.z).multiplyScalar(KM);
     this.satGroup.position.copy(satPos);
+    const satScale = state.cameraMode === 'earth' ? Math.max(1, Math.min(4.5, satPos.length() / 8.5)) : 1;
+    this.satGroup.scale.setScalar(satScale);
 
     const zAxis = this.tmpZAxis.copy(satPos).negate().normalize();
     const vDir = this.tmpVDir.set(d.sat.v.x, d.sat.v.y, d.sat.v.z).normalize();
@@ -1027,7 +1029,7 @@ export class SceneView {
         this.camera.up.set(0, 0, 1);
         this.controls.enabled = true;
         this.controls.minDistance = 7.02;
-        this.controls.maxDistance = 46;
+        this.controls.maxDistance = 140;
         this.controls.target.set(0, 0, 0);
         if (this.camera.position.length() < 15.5) {
           this.tmpDir.copy(this.camera.position);
@@ -1039,7 +1041,7 @@ export class SceneView {
         this.camera.up.set(0, 0, 1);
         this.controls.enabled = true;
         this.controls.minDistance = 0.55;
-        this.controls.maxDistance = 18;
+        this.controls.maxDistance = 60;
         this.controls.target.copy(satPos);
         this.tmpDir.copy(zAxis).negate();
         this.camera.position
@@ -1053,7 +1055,7 @@ export class SceneView {
 
     if (state.cameraMode === 'sat') {
       this.controls.enabled = false;
-      const h = Math.max(0.35, satPos.length() - R_EARTH * KM);
+      const h = Math.min(2.5, Math.max(0.35, satPos.length() - R_EARTH * KM));
       this.tmpDir.copy(zAxis).negate();
       this.camera.position
         .copy(satPos)
@@ -1194,11 +1196,19 @@ export class SceneView {
     this.bloom.enabled = quality === 'high';
   }
 
-  /** Centra la vista en el punto subsatelital (dirección ECI del satélite). */
+  /** Centra la vista en el punto subsatelital (dirección ECI del satélite), ajustando distancia para MEO/GEO. */
   setViewToEci(r: Vec3): void {
-    const dir = new THREE.Vector3(r.x, r.y, r.z).normalize();
-    this.camera.position.copy(dir.multiplyScalar(19.2));
-    this.camera.position.z += 4.2;
+    const raw = new THREE.Vector3(r.x * KM, r.y * KM, r.z * KM);
+    const satR = raw.length();
+    const dir = raw.normalize();
+    if (satR > 12) {
+      const dist = Math.min(125, Math.max(24, satR * 1.85));
+      this.camera.position.copy(dir.multiplyScalar(dist));
+      this.camera.position.z += dist * 0.28;
+    } else {
+      this.camera.position.copy(dir.multiplyScalar(19.2));
+      this.camera.position.z += 4.2;
+    }
     this.controls.target.set(0, 0, 0);
     this.controls.update();
   }

@@ -81,7 +81,7 @@ const fmtLat = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'N' : 'S'}`
 const fmtLon = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'E' : 'O'}`;
 const fmtLatLon = (lat: number, lon: number) => `${fmtLat(lat)} ${fmtLon(lon)}`;
 const fmtTime = (ms: number) => `${new Date(ms).toISOString().slice(11, 19)} UTC`;
-const fmtPeriod = (min: number) => `${min.toFixed(1)} min`;
+const fmtPeriod = (min: number) => (min >= 180 ? `${(min / 60).toFixed(2)} h` : `${min.toFixed(1)} min`);
 
 export class UI {
   private state: SimState;

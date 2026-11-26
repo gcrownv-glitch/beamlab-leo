@@ -5,7 +5,7 @@ import { Engine } from './engine';
 import { SceneView, type Textures } from './scene';
 import { UI, type ToggleKey, type UIHandlers } from './ui';
 import { defaultState, type CameraMode, type Mode, type Quality, type SimState } from './state';
-import { elementsOverPoint, presetById } from './core/presets';
+import { elementsOverPoint, orbitForPreset, presetById } from './core/presets';
 import { DEG, R_EARTH } from './core/constants';
 import { anglesForGroundPoint } from './core/geometry';
 import { elevationAngle, type OrbitElements } from './core/orbit';
@@ -131,7 +131,14 @@ class App {
       this.engine.setRegion(id);
       if (this.state.mode === 'cellular') {
         const [lat, lon] = id === 'visible' ? [-12.05, -77.04] : regionCenter(id);
-        this.snapToRegion(lat, lon, false);
+        const der = this.engine.derived;
+        const isGeo = this.state.orbit.a - R_EARTH > 20000;
+        const elev = elevationAngle(der.sat.rEcef, lat * DEG, lon * DEG);
+        if (isGeo && elev > 10 * DEG) {
+          this.refresh();
+        } else {
+          this.snapToRegion(lat, lon, false);
+        }
       } else {
         this.refresh();
       }
@@ -269,7 +276,12 @@ class App {
     if (prev !== mode && (mode === 'cellular' || mode === 'shaped')) {
       if (mode === 'cellular') {
         const [lat, lon] = this.state.region === 'visible' ? [-12.05, -77.04] : regionCenter(this.state.region);
-        this.snapToRegion(lat, lon, false);
+        const der = this.engine.derived;
+        const isGeo = this.state.orbit.a - R_EARTH > 20000;
+        const elev = elevationAngle(der.sat.rEcef, lat * DEG, lon * DEG);
+        if (!isGeo || elev <= 10 * DEG) {
+          this.snapToRegion(lat, lon, false);
+        }
       } else {
         const der = this.engine.derived;
         const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, this.state.shapedCenter.lat * DEG, this.state.shapedCenter.lon * DEG);
@@ -309,7 +321,7 @@ class App {
     this.state.presetId = id;
     if (p.id !== 'custom') {
       const epoch = this.state.orbit.epoch;
-      const orbit = elementsOverPoint(p.altKm, p.incDeg, -12.05, -77.04, epoch, p.alongDeg, p.ecc);
+      const orbit = orbitForPreset(p, epoch);
       this.state.simTime = epoch;
       this.engine.setOrbit(orbit, id);
     }
@@ -324,17 +336,18 @@ class App {
     }
     const ms = Date.now();
     const p = presetById(this.state.presetId);
-    let orbit: OrbitElements;
-    if (p.id !== 'custom') {
-      orbit = elementsOverPoint(p.altKm, p.incDeg, -12.05, -77.04, ms, p.alongDeg, p.ecc);
-    } else {
-      orbit = { ...this.state.orbit, epoch: ms };
-    }
+    const orbit = p.id !== 'custom'
+      ? orbitForPreset(p, ms)
+      : { ...this.state.orbit, epoch: ms };
     this.state.simTime = ms;
     this.engine.setOrbit(orbit, this.state.presetId);
     this.refresh();
     this.scene?.setViewToEci(this.engine.derived.sat.r);
-    this.ui.toast('Tiempo actual · el satélite vuelve a pasar sobre Lima.');
+    this.ui.toast(
+      p.geoLonDeg !== undefined
+        ? `Tiempo actual · ${p.name} sobre ${fmtLon(p.geoLonDeg)}.`
+        : 'Tiempo actual · el satélite vuelve a pasar sobre Lima.',
+    );
   }
 
   private getSynthWorker(): Worker | null {

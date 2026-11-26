@@ -8,11 +8,11 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 |---|---|
 | **Repositorio** | `beamlab-leo` |
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
-| **Versión declarada en manifiestos** | `2.4.0-beta.3` *(canal pre-release beta desplegado en web tras corregir síntesis conformada fuera de nadir; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
+| **Versión declarada en manifiestos** | `2.4.0-beta.4` *(catálogo Starlink V1.0–V3 + flota GEO Amazonas; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
 | **Puntos de recuperación estables** | `stable/v2.3.4-orig` (`25ce657`, v2.3.4 original) · `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2) · tag/Release `v2.3.4` intacto en GitHub |
-| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.3`) |
-| **Última actualización** | `2026-11-26T01:53:35-05:00` (`2026-11-26T06:53:35Z`) |
-| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` en verde · `vitest run`: **15 archivos / 68 pruebas aprobadas** |
+| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.4`) |
+| **Última actualización** | `2026-11-26T02:13:45-05:00` (`2026-11-26T07:13:45Z`) |
+| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` en verde · `vitest run`: **16 archivos / 72 pruebas aprobadas** |
 
 ---
 
@@ -37,7 +37,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Tramo 6** | `6dbc374` | `2026-11-24T19:33:37-05:00` (`00:33:37Z`) | `rel/tramo-6-devops-beta` (`v2.4.0-beta.1`) | Actualizar registro técnico con Tramo 6 y respaldo local |
 | **Fix Conformada** | `f9ad6f6` | `2026-11-24T19:58:18-05:00` (`00:58:18Z`) | `rel/tramo-6-devops-beta` | Cerrar brecha `(u, v)` en campo lejano para radios 60–80 km, normalizar contra pico radiado real, respaldo síncrono de Web Worker y aviso 32×32 |
 | **Web Beta 2** | `816b091` | `2026-11-24T20:01:44-05:00` (`01:01:44Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Desplegar `2.4.0-beta.2` en GitHub Pages preservando `stable/v2.3.4-orig` (`25ce657`) |
-| **Fix Off-Nadir / Beta 3** | *(cabeza de rama)* | `2026-11-26T01:53:35-05:00` (`06:53:35Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Exclusión geodésica en campo lejano, coordenadas `[-half, +half]` en `peakRadiatedPower()`, visibilidad real por `elevationAngle()` y bump a `2.4.0-beta.3` para web |
+| **Fix Off-Nadir / Beta 3** | `bda3ade` | `2026-11-26T01:55:33-05:00` (`06:55:33Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Exclusión geodésica en campo lejano, coordenadas `[-half, +half]` en `peakRadiatedPower()`, visibilidad real por `elevationAngle()` y bump a `2.4.0-beta.3` para web |
+| **Catálogo Starlink/Amazonas** | *(cabeza de rama)* | `2026-11-26T02:13:45-05:00` (`07:13:45Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Añadir Starlink V1.0–V3 (`1007`, `2150`, `3005`, `5241`, `30001`, `31005`, `V2-SIM`, `40001`, `40012`) + flota GEO Amazonas (`2`, `3`, `5`, `Nexus`) y soporte 3D/enlace GEO (`2.4.0-beta.4`) |
 
 ---
 
@@ -259,6 +260,12 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
   - `prepareShapedSynthesis()` proyecta cada muestra `(u, v)` a geodésica con `beamGroundPoint()`, excluye únicamente puntos dentro del radio geodésico `(radiusKm + edgeKm) / R_EARTH`, y penaliza también direcciones sobre el cielo más allá del horizonte (`gp === null`).
   - `elevationAngle()` verifica visibilidad real sobre el horizonte tanto al posicionar/sintetizar en `main.ts` como en `engine.ts`.
   - Pruebas añadidas en `tests/shaped.test.ts` verificando convergencia (`coverage >= 75 %`) desde `0°` hasta `~59.5°` de nadir en todos los cuadrantes (`60–350 km`) y rechazo de cara oculta (**15 archivos / 68 pruebas aprobadas**).
+
+#### 6. Catálogo de satélites Starlink (V1.0–V3) y flota GEO Amazonas (`2.4.0-beta.4`)
+- **Cambios (`src/core/presets.ts`, `index.html`, `src/ui.ts`, `src/main.ts`, `src/scene.ts`, `src/core/regions.ts`, `tests/presets.test.ts`):**
+  - Se añadieron las 5 generaciones Starlink (`STARLINK-1007` NORAD 44713, `STARLINK-2150` 47751, `STARLINK-3005` 49131, `STARLINK-5241` 55623, `STARLINK-30001` 55693, `STARLINK-31005` 58695 DTC, `STARLINK-V2-SIM-01 / 02`, `STARLINK-40001` V3 y `STARLINK-40012` V3 VLEO 350 km) y la flota GEO de Hispasat (**Amazonas 2** 72°O NORAD 35942, **Amazonas 3** 61°O 39078, **Amazonas 5** 61°O 42934 y **Amazonas Nexus** 61°O 55508) agrupadas en `<optgroup>` en `#orbit-preset`.
+  - Se amplió `#altitude` hasta `36 000 km`, `fmtPeriod()` formatea períodos largos en horas (`23.93 h` en GEO), `orbitForPreset()` posiciona ranuras GEO en el ecuador (`geoLonDeg`), `SceneView` escala la cámara (`maxDistance = 140`) y el modelo satelital a distancia orbital GEO, y `buildGroundCells()` aporta celda centroide cuando el tamaño del haz supera al polígono regional.
+  - Pruebas añadidas en `tests/presets.test.ts` (**16 archivos / 72 pruebas aprobadas**).
 
 ---
 

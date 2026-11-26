@@ -161,6 +161,15 @@ export function buildGroundCells(
     if (cells.length <= maxCells) break;
     spacing *= 1.18;
   }
+  if (cells.length === 0 && poly.length > 0) {
+    let latSum = 0;
+    let lonSum = 0;
+    for (const [la, lo] of poly) {
+      latSum += la;
+      lonSum += lo;
+    }
+    cells.push({ lat: latSum / poly.length, lon: lonSum / poly.length, row: 0, col: 0, color: 0 });
+  }
   return cells;
 }
 

@@ -253,6 +253,7 @@ export class SceneView {
         uUseGainSnap: { value: 0 },
         uShowGain: { value: 1 },
         uGainOpacity: { value: 0.9 },
+        uCellular: { value: 0 },
       },
       vertexShader: `
         varying vec2 vUv;
@@ -284,6 +285,7 @@ export class SceneView {
         uniform float uUseGainSnap;
         uniform float uShowGain;
         uniform float uGainOpacity;
+        uniform float uCellular;
         varying vec2 vUv;
         varying vec3 vWorld;
         varying vec3 vNormal;
@@ -311,6 +313,7 @@ export class SceneView {
             float sinElev = dot(N, -dLive);
             if (sinElev > 0.0) {
               float horizonFade = smoothstep(0.0, 0.025, sinElev);
+              float cellElev = sinElev;
               vec3 d = dLive;
               vec3 ax = uAntX;
               vec3 ay = uAntY;
@@ -321,6 +324,7 @@ export class SceneView {
                 float sinElevSnap = dot(Nlocal, -dSnap);
                 if (sinElevSnap > 0.0) {
                   horizonFade *= smoothstep(0.0, 0.025, sinElevSnap);
+                  cellElev = sinElevSnap;
                   d = dSnap;
                   ax = uGainAntX;
                   ay = uGainAntY;
@@ -336,13 +340,24 @@ export class SceneView {
                 vec2 guv = vec2(u, v) * 0.5 + 0.5;
                 vec4 g = texture2D(uGain, guv);
                 float db = g.a * 40.0 - 40.0;
-                float t = smoothstep(-7.0, -1.5, db) * horizonFade;
-                float core = smoothstep(-3.0, -0.3, db) * horizonFade;
                 vec3 beamCol = g.rgb;
-                float contour = smoothstep(0.43, 0.5, abs(fract(db / 6.0) - 0.5));
-                col += beamCol * t * 0.72 * uGainOpacity;
-                col += vec3(1.0, 0.98, 0.94) * core * 0.06 * uGainOpacity;
-                col += vec3(0.7, 0.95, 1.0) * contour * t * 0.08 * uGainOpacity;
+                if (uCellular > 0.5) {
+                  float cellHorizon = smoothstep(0.0, 0.15, cellElev) * horizonFade;
+                  float edge = smoothstep(-10.5, -0.5, db);
+                  float t = pow(edge, 1.15) * cellHorizon;
+                  float core = smoothstep(-2.4, -0.2, db) * cellHorizon;
+                  float alpha = clamp(t * uGainOpacity, 0.0, 0.64);
+                  col = mix(col, beamCol * 0.92, alpha * 0.72);
+                  col += beamCol * t * 0.16 * uGainOpacity;
+                  col += vec3(0.95, 0.99, 1.0) * core * 0.05 * uGainOpacity;
+                } else {
+                  float t = smoothstep(-7.0, -1.5, db) * horizonFade;
+                  float core = smoothstep(-3.0, -0.3, db) * horizonFade;
+                  float contour = smoothstep(0.43, 0.5, abs(fract(db / 6.0) - 0.5));
+                  col += beamCol * t * 0.72 * uGainOpacity;
+                  col += vec3(1.0, 0.98, 0.94) * core * 0.06 * uGainOpacity;
+                  col += vec3(0.7, 0.95, 1.0) * contour * t * 0.08 * uGainOpacity;
+                }
               }
             }
           }
@@ -642,7 +657,8 @@ export class SceneView {
     u.uAntY.value.copy(antY);
     u.uAntZ.value.copy(antZ);
     u.uShowGain.value = state.showGain && d.gainMap.max > 0 ? 1 : 0;
-    u.uGainOpacity.value = state.mode === 'global' ? 0.22 : 0.9;
+    u.uGainOpacity.value = state.mode === 'global' ? 0.22 : state.mode === 'cellular' ? 0.72 : 0.88;
+    u.uCellular.value = state.mode === 'cellular' ? 1 : 0;
 
     const snap = d.gainMap.snapshot;
     if (snap && snap.groundFixed) {
@@ -803,9 +819,9 @@ export class SceneView {
     const nSamples = 48;
     let count = 0;
     const col = this.tmpCol;
-    (this.beamLines.material as THREE.LineBasicMaterial).opacity = state.mode === 'cellular' ? 0.38 : 0.9;
+    (this.beamLines.material as THREE.LineBasicMaterial).opacity = state.mode === 'cellular' ? 0.24 : 0.9;
     const stride = beams.length > 160 ? 2 : 1;
-    const ringCount = state.mode === 'cellular' ? 0 : beams.length;
+    const ringCount = state.mode === 'cellular' ? (beams.length <= 60 ? beams.length : 0) : beams.length;
     const halfAngle = Math.min(
       (d.activeMetrics.hpbwDeg * DEG) / 2,
       horizonOffNadir(Math.max(10, d.sat.alt)) * 0.998,
@@ -975,7 +991,7 @@ export class SceneView {
         return;
       }
       mat.color.setHex(0xfbbf24);
-      mat.opacity = 0.85;
+      mat.opacity = 0.62;
       const key = `cell|${state.region}`;
       if (key !== this.lastRegionKey) {
         const closed = poly[0][0] === poly[poly.length - 1][0] && poly[0][1] === poly[poly.length - 1][1];

@@ -213,7 +213,8 @@ const BEAM_RGB: [number, number, number][] = [
 
 /**
  * Mapa de ganancia compuesto en el disco (u,v) ∈ [-1,1]².
- * `combine = 'max'` muestra celdas individuales (cobertura celular);
+ * `combine = 'max'` muestra celdas individuales (cobertura celular) con evaluación
+ * espacial acotada y suavizado en la frontera entre haces vecinos;
  * `'sum'` suma potencias (haz único o conformado).
  */
 export function computeGainMap(
@@ -225,48 +226,117 @@ export function computeGainMap(
 ): GainMap {
   const data = new Float32Array(size * size);
   const colorIdx = new Uint8Array(size * size);
+  let second: Float32Array | null = null;
+  let bestPat: Float32Array | null = null;
+  let peak0 = 1;
   let max = 0;
-  for (let iv = 0; iv < size; iv++) {
-    const v = -1 + (2 * (iv + 0.5)) / size;
-    for (let iu = 0; iu < size; iu++) {
-      const u = -1 + (2 * (iu + 0.5)) / size;
-      const w2 = 1 - u * u - v * v;
-      let p = 0;
-      let ci = 0;
-      if (w2 > 1e-6) {
-        if (combine === 'max') {
-          let best = 0;
-          for (let k = 0; k < beams.length; k++) {
-            const b = beams[k];
-            const val = b.amp * b.amp * patternPowerAt(grid, u - b.u, v - b.v);
-            if (val > best) {
-              best = val;
-              ci = b.color;
-            }
+
+  if (combine === 'max') {
+    second = new Float32Array(size * size);
+    bestPat = new Float32Array(size * size);
+    peak0 = Math.max(1e-9, patternPowerAt(grid, 0, 0));
+    const thresh = 0.015 * peak0;
+    const step = (2 * grid.half) / Math.max(1, grid.size - 1);
+    let rSig = 0.06;
+    for (let r = 0; r <= grid.half + 1e-6; r += step) {
+      const pAxis = patternPowerAt(grid, r, 0);
+      const pDiag = patternPowerAt(grid, r * Math.SQRT1_2, r * Math.SQRT1_2);
+      if (pAxis >= thresh || pDiag >= thresh) rSig = r;
+    }
+    const rMax = Math.max(0.06, Math.min(Math.min(2.0, grid.half), rSig + step));
+
+    for (let k = 0; k < beams.length; k++) {
+      const b = beams[k];
+      const pMin = b.amp * b.amp;
+      if (pMin <= 0) continue;
+      const iu0 = Math.max(0, Math.floor(((b.u - rMax + 1) * 0.5) * size));
+      const iu1 = Math.min(size - 1, Math.ceil(((b.u + rMax + 1) * 0.5) * size));
+      const iv0 = Math.max(0, Math.floor(((b.v - rMax + 1) * 0.5) * size));
+      const iv1 = Math.min(size - 1, Math.ceil(((b.v + rMax + 1) * 0.5) * size));
+      for (let iv = iv0; iv <= iv1; iv++) {
+        const v = -1 + (2 * (iv + 0.5)) / size;
+        const dv = v - b.v;
+        for (let iu = iu0; iu <= iu1; iu++) {
+          const u = -1 + (2 * (iu + 0.5)) / size;
+          if (u * u + v * v >= 1 - 1e-6) continue;
+          const pat = patternPowerAt(grid, u - b.u, dv);
+          const val = pMin * pat;
+          const idx = iv * size + iu;
+          if (val > data[idx]) {
+            second[idx] = data[idx];
+            data[idx] = val;
+            bestPat[idx] = pat;
+            colorIdx[idx] = b.color;
+          } else if (val > second[idx]) {
+            second[idx] = val;
           }
-          p = best;
-        } else {
+        }
+      }
+    }
+
+    for (let iv = 0; iv < size; iv++) {
+      const v = -1 + (2 * (iv + 0.5)) / size;
+      for (let iu = 0; iu < size; iu++) {
+        const idx = iv * size + iu;
+        if (data[idx] <= 0) continue;
+        const u = -1 + (2 * (iu + 0.5)) / size;
+        const w2 = 1 - u * u - v * v;
+        if (w2 <= 1e-6) {
+          data[idx] = 0;
+          second[idx] = 0;
+          bestPat[idx] = 0;
+          continue;
+        }
+        const elem = Math.pow(w2, q);
+        const p = data[idx] * elem;
+        data[idx] = p;
+        second[idx] *= elem;
+        if (p > max) max = p;
+      }
+    }
+  } else {
+    for (let iv = 0; iv < size; iv++) {
+      const v = -1 + (2 * (iv + 0.5)) / size;
+      for (let iu = 0; iu < size; iu++) {
+        const u = -1 + (2 * (iu + 0.5)) / size;
+        const w2 = 1 - u * u - v * v;
+        let p = 0;
+        if (w2 > 1e-6) {
           for (let k = 0; k < beams.length; k++) {
             const b = beams[k];
             p += b.amp * b.amp * patternPowerAt(grid, u - b.u, v - b.v);
           }
-          ci = beams[0]?.color ?? 0;
+          p *= Math.pow(w2, q);
         }
-        p *= Math.pow(w2, q);
+        const idx = iv * size + iu;
+        data[idx] = p;
+        colorIdx[idx] = beams[0]?.color ?? 0;
+        if (p > max) max = p;
       }
-      const idx = iv * size + iu;
-      data[idx] = p;
-      colorIdx[idx] = ci;
-      if (p > max) max = p;
     }
   }
+
   const rgba = new Uint8Array(size * size * 4);
   if (max > 0) {
     const inv = 1 / max;
     for (let i = 0; i < data.length; i++) {
       data[i] *= inv;
       const db = 10 * Math.log10(Math.max(data[i], 1e-9));
-      const a = Math.max(0, Math.min(255, Math.round(((db + 40) / 40) * 255)));
+      let a = 0;
+      if (second && bestPat) {
+        const patNorm = bestPat[i] / peak0;
+        const lf = Math.max(0, Math.min(1, (patNorm - 0.26) / 0.32));
+        const lobeFade = lf * lf * (3 - 2 * lf);
+        if (lobeFade > 1e-4) {
+          const ratio = data[i] > 0 ? Math.min(1, (second[i] * inv) / data[i]) : 0;
+          const s = Math.max(0, Math.min(1, (ratio - 0.78) / 0.22));
+          const seam = s * s * (3 - 2 * s);
+          const dbVis = db - 1.0 * seam + 10 * Math.log10(lobeFade);
+          a = Math.max(0, Math.min(255, Math.round(((dbVis + 40) / 40) * 255)));
+        }
+      } else {
+        a = Math.max(0, Math.min(255, Math.round(((db + 40) / 40) * 255)));
+      }
       const c = BEAM_RGB[colorIdx[i] % BEAM_RGB.length];
       rgba[i * 4] = c[0];
       rgba[i * 4 + 1] = c[1];

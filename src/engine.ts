@@ -42,12 +42,15 @@ import {
   beamToTarget,
   cellSpacingKm,
   coChannelCiDb,
+  footprintRadiusKm,
 } from './core/coverage';
 import {
   buildGroundCells,
+  distanceToPolygonKm,
+  pointInPolygon,
+  polygonBBox,
   regionAreaKm2,
   regionPolygon,
-  pointInPolygon,
   type DirectionSample,
   type GroundCell,
 } from './core/regions';
@@ -523,7 +526,9 @@ export class Engine {
       this.lastGainMs = now;
     } else if (this.gainDirty && (now - this.lastGainMs > gainInterval || initial || quantUpdated || showGainTurnedOn)) {
       const count = beams.length;
-      const size = count > 1600 ? 128 : count > 800 ? 160 : count > 400 ? 192 : count > 180 ? 224 : count > 80 ? 256 : count > 30 ? 320 : 384;
+      const size = s.mode === 'cellular'
+        ? (count > 900 ? 384 : 512)
+        : (count > 800 ? 256 : count > 180 ? 320 : 384);
       let snapSat: Vec3;
       let snapFrame: AntennaFrame;
       let groundFixed: boolean;
@@ -544,7 +549,7 @@ export class Engine {
         gainMap = computeGainMap(pattern, beams, patternQ, size, s.mode === 'cellular' ? 'max' : 'sum');
       }
       if (s.mode === 'cellular' || s.mode === 'shaped' || s.mode === 'spot') {
-        this.maskGainMap(gainMap, snapSat, snapFrame, s, active);
+        this.maskGainMap(gainMap, snapSat, snapFrame, s, active, beams.length);
       }
       gainMap.snapshot = {
         satEcef: { x: snapSat.x, y: snapSat.y, z: snapSat.z },
@@ -1012,16 +1017,77 @@ export class Engine {
   }
 
   /**
-   * Recorta el mapa de ganancia a la región que realmente se está cubriendo.
+   * Recorta o atenúa suavemente el mapa de ganancia alrededor de la región de servicio.
    *
-   * El cálculo de haces es correcto, pero el overlay de color podía extenderse
-   * fuera de la huella y dar la impresión de una cobertura mayor. Para celular
-   * uso el polígono de la región; para conformado, el círculo de diseño con un
-   * pequeño margen.
+   * En modo celular multi-celda aplica un feather geodésico cúbico fuera del
+   * polígono político (`marginKm`), preservando el desbordamiento RF natural sin
+   * corte abrupto en frontera ni púas radiales largas a baja elevación; en modo
+   * puntual/conformado recorta al círculo de diseño con un pequeño margen.
    */
-  private maskGainMap(map: GainMap, sat: Vec3, frame: AntennaFrame, s: SimState, active: Beam | null) {
+  private maskGainMap(map: GainMap, sat: Vec3, frame: AntennaFrame, s: SimState, active: Beam | null, beamCount = 0) {
     const size = map.size;
-    const poly = s.mode === 'cellular' ? regionPolygon(s.region) : null;
+    if (s.mode === 'cellular') {
+      const poly = regionPolygon(s.region);
+      if (!poly || beamCount <= 4) return;
+      const satAlt = Math.max(100, Math.hypot(sat.x, sat.y, sat.z) - R_EARTH);
+      const marginKm = Math.max(40, Math.min(110, footprintRadiusKm(satAlt, this.baseMetrics.hpbwDeg) * 1.15));
+      const bb = polygonBBox(poly);
+      const midLat = ((bb.latMin + bb.latMax) / 2) * DEG;
+      const mLat = marginKm / 110;
+      const mLon = marginKm / (110 * Math.max(0.15, Math.cos(midLat)));
+      let anyCellPositive = false;
+      for (let iv = 0; iv < size; iv++) {
+        const v = -1 + (2 * (iv + 0.5)) / size;
+        for (let iu = 0; iu < size; iu++) {
+          const idx = iv * size + iu;
+          if (map.data[idx] <= 0 && map.rgba[idx * 4 + 3] === 0) continue;
+          const u = -1 + (2 * (iu + 0.5)) / size;
+          if (u * u + v * v > 1) {
+            map.data[idx] = 0;
+            map.rgba[idx * 4 + 3] = 0;
+            continue;
+          }
+          const pt = beamGroundPoint(sat, frame, { id: 0, u, v, amp: 1, color: 0 });
+          if (!pt) {
+            map.data[idx] = 0;
+            map.rgba[idx * 4 + 3] = 0;
+            continue;
+          }
+          const geo = ecefToGeodetic(pt);
+          const latD = geo.lat / DEG;
+          const lonD = geo.lon / DEG;
+          if (pointInPolygon(latD, lonD, poly)) {
+            if (map.data[idx] > 0) anyCellPositive = true;
+            continue;
+          }
+          if (
+            latD < bb.latMin - mLat
+            || latD > bb.latMax + mLat
+            || lonD < bb.lonMin - mLon
+            || lonD > bb.lonMax + mLon
+          ) {
+            map.data[idx] = 0;
+            map.rgba[idx * 4 + 3] = 0;
+            continue;
+          }
+          const dKm = distanceToPolygonKm(latD, lonD, poly);
+          if (dKm >= marginKm) {
+            map.data[idx] = 0;
+            map.rgba[idx * 4 + 3] = 0;
+            continue;
+          }
+          const f = 1 - dKm / marginKm;
+          const w = f * f * (3 - 2 * f);
+          map.data[idx] *= w;
+          const dbOld = (map.rgba[idx * 4 + 3] / 255) * 40 - 40;
+          const dbNew = dbOld - 11.5 * (1 - w);
+          map.rgba[idx * 4 + 3] = Math.max(0, Math.min(255, Math.round(((dbNew + 40) / 40) * 255)));
+          if (map.data[idx] > 0) anyCellPositive = true;
+        }
+      }
+      if (!anyCellPositive) map.max = 0;
+      return;
+    }
     const shapedLat = s.shapedCenter.lat * DEG;
     const shapedLon = s.shapedCenter.lon * DEG;
     const shapedRadius = (s.shapedRadiusKm * 1.06) / R_EARTH;
@@ -1071,9 +1137,7 @@ export class Engine {
         }
         const geo = ecefToGeodetic(pt);
         let inside = true;
-        if (poly) {
-          inside = pointInPolygon(geo.lat / DEG, geo.lon / DEG, poly);
-        } else if (s.mode === 'shaped') {
+        if (s.mode === 'shaped') {
           const cosD = Math.sin(geo.lat) * Math.sin(shapedLat)
             + Math.cos(geo.lat) * Math.cos(shapedLat) * Math.cos(geo.lon - shapedLon);
           inside = Math.acos(Math.max(-1, Math.min(1, cosD))) <= shapedRadius;

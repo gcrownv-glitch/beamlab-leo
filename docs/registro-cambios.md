@@ -8,11 +8,11 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 |---|---|
 | **Repositorio** | `beamlab-leo` |
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
-| **Versión declarada en manifiestos** | `2.4.0-beta.4` *(catálogo Starlink V1.0–V3 + flota GEO Amazonas; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
+| **Versión declarada en manifiestos** | `2.4.0-beta.5` *(huella celular realista 512×512 con feather geodésico + catálogo Starlink/Amazonas; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
 | **Puntos de recuperación estables** | `stable/v2.3.4-orig` (`25ce657`, v2.3.4 original) · `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2) · tag/Release `v2.3.4` intacto en GitHub |
-| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.4`) |
-| **Última actualización** | `2026-11-26T02:13:45-05:00` (`2026-11-26T07:13:45Z`) |
-| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` en verde · `vitest run`: **16 archivos / 72 pruebas aprobadas** |
+| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.5`) |
+| **Última actualización** | `2026-11-26T02:50:15-05:00` (`2026-11-26T07:50:15Z`) |
+| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` + verificación visual en Chromium (`1280×720`) en verde · `vitest run`: **16 archivos / 74 pruebas aprobadas** |
 
 ---
 
@@ -38,7 +38,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Fix Conformada** | `f9ad6f6` | `2026-11-24T19:58:18-05:00` (`00:58:18Z`) | `rel/tramo-6-devops-beta` | Cerrar brecha `(u, v)` en campo lejano para radios 60–80 km, normalizar contra pico radiado real, respaldo síncrono de Web Worker y aviso 32×32 |
 | **Web Beta 2** | `816b091` | `2026-11-24T20:01:44-05:00` (`01:01:44Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Desplegar `2.4.0-beta.2` en GitHub Pages preservando `stable/v2.3.4-orig` (`25ce657`) |
 | **Fix Off-Nadir / Beta 3** | `bda3ade` | `2026-11-26T01:55:33-05:00` (`06:55:33Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Exclusión geodésica en campo lejano, coordenadas `[-half, +half]` en `peakRadiatedPower()`, visibilidad real por `elevationAngle()` y bump a `2.4.0-beta.3` para web |
-| **Catálogo Starlink/Amazonas** | *(cabeza de rama)* | `2026-11-26T02:13:45-05:00` (`07:13:45Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Añadir Starlink V1.0–V3 (`1007`, `2150`, `3005`, `5241`, `30001`, `31005`, `V2-SIM`, `40001`, `40012`) + flota GEO Amazonas (`2`, `3`, `5`, `Nexus`) y soporte 3D/enlace GEO (`2.4.0-beta.4`) |
+| **Catálogo Starlink/Amazonas** | `355780c` | `2026-11-26T02:17:31-05:00` (`07:17:31Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Añadir Starlink V1.0–V3 (`1007`, `2150`, `3005`, `5241`, `30001`, `31005`, `V2-SIM`, `40001`, `40012`) + flota GEO Amazonas (`2`, `3`, `5`, `Nexus`) y soporte 3D/enlace GEO (`2.4.0-beta.4`) |
+| **Huella Celular / Beta 5** | *(cabeza de rama)* | `2026-11-26T02:50:15-05:00` (`07:50:15Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Mapa celular 512×512 acotado espacialmente, envolvente RF individual (`lobeFade`) + feather geodésico suave en frontera, shader translúcido, corrección `.btn.mobile-only` en escritorio y deploy web `2.4.0-beta.5` |
 
 ---
 
@@ -266,6 +267,18 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
   - Se añadieron las 5 generaciones Starlink (`STARLINK-1007` NORAD 44713, `STARLINK-2150` 47751, `STARLINK-3005` 49131, `STARLINK-5241` 55623, `STARLINK-30001` 55693, `STARLINK-31005` 58695 DTC, `STARLINK-V2-SIM-01 / 02`, `STARLINK-40001` V3 y `STARLINK-40012` V3 VLEO 350 km) y la flota GEO de Hispasat (**Amazonas 2** 72°O NORAD 35942, **Amazonas 3** 61°O 39078, **Amazonas 5** 61°O 42934 y **Amazonas Nexus** 61°O 55508) agrupadas en `<optgroup>` en `#orbit-preset`.
   - Se amplió `#altitude` hasta `36 000 km`, `fmtPeriod()` formatea períodos largos en horas (`23.93 h` en GEO), `orbitForPreset()` posiciona ranuras GEO en el ecuador (`geoLonDeg`), `SceneView` escala la cámara (`maxDistance = 140`) y el modelo satelital a distancia orbital GEO, y `buildGroundCells()` aporta celda centroide cuando el tamaño del haz supera al polígono regional.
   - Pruebas añadidas en `tests/presets.test.ts` (**16 archivos / 72 pruebas aprobadas**).
+
+#### 7. Realismo visual y físico de la huella en modo Celular + fix `.btn.mobile-only` (`2.4.0-beta.5`)
+- **Causa raíz detectada en captura del usuario (`STARLINK-3005`, `16×16`, Perú):**
+  1. `maskGainMap()` aplicaba un recorte binario al polígono político de la región, cortando la huella en seco a lo largo de la frontera.
+  2. Con `430` haces (`> 400`), el `GainMap` bajaba a `192×192` (~3 téxeles por celda), generando pixelado y franjas moiré agravadas por mezcla aditiva saturada y el filtro lineal entre colores vecinos en el shader.
+  3. Sin acotamiento fuera de frontera, los haces rasantes (`15°–25°` elevación en el norte de Perú) se alargaban radialmente (`1/sin(elev)`) formando púas de 250–350 km.
+  4. Adicionalmente, `.btn { display: inline-flex }` en `src/styles.css` sobrescribía `.mobile-only { display: none }`, haciendo visibles los botones móviles `Órbita` y `Antena` en escritorio.
+- **Solución aplicada (`src/core/array.ts`, `src/core/regions.ts`, `src/engine.ts`, `src/scene.ts`, `src/styles.css`, `index.html`, `tests/beamforming.test.ts`, `tests/ux.test.ts`):**
+  - `computeGainMap(..., 'max')` ahora evalúa espacialmente por bounding box de cada haz, permitiendo subir el mapa celular a **`512×512`** (`384` si `> 900` haces), añade envolvente suave por lóbulo (`lobeFade`) alrededor de `-3..-5.8 dB` y atenúa suavemente el handoff entre celdas (`seam`).
+  - `distanceToPolygonKm()` y el *feather* geodésico en `maskGainMap()` sustituyen el recorte binario por un desbordamiento RF cúbico suave (`40–110 km` fuera de la frontera según HPBW), preservando íntegros los haces únicos amplios (`beamCount <= 4` como Amazonas GEO o disco visible).
+  - Shader celular (`uCellular`) en `src/scene.ts` usa mezcla translúcida equilibrada (preservando el relieve debajo), atenuación rasante cerca del limbo (`cellHorizon`), sin contorno `fract()` ruidoso en mallas densas, y anillos `-3 dB` sutiles cuando `beams.length <= 60`.
+  - Corregido `.btn.mobile-only, .mobile-only` en `src/styles.css` y verificadas visualmente las vistas `16×16`, `8×8` y `Amazonas 3` en Chromium `1280×720` (**16 archivos / 74 pruebas aprobadas**).
 
 ---
 

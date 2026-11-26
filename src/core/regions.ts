@@ -120,6 +120,29 @@ export function polygonBBox(poly: [number, number][]): {
   return { latMin, latMax, lonMin, lonMax };
 }
 
+/** Distancia mínima aproximada [km] desde (latDeg, lonDeg) hasta el contorno del polígono. */
+export function distanceToPolygonKm(latDeg: number, lonDeg: number, poly: [number, number][]): number {
+  if (poly.length === 0) return Infinity;
+  const kmPerLat = DEG * R_EARTH;
+  const kmPerLon = kmPerLat * Math.max(0.1, Math.cos(latDeg * DEG));
+  let minDist2 = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [latA, lonA] = poly[j];
+    const [latB, lonB] = poly[i];
+    const xA = (lonA - lonDeg) * kmPerLon;
+    const yA = (latA - latDeg) * kmPerLat;
+    const dx = (lonB - lonDeg) * kmPerLon - xA;
+    const dy = (latB - latDeg) * kmPerLat - yA;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 > 0 ? Math.max(0, Math.min(1, (-xA * dx - yA * dy) / len2)) : 0;
+    const px = xA + t * dx;
+    const py = yA + t * dy;
+    const d2 = px * px + py * py;
+    if (d2 < minDist2) minDist2 = d2;
+  }
+  return Math.sqrt(minDist2);
+}
+
 /** Índice de color sin colisiones entre celdas vecinas para reutilización 3, 4 o 7 en malla hexagonal odd-r. */
 export function cellColor(row: number, col: number, reuse: number): number {
   const q = col - Math.floor(row / 2);

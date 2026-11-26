@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { Engine } from '../src/engine';
 import { defaultState } from '../src/state';
+import { computeBasePattern, computeGainMap, type ArrayConfig, type Beam } from '../src/core/array';
 import { DEG } from '../src/core/constants';
 import { beamsForGroundCells, cellColor } from '../src/core/coverage';
-import { antennaBasis, orbitalPeriod, propagate } from '../src/core/orbit';
+import { beamGroundPoint } from '../src/core/geometry';
+import { antennaBasis, ecefToGeodetic, orbitalPeriod, propagate } from '../src/core/orbit';
 import { elementsOverPoint } from '../src/core/presets';
-import { buildGroundCells, regionPolygon } from '../src/core/regions';
+import { buildGroundCells, distanceToPolygonKm, pointInPolygon, regionPolygon } from '../src/core/regions';
 
 function oddRNeighbors(row: number, col: number): [number, number][] {
   const odd = (row & 1) === 1;
@@ -202,4 +204,88 @@ describe('regresiones de beamforming 3D y cobertura', () => {
     expect(h300).toBeGreaterThan(h550);
     expect(h550).toBeGreaterThan(h1500);
   }, 60000);
+
+  it('usa mapa celular 512×512 con caída RF natural sin recorte poligonal ni fuga fuera del disco', () => {
+    const epoch = Date.UTC(2026, 10, 26, 7, 22, 26);
+    const state = defaultState();
+    state.mode = 'cellular';
+    state.region = 'peru';
+    state.presetId = 'starlink-v15-3005';
+    state.orbit = elementsOverPoint(570, 97.6, -9.2, -75.0, epoch, 0, 0.0002);
+    state.simTime = epoch;
+
+    const engine = new Engine(state);
+    const map = engine.derived.gainMap;
+    const poly = regionPolygon('peru')!;
+
+    expect(engine.derived.beams.length).toBeGreaterThan(300);
+    expect(map.size).toBe(512);
+    expect(map.max).toBeGreaterThan(0);
+
+    let outsideSpillCount = 0;
+    let farOutsideVisibleCount = 0;
+    for (let iv = 0; iv < map.size; iv += 2) {
+      const v = -1 + (2 * (iv + 0.5)) / map.size;
+      for (let iu = 0; iu < map.size; iu += 2) {
+        const u = -1 + (2 * (iu + 0.5)) / map.size;
+        const idx = iv * map.size + iu;
+        if (u * u + v * v > 1) {
+          expect(map.data[idx]).toBe(0);
+          expect(map.rgba[idx * 4 + 3]).toBe(0);
+          continue;
+        }
+        if (map.data[idx] > 0.05) {
+          const pt = beamGroundPoint(engine.derived.sat.rEcef, engine.derived.frame, { id: 0, u, v, amp: 1, color: 0 });
+          if (pt) {
+            const g = ecefToGeodetic(pt);
+            const latD = g.lat / DEG;
+            const lonD = g.lon / DEG;
+            if (!pointInPolygon(latD, lonD, poly)) {
+              outsideSpillCount++;
+              if (distanceToPolygonKm(latD, lonD, poly) > 160 && map.rgba[idx * 4 + 3] > 0) {
+                farOutsideVisibleCount++;
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(outsideSpillCount).toBeGreaterThan(0);
+    expect(farOutsideVisibleCount).toBe(0);
+  });
+
+  it('normaliza computeGainMap max en [0, 1] y suaviza alpha en fronteras entre celdas', () => {
+    const cfg: ArrayConfig = {
+      n: 16,
+      dx: 0.5,
+      dy: 0.5,
+      freqGHz: 12,
+      taper: 'kaiser30',
+      q: 1,
+      efficiency: 0.65,
+    };
+    const grid = computeBasePattern(cfg);
+    const single: Beam[] = [{ id: 0, u: -0.055, v: 0, amp: 1, color: 0 }];
+    const pair: Beam[] = [
+      { id: 0, u: -0.055, v: 0, amp: 1, color: 0 },
+      { id: 1, u: 0.055, v: 0, amp: 1, color: 1 },
+    ];
+    const mSingle = computeGainMap(grid, single, cfg.q, 129, 'max');
+    const mPair = computeGainMap(grid, pair, cfg.q, 129, 'max');
+
+    let peak = 0;
+    for (let i = 0; i < mPair.data.length; i++) {
+      expect(mPair.data[i]).toBeGreaterThanOrEqual(0);
+      expect(mPair.data[i]).toBeLessThanOrEqual(1 + 1e-6);
+      if (mPair.data[i] > peak) peak = mPair.data[i];
+    }
+    expect(peak).toBeCloseTo(1, 5);
+
+    const midIdx = 64 * 129 + 64;
+    expect(mPair.data[midIdx]).toBeCloseTo(mSingle.data[midIdx], 5);
+    expect(mPair.rgba[midIdx * 4 + 3]).toBeLessThan(mSingle.rgba[midIdx * 4 + 3]);
+
+    const farIdx = 64 * 129 + 90; // u ≈ +0.40, fuera de -5.8 dB del haz
+    expect(mPair.rgba[farIdx * 4 + 3]).toBe(0);
+  });
 });

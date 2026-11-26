@@ -29,11 +29,13 @@ describe('Tramo 5 — UX, Teoría, Móvil y Trazabilidad del Laboratorio', () =>
   it('mantiene accesibles los paneles en móvil <= 760 px como drawers en vez de ocultarlos con display: none', () => {
     const start = stylesCss.indexOf('@media (max-width: 760px)');
     expect(start).toBeGreaterThan(-1);
+    const desktopCss = stylesCss.slice(0, start);
     const mobileBlock = stylesCss.slice(start);
 
+    expect(desktopCss).toContain('.btn.mobile-only, .mobile-only { display: none; }');
     expect(mobileBlock).not.toMatch(/\.panel\s*\{\s*display:\s*none\s*;/);
     expect(mobileBlock).not.toMatch(/\.panel-tab\s*\{\s*display:\s*none\s*;/);
-    expect(mobileBlock).toContain('.mobile-only');
+    expect(mobileBlock).toContain('.btn.mobile-only, .mobile-only { display: inline-flex; }');
     expect(mobileBlock).toContain('.modal-body');
     expect(mobileBlock).toContain('.lab-body');
   });

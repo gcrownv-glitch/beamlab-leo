@@ -150,6 +150,25 @@ class App {
       this.engine.setSpotFixed(v);
       this.refresh();
     },
+    setSpotAutoTrack: (v: boolean) => {
+      this.engine.setSpotAutoTrack(v);
+      if (v) this.state.playing = true;
+      this.refresh();
+      this.ui.toast(
+        v
+          ? 'Auto-apuntado en ruta activo: seguirá las ciudades a su paso.'
+          : 'Auto-apuntado en ruta desactivado.',
+      );
+    },
+    setStrictService: (v: boolean) => {
+      this.engine.setStrictService(v);
+      this.ui.syncControls(this.state);
+      this.ui.toast(
+        v
+          ? 'Perfil realista activado: solo modos reales por satélite.'
+          : 'Modo laboratorio: todos los modos desbloqueados.',
+      );
+    },
     setRegion: (id: RegionId) => {
       this.engine.setRegion(id);
       if (this.state.mode === 'cellular') {
@@ -312,19 +331,25 @@ class App {
     }
   }
 
-  private setMode(mode: Mode) {    const prev = this.state.mode;
-    if (mode === 'cellular' && this.state.region === 'visible') {
-      this.engine.setRegion('peru');
+  private setMode(mode: Mode) {
+    const preset = presetById(this.state.presetId);
+    if (this.state.strictService && preset.allowedModes && !preset.allowedModes.includes(mode)) {
+      this.ui.toast(`${preset.name} no brinda este servicio en la realidad. Desactiva «Solo servicios reales» para modo libre.`, true);
+      this.ui.syncControls(this.state);
+      return;
     }
+    const prev = this.state.mode;
     this.engine.setMode(mode);
     if (prev !== mode && (mode === 'cellular' || mode === 'shaped')) {
       if (mode === 'cellular') {
-        const [lat, lon] = this.state.region === 'visible' ? [-12.05, -77.04] : regionCenter(this.state.region);
-        const der = this.engine.derived;
-        const isGeo = this.state.orbit.a - R_EARTH > 20000;
-        const elev = elevationAngle(der.sat.rEcef, lat * DEG, lon * DEG);
-        if (!isGeo || elev <= 10 * DEG) {
-          this.snapToRegion(lat, lon, false);
+        if (this.state.region !== 'visible') {
+          const [lat, lon] = regionCenter(this.state.region);
+          const der = this.engine.derived;
+          const isGeo = this.state.orbit.a - R_EARTH > 20000;
+          const elev = elevationAngle(der.sat.rEcef, lat * DEG, lon * DEG);
+          if (!isGeo || elev <= 10 * DEG) {
+            this.snapToRegion(lat, lon, false);
+          }
         }
       } else {
         const [cLat, cLon] = this.state.shapedRegion !== 'circle'
@@ -372,6 +397,8 @@ class App {
 
   private applyPayload(payload: PresetPayload) {
     this.state.ptxW = payload.ptxW;
+    if (payload.bandwidthMHz !== undefined) this.state.bandwidthMHz = payload.bandwidthMHz;
+    else this.state.bandwidthMHz = 100;
     this.engine.setReuse(payload.reuse);
     this.engine.setRegion(payload.region);
     this.engine.setAntenna({
@@ -383,13 +410,18 @@ class App {
     });
     this.engine.setFrequency(payload.freqGHz);
     this.engine.setShapedRadius(payload.shapedRadiusKm);
-    this.engine.setShapedRegion('circle');
+    this.engine.setShapedRegion(payload.shapedRegion ?? 'circle');
+    this.engine.setSpotAutoTrack(payload.spotAutoTrack ?? false);
+    if (payload.playing !== undefined && payload.mode !== 'shaped') {
+      this.state.playing = payload.playing;
+    }
     this.engine.setMode(payload.mode);
   }
 
   private setPreset(id: string) {
     const p = presetById(id);
-    const wasGeo = this.state.orbit.a - R_EARTH > 20000;
+    const prevPreset = presetById(this.state.presetId);
+    const wasCustomProfile = Boolean(prevPreset.payload) || this.state.orbit.a - R_EARTH > 20000;
     this.state.presetId = id;
     if (p.id !== 'custom') {
       const epoch = this.state.orbit.epoch;
@@ -398,11 +430,13 @@ class App {
       this.engine.setOrbit(orbit, id);
       if (p.payload) {
         this.applyPayload(p.payload);
-      } else if (wasGeo && p.altKm < 20000) {
+      } else if (wasCustomProfile && p.altKm < 20000) {
         this.state.ptxW = 20;
+        this.state.bandwidthMHz = 100;
         this.engine.setAntenna(defaultLeoAntenna());
         this.engine.setFrequency(12);
         this.engine.setReuse(3);
+        this.engine.setSpotAutoTrack(false);
         if (['latam', 'americas', 'atlantic'].includes(this.state.region)) {
           this.engine.setRegion('peru');
         }
@@ -417,6 +451,9 @@ class App {
     this.refresh();
     this.scene?.setViewToEci(this.engine.derived.sat.r);
     if (p.payload) this.ui.toast(p.payload.summary);
+    if (p.payload?.autoSynthesize) {
+      this.synthesize();
+    }
   }
 
   private now() {

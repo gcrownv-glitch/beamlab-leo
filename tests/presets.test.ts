@@ -96,21 +96,29 @@ describe('Catálogo de satélites Starlink (V1.0–V3) y flota GEO Amazonas', ()
       st.presetId = id;
       st.orbit = orbitForPreset(p, epoch);
       st.simTime = epoch;
-      st.mode = pay.mode;
+      st.mode = id === 'amazonas-2' ? 'shaped' : 'cellular';
       st.region = pay.region;
+      st.shapedRegion = pay.shapedRegion ?? 'circle';
       st.reuse = pay.reuse;
       st.ptxW = pay.ptxW;
+      if (pay.bandwidthMHz) st.bandwidthMHz = pay.bandwidthMHz;
       st.antenna = { ...st.antenna, n: pay.n, dx: pay.dx, dy: pay.dx, q: pay.q, taper: pay.taper, freqGHz: pay.freqGHz };
 
       const eng = new Engine(st);
-      expect(eng.derived.beams.length, `${id} haces`).toBeGreaterThanOrEqual(8);
+      if (id === 'amazonas-2') {
+        expect(p.allowedModes).not.toContain('cellular');
+        const info = eng.synthesizeShaped();
+        eng.update();
+        expect(info.coverage).toBeGreaterThanOrEqual(0.65);
+      } else {
+        expect(p.allowedModes).toContain('cellular');
+        expect(eng.derived.beams.length, `${id} haces`).toBeGreaterThanOrEqual(8);
+        if (id === 'amazonas-5') expect(eng.derived.beams.length).toBeGreaterThanOrEqual(24);
+      }
       expect(eng.derived.gainMap.uvHalf ?? 1).toBeLessThan(0.25);
       expect(eng.derived.gainMap.max).toBeGreaterThan(0);
       expect(eng.derived.links.downlink?.outage, `${id} enlace bajada`).toBe(false);
       expect(eng.derived.links.downlink?.cnDb ?? -99, `${id} C/N`).toBeGreaterThan(2);
-      if (id === 'amazonas-5') {
-        expect(eng.derived.beams.length).toBeGreaterThanOrEqual(24);
-      }
     }
 
     // Ranura GEO libre (ej. 30°O Eur-Am) posiciona el satélite sobre esa longitud ecuatorial
@@ -133,6 +141,57 @@ describe('Catálogo de satélites Starlink (V1.0–V3) y flota GEO Amazonas', ()
       expect(m, `falta select #${selectId}`).not.toBeNull();
       const ids = Array.from(m![1].matchAll(/<option value="([^"]+)"/g)).map((x) => x[1]).filter((v) => v !== 'custom');
       expect(new Set(ids)).toEqual(new Set(PERU_CITIES.map((c) => c.id)));
+    }
+  });
+
+  it('restringe modos reales de Starlink, activa DTC banda S en 31005 y mantiene cobertura continua en ruta', () => {
+    const epoch = Date.UTC(2026, 10, 26, 7, 0, 0);
+    for (const id of ['starlink-1007', 'starlink-3005', 'starlink-31005', 'starlink-40001']) {
+      const p = presetById(id);
+      expect(p.allowedModes).toEqual(['cellular', 'spot']);
+      expect(p.payload?.region).toBe('visible');
+      expect(p.payload?.spotAutoTrack).toBe(true);
+    }
+    expect(presetById('starlink-31005').payload?.freqGHz).toBeCloseTo(2.2, 2);
+
+    // En ruta (region='visible'), STARLINK-3005 mantiene haces y cambia de ciudad/ubicación a lo largo de la órbita
+    const p3005 = presetById('starlink-3005');
+    const st = defaultState();
+    st.presetId = 'starlink-3005';
+    st.orbit = orbitForPreset(p3005, epoch);
+    st.mode = 'cellular';
+    st.region = 'visible';
+    const eng = new Engine(st);
+    const locations = new Set<string>();
+    for (const dtMin of [0, 20, 45]) {
+      st.simTime = epoch + dtMin * 60_000;
+      eng.invalidateBeams();
+      eng.update(performance.now() + dtMin * 1000 + 2000);
+      expect(eng.derived.beams.length).toBeGreaterThan(15);
+      expect(eng.derived.servedLocation).toBeTruthy();
+      locations.add(eng.derived.servedLocation!);
+    }
+    expect(locations.size).toBeGreaterThanOrEqual(2);
+
+    // Auto-apuntado puntual en ruta: 1 haz válido en todo el recorrido
+    eng.setMode('spot');
+    eng.setSpotAutoTrack(true);
+    for (const dtMin of [0, 20, 45]) {
+      st.simTime = epoch + dtMin * 60_000;
+      eng.invalidateBeams();
+      eng.update(performance.now() + dtMin * 1000 + 5000);
+      expect(eng.derived.beams.length).toBe(1);
+      expect(eng.derived.servedLocation).toBeTruthy();
+    }
+  });
+
+  it('utiliza textura diurna 4K de NASA (earth_day.jpg > 700 KB)', () => {
+    const nodeFs = (globalThis as {
+      process?: { getBuiltinModule?: (id: string) => { statSync: (p: URL) => { size: number } } };
+    }).process?.getBuiltinModule?.('node:fs');
+    if (nodeFs) {
+      const stat = nodeFs.statSync(new URL('../public/assets/earth_day.jpg', import.meta.url));
+      expect(stat.size).toBeGreaterThan(700_000);
     }
   });
 });

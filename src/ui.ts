@@ -44,6 +44,8 @@ export interface UIHandlers {
   setTime(ms: number): void;
   setSpotTarget(lat: number, lon: number): void;
   setSpotFixed(v: boolean): void;
+  setSpotAutoTrack(v: boolean): void;
+  setStrictService(v: boolean): void;
   setRegion(id: RegionId): void;
   setReuse(n: number): void;
   setCellularCi(enabled: boolean): void;
@@ -349,6 +351,12 @@ export class UI {
     ($('spot-fixed') as HTMLInputElement).addEventListener('change', (e) => {
       this.h.setSpotFixed((e.target as HTMLInputElement).checked);
     });
+    ($('spot-auto') as HTMLInputElement).addEventListener('change', (e) => {
+      this.h.setSpotAutoTrack((e.target as HTMLInputElement).checked);
+    });
+    ($('strict-service') as HTMLInputElement).addEventListener('change', (e) => {
+      this.h.setStrictService((e.target as HTMLInputElement).checked);
+    });
     ($('cell-region') as HTMLSelectElement).addEventListener('change', (e) => {
       this.h.setRegion((e.target as HTMLSelectElement).value as RegionId);
     });
@@ -562,9 +570,26 @@ export class UI {
         ($('epoch') as HTMLInputElement).value = new Date(s.orbit.epoch).toISOString().slice(0, 19);
       }
 
+      const stdLabels: Record<Mode, string> = { global: 'Global', spot: 'Puntual', cellular: 'Celular', shaped: 'Conformada' };
       for (const b of document.querySelectorAll<HTMLButtonElement>('#modes [data-mode]')) {
-        b.classList.toggle('active', b.dataset.mode === s.mode);
+        const m = b.dataset.mode as Mode;
+        b.classList.toggle('active', m === s.mode);
+        const labelSpan = b.querySelectorAll('span')[1];
+        if (labelSpan) labelSpan.textContent = preset?.modeLabels?.[m] ?? stdLabels[m];
+        const disallowed = Boolean(s.strictService && preset?.allowedModes && !preset.allowedModes.includes(m));
+        b.disabled = disallowed;
+        if (disallowed) {
+          b.title = `${preset?.name ?? 'Este satélite'} no ofrece este servicio en la realidad. Desactiva «Solo servicios reales» para modo libre.`;
+        } else if (m === 'global') {
+          b.title = 'Haz ancho de cobertura (GEO: bocina de 17°)';
+        } else {
+          b.title = '';
+        }
       }
+      ($('strict-service') as HTMLInputElement).checked = s.strictService;
+      $('service-profile-note').textContent = !s.strictService
+        ? 'Modo laboratorio: todos los modos habilitados.'
+        : preset?.serviceSummary ?? 'Todos los modos habilitados para este satélite.';
       for (const b of document.querySelectorAll<HTMLButtonElement>('#array-sizes button')) {
         b.classList.toggle('active', Number(b.dataset.n) === s.antenna.n);
       }
@@ -624,6 +649,7 @@ export class UI {
         : fmtLatLon(s.shapedCenter.lat, s.shapedCenter.lon);
 
       ($('spot-fixed') as HTMLInputElement).checked = s.spotFixed;
+      ($('spot-auto') as HTMLInputElement).checked = s.spotAutoTrack;
       ($('shape-region') as HTMLSelectElement).value = s.shapedRegion;
       $('shape-circle-controls').hidden = s.shapedRegion !== 'circle';
       const radiusEl = $('shape-radius') as HTMLInputElement;
@@ -708,10 +734,15 @@ export class UI {
     this.updateQuant(d);
 
     $('cell-info').textContent = d.beamSet
-      ? `${d.beamSet.totalCells} celdas · ${d.beamSet.visibleCells} visibles${s.cellularCi && d.link?.ciDb != null ? ` · C/I ${d.link.ciDb.toFixed(1)} dB` : ''}`
+      ? s.region === 'visible' && d.servedLocation
+        ? `Huella en ruta · ${d.beams.length} haces · ${d.servedLocation}`
+        : `${d.beamSet.totalCells} celdas · ${d.beamSet.visibleCells} visibles${s.cellularCi && d.link?.ciDb != null ? ` · C/I ${d.link.ciDb.toFixed(1)} dB` : ''}`
       : s.mode === 'cellular'
         ? `${d.beams.length} haces sobre el disco visible`
         : '—';
+    if (s.mode === 'spot' && s.spotAutoTrack && d.servedLocation) {
+      $('spot-target').textContent = `En ruta · ${d.servedLocation}`;
+    }
     const shapeLabel = s.shapedRegion !== 'circle' ? ` (${regionById(s.shapedRegion as RegionId).short})` : '';
     $('shape-info').textContent = d.shaped
       ? `Sintetizado${shapeLabel} · Cobertura ${(d.shaped.coverage * 100).toFixed(0)} % · derrame ${d.shaped.spillDb.toFixed(1)} dB · D ${d.shaped.directivityDb.toFixed(1)} dBi`

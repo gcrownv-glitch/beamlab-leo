@@ -316,8 +316,8 @@ export class SceneView {
           vec3 base = texture2D(uDay, vUv).rgb;
           float diff = max(dot(N, L), 0.0);
           float day = smoothstep(-0.08, 0.35, diff);
-          vec3 col = base * (0.08 + 0.95 * diff);
-          col += base * 0.018;
+          vec3 col = base * (0.17 + 0.92 * diff);
+          col += base * 0.02;
           float ocean = texture2D(uSpec, vUv).r;
           vec3 H = normalize(L + V);
           float spec = pow(max(dot(N, H), 0.0), 48.0) * ocean * 0.75;
@@ -396,7 +396,7 @@ export class SceneView {
       new THREE.MeshBasicMaterial({
         map: t.clouds,
         transparent: true,
-        opacity: 0.16,
+        opacity: 0.13,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
       }),
@@ -433,7 +433,11 @@ export class SceneView {
   }
 
   private applyTextures(t: Textures) {
-    t.day.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    t.day.anisotropy = Math.min(16, this.renderer.capabilities.getMaxAnisotropy());
+    t.day.generateMipmaps = true;
+    t.day.minFilter = THREE.LinearMipmapLinearFilter;
+    t.day.magFilter = THREE.LinearFilter;
+    t.day.needsUpdate = true;
     t.spec.anisotropy = 4;
   }
 

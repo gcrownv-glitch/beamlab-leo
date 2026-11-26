@@ -8,11 +8,11 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 |---|---|
 | **Repositorio** | `beamlab-leo` |
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
-| **Versión declarada en manifiestos** | `2.4.0-beta.6` *(beamforming completo en GEO, perfiles realistas Amazonas 2/3/5/Nexus y ciudades del Perú; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
+| **Versión declarada en manifiestos** | `2.4.0-beta.7` *(perfiles reales de servicio Starlink/Amazonas, seguimiento dinámico en ruta LEO y textura terrestre NASA Blue Marble 4K; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
 | **Puntos de recuperación estables** | `stable/v2.3.4-orig` (`25ce657`, v2.3.4 original) · `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2) · tag/Release `v2.3.4` intacto en GitHub |
-| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.6`) |
-| **Última actualización** | `2026-11-26T03:37:00-05:00` (`2026-11-26T08:37:00Z`) |
-| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` + verificación visual en Chromium (`1280×720`) en verde · `vitest run`: **16 archivos / 77 pruebas aprobadas** |
+| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.7`) |
+| **Última actualización** | `2026-11-26T08:52:00-05:00` (`2026-11-26T13:52:00Z`) |
+| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` + verificación visual en Chromium (`1280×720`) en verde · `vitest run`: **16 archivos / 79 pruebas aprobadas** |
 
 ---
 
@@ -40,7 +40,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Fix Off-Nadir / Beta 3** | `bda3ade` | `2026-11-26T01:55:33-05:00` (`06:55:33Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Exclusión geodésica en campo lejano, coordenadas `[-half, +half]` en `peakRadiatedPower()`, visibilidad real por `elevationAngle()` y bump a `2.4.0-beta.3` para web |
 | **Catálogo Starlink/Amazonas** | `355780c` | `2026-11-26T02:17:31-05:00` (`07:17:31Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Añadir Starlink V1.0–V3 (`1007`, `2150`, `3005`, `5241`, `30001`, `31005`, `V2-SIM`, `40001`, `40012`) + flota GEO Amazonas (`2`, `3`, `5`, `Nexus`) y soporte 3D/enlace GEO (`2.4.0-beta.4`) |
 | **Huella Celular / Beta 5** | `8dbd169` | `2026-11-26T02:51:54-05:00` (`07:51:54Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Mapa celular 512×512 acotado espacialmente, envolvente RF individual (`lobeFade`) + feather geodésico suave en frontera, shader translúcido, corrección `.btn.mobile-only` en escritorio y deploy web `2.4.0-beta.5` |
-| **GEO Amazonas & Ciudades / Beta 6** | *(cabeza de rama)* | `2026-11-26T03:37:00-05:00` (`08:37:00Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Perfiles realistas Amazonas 2/3/5/Nexus, regiones Américas/LatAm/Atlántico, zoom dinámico `(u,v)` en `GainMap`, puntual/celular/conformada circular y poligonal en GEO, ranura GEO libre y selector de 13 ciudades del Perú (`2.4.0-beta.6`) |
+| **GEO Amazonas & Ciudades / Beta 6** | `03f7d26` | `2026-11-26T03:37:00-05:00` (`08:37:00Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Perfiles realistas Amazonas 2/3/5/Nexus, regiones Américas/LatAm/Atlántico, zoom dinámico `(u,v)` en `GainMap`, puntual/celular/conformada circular y poligonal en GEO, ranura GEO libre y selector de 13 ciudades del Perú (`2.4.0-beta.6`) |
+| **Perfiles Reales, Ruta LEO & Tierra 4K / Beta 7** | *(cabeza de rama)* | `2026-11-26T08:52:00-05:00` (`13:52:00Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Perfiles reales de servicio (`#strict-service` + modo laboratorio), autoapuntado dinámico LEO en ruta con 50 ciudades (`WORLD_CITIES`), cono operativo `≥ 25°`, roles DTH/HTS Amazonas y textura NASA Blue Marble 4K (`2.4.0-beta.7`) |
 
 ---
 
@@ -290,6 +291,21 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
   - Se añadieron `latam`, `americas`, `atlantic` (`REGIONS`), `distanceToPolygonKm()`, `PERU_CITIES` (13 ciudades principales del Perú) y perfiles de carga útil realistas por defecto para **Amazonas 2** (`72°O` Ku Américas), **Amazonas 3** (`61°O` Ka HTS LatAm), **Amazonas 5** (`61°O` ~34+ haces Ka HTS `2.90 λ` sobre Latinoamérica) y **Amazonas Nexus** (`61°O` Ku HTS + DTP Américas/Atlántico/Groenlandia), con restauración automática de parámetros LEO al volver a satélites LEO.
   - Se añadió zoom dinámico `uvHalf` en `computeGainMap()` + uniform `uGainHalf` en `SceneView`, mayor resolución angular en `computeBasePattern`, `patternFromWeights` (`half = 0.36` si `q >= 15`) e integración `NTH = 360`, además de síntesis conformada **circular** adaptada a GEO y **poligonal** sobre regiones reales (`#shape-region`) y longitud GEO ajustable (`#geo-controls` + `geoOrbitAtLongitude()`).
   - Verificado con **16 archivos / 77 pruebas** en verde e inspección visual en Chromium `1280×720` (`Amazonas 5`, `Amazonas Nexus`, `Arequipa`, síntesis `LatAm` y `Cusco`).
+
+#### 9. Perfiles reales de servicio, autoapuntado dinámico LEO en ruta y textura terrestre 4K (`2.4.0-beta.7`)
+- **Problemas corregidos:**
+  1. Todos los satélites iniciaban en modo `cellular` o dejaban habilitados modos ajenos a su carga útil real (p. ej., `cellular` en **Amazonas 2** de TV DTH/FSS o `TV / Global` en **Starlink** LEO).
+  2. Al seleccionar presets Starlink, la simulación permanecía estática o con malla hasta el horizonte (`0°`) sin seguir continuamente ciudades/países a lo largo de su órbita real.
+  3. La textura diurna `public/assets/earth_day.jpg` en `2048×1024` perdía definición al acercar el globo en región peruana o asiática.
+- **Solución implementada (`src/core/presets.ts`, `src/core/regions.ts`, `src/core/coverage.ts`, `src/engine.ts`, `src/main.ts`, `src/ui.ts`, `src/scene.ts`, `src/state.ts`, `index.html`, `public/assets/earth_day.jpg`):**
+  - **Perfiles de carga útil reales (`allowedModes`, `modeLabels`, `serviceSummary`, `#strict-service`):**
+    - **Amazonas 2 (`72°O`):** TV DTH/FSS Ku y C únicamente (`['shaped', 'spot', 'global']`, sin `Multihaz HTS/celular`), sintetizando automáticamente Américas en `130 W` y `25 MHz` (margen `+0.3 dB`).
+    - **Amazonas 3 (`61°O`):** arranca en `TV / Conf.` (`110 W`, `25 MHz`) sobre Latinoamérica con opción `Multihaz HTS` Ka desbloqueada.
+    - **Amazonas 5 (`61°O`)** y **Amazonas Nexus (`61°O`):** arrancan en `Multihaz HTS` (`100 MHz`) sobre Latinoamérica (`Ka 20 GHz`) y corredor Américas/Atlántico (`Ku 12 GHz`), respectivamente.
+    - **Starlink V1.0 / V1.5 / V2 Mini / V3:** restringidos por defecto a `['cellular', 'spot']` (`Multihaz LEO`, sin DTH/Global), con **STARLINK-31005** operando Direct-to-Cell móvil en **banda S (`2.2 GHz`, `25 W`)** etiquetado como `Celular DTC`. Conmutador **Solo servicios reales** (`#strict-service`) permite desbloquear los 4 modos en modo laboratorio cuando el usuario quiera experimentar.
+  - **Seguimiento dinámico continuo en ruta Starlink (`region: 'visible'`, `#spot-auto`, `WORLD_CITIES`, `nearestVisibleCity()`):** todos los Starlink operativos inician reproduciendo su órbita real inclinada (`53.0°`, `53.2°`, `97.3°`, `43.0°`) con huella activa continua en todo el recorrido (`≥ 25°` de elevación operativa en `beamsVisibleLattice()`) e identificando dinámicamente la ciudad servida (`WORLD_CITIES`, 50 ciudades globales).
+  - **Textura terrestre 4K (`4096×2048`):** reemplazada `public/assets/earth_day.jpg` (`820 567` bytes) a partir de NASA Blue Marble Next Generation, más *anisotropy* hasta `16×`, *mipmaps* trilineales y mayor contraste relieve/costa en `src/scene.ts`.
+  - Verificado con **16 archivos / 79 pruebas** en verde e inspección visual en Chromium `1280×720` (`Amazonas 2`, `STARLINK-3005`, `STARLINK-31005` y modo laboratorio desbloqueado).
 
 ---
 

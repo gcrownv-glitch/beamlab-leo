@@ -466,6 +466,12 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; background: #
   color: #dcfeff;
   box-shadow: 0 0 22px rgba(34, 211, 238, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
+.mode:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(0.45);
+}
+.mode:disabled:hover { border-color: var(--line); color: var(--muted); }
 .mode-ico { font-size: 17px; line-height: 1; color: var(--teal); opacity: 0.9; }
 
 /* ---------- metrics ---------- */

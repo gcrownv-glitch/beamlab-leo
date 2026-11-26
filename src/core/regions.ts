@@ -1,4 +1,6 @@
 import { DEG, R_EARTH } from './constants';
+import { elevationAngle } from './orbit';
+import type { Vec3 } from './vec';
 
 export type RegionId =
   | 'peru'
@@ -327,3 +329,82 @@ export const PERU_CITIES: CityPreset[] = [
 ];
 
 export const cityById = (id: string): CityPreset | undefined => PERU_CITIES.find((c) => c.id === id);
+
+export interface WorldCity {
+  name: string;
+  country: string;
+  lat: number;
+  lon: number;
+}
+
+/** Ciudades y centros de tráfico distribuidos globalmente para auto-apuntado orbital LEO. */
+export const WORLD_CITIES: WorldCity[] = [
+  { name: 'Lima', country: 'PE', lat: -12.05, lon: -77.04 },
+  { name: 'Arequipa', country: 'PE', lat: -16.41, lon: -71.54 },
+  { name: 'Cusco', country: 'PE', lat: -13.53, lon: -71.97 },
+  { name: 'Trujillo', country: 'PE', lat: -8.11, lon: -79.03 },
+  { name: 'Iquitos', country: 'PE', lat: -3.75, lon: -73.25 },
+  { name: 'Piura', country: 'PE', lat: -5.19, lon: -80.63 },
+  { name: 'Bogotá', country: 'CO', lat: 4.71, lon: -74.07 },
+  { name: 'Quito', country: 'EC', lat: -0.18, lon: -78.47 },
+  { name: 'La Paz', country: 'BO', lat: -16.50, lon: -68.15 },
+  { name: 'Santiago', country: 'CL', lat: -33.45, lon: -70.67 },
+  { name: 'Buenos Aires', country: 'AR', lat: -34.60, lon: -58.38 },
+  { name: 'São Paulo', country: 'BR', lat: -23.55, lon: -46.63 },
+  { name: 'Manaus', country: 'BR', lat: -3.12, lon: -60.02 },
+  { name: 'Caracas', country: 'VE', lat: 10.48, lon: -66.90 },
+  { name: 'Panamá', country: 'PA', lat: 8.98, lon: -79.52 },
+  { name: 'La Habana', country: 'CU', lat: 23.11, lon: -82.37 },
+  { name: 'Ciudad de México', country: 'MX', lat: 19.43, lon: -99.13 },
+  { name: 'Miami', country: 'US', lat: 25.76, lon: -80.19 },
+  { name: 'Nueva York', country: 'US', lat: 40.71, lon: -74.01 },
+  { name: 'Chicago', country: 'US', lat: 41.88, lon: -87.63 },
+  { name: 'Los Ángeles', country: 'US', lat: 34.05, lon: -118.24 },
+  { name: 'Seattle', country: 'US', lat: 47.61, lon: -122.33 },
+  { name: 'Toronto', country: 'CA', lat: 43.65, lon: -79.38 },
+  { name: 'Anchorage', country: 'US', lat: 61.22, lon: -149.90 },
+  { name: 'Reikiavik', country: 'IS', lat: 64.15, lon: -21.94 },
+  { name: 'Londres', country: 'GB', lat: 51.51, lon: -0.13 },
+  { name: 'Madrid', country: 'ES', lat: 40.42, lon: -3.70 },
+  { name: 'París', country: 'FR', lat: 48.86, lon: 2.35 },
+  { name: 'Berlín', country: 'DE', lat: 52.52, lon: 13.40 },
+  { name: 'Roma', country: 'IT', lat: 41.90, lon: 12.50 },
+  { name: 'Estambul', country: 'TR', lat: 41.01, lon: 28.98 },
+  { name: 'El Cairo', country: 'EG', lat: 30.04, lon: 31.24 },
+  { name: 'Lagos', country: 'NG', lat: 6.52, lon: 3.38 },
+  { name: 'Nairobi', country: 'KE', lat: -1.29, lon: 36.82 },
+  { name: 'Johannesburgo', country: 'ZA', lat: -26.20, lon: 28.05 },
+  { name: 'Dubái', country: 'AE', lat: 25.20, lon: 55.27 },
+  { name: 'Riad', country: 'SA', lat: 24.71, lon: 46.68 },
+  { name: 'Mumbai', country: 'IN', lat: 19.08, lon: 72.88 },
+  { name: 'Nueva Delhi', country: 'IN', lat: 28.61, lon: 77.21 },
+  { name: 'Singapur', country: 'SG', lat: 1.35, lon: 103.82 },
+  { name: 'Bangkok', country: 'TH', lat: 13.76, lon: 100.50 },
+  { name: 'Yakarta', country: 'ID', lat: -6.21, lon: 106.85 },
+  { name: 'Pekín', country: 'CN', lat: 39.90, lon: 116.40 },
+  { name: 'Shanghái', country: 'CN', lat: 31.23, lon: 121.47 },
+  { name: 'Seúl', country: 'KR', lat: 37.57, lon: 126.98 },
+  { name: 'Tokio', country: 'JP', lat: 35.68, lon: 139.65 },
+  { name: 'Sídney', country: 'AU', lat: -33.87, lon: 151.21 },
+  { name: 'Melbourne', country: 'AU', lat: -37.81, lon: 144.96 },
+  { name: 'Auckland', country: 'NZ', lat: -36.85, lon: 174.76 },
+  { name: 'Honolulu', country: 'US', lat: 21.31, lon: -157.86 },
+];
+
+/** Ciudad visible más cercana (mayor elevación) al satélite en su posición ECEF actual. */
+export function nearestVisibleCity(
+  satEcef: Vec3,
+  minElevDeg = 15,
+): { city: WorldCity; elevDeg: number } | null {
+  const minRad = minElevDeg * DEG;
+  let best: WorldCity | null = null;
+  let bestElev = minRad;
+  for (const city of WORLD_CITIES) {
+    const elev = elevationAngle(satEcef, city.lat * DEG, city.lon * DEG);
+    if (elev > bestElev) {
+      bestElev = elev;
+      best = city;
+    }
+  }
+  return best ? { city: best, elevDeg: bestElev / DEG } : null;
+}

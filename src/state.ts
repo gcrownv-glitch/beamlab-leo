@@ -86,6 +86,7 @@ export interface Derived {
   shaped: ShapedInfo | null;
   system: SystemInfo;
   source: 'horn' | 'array' | 'synthesis';
+  servedLocation?: string | null;
 }
 
 export interface SimState {
@@ -109,6 +110,8 @@ export interface SimState {
   cellularCi: boolean;
   spotTarget: { lat: number; lon: number };
   spotFixed: boolean;
+  spotAutoTrack: boolean;
+  strictService: boolean;
   shapedCenter: { lat: number; lon: number };
   shapedRadiusKm: number;
   shapedRegion: ShapedRegionId;
@@ -181,6 +184,8 @@ export function defaultState(): SimState {
     cellularCi: false,
     spotTarget: { lat: -12.05, lon: -77.04 },
     spotFixed: true,
+    spotAutoTrack: false,
+    strictService: true,
     shapedCenter: { lat: -12.05, lon: -77.04 },
     shapedRadiusKm: 100,
     shapedRegion: 'circle',

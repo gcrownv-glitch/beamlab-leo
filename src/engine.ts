@@ -47,6 +47,7 @@ import {
 import {
   buildGroundCells,
   distanceToPolygonKm,
+  nearestVisibleCity,
   pointInPolygon,
   polygonBBox,
   regionAreaKm2,
@@ -256,6 +257,7 @@ export class Engine {
   setSpotTarget(lat: number, lon: number) {
     this.state.spotTarget = { lat, lon };
     this.state.spotFixed = true;
+    this.state.spotAutoTrack = false;
     this.bodyBeam = null;
     this.beamsDirty = true;
     this.resetQuant();
@@ -266,8 +268,24 @@ export class Engine {
       this.bodyBeam = { u: this.derived.activeBeam.u, v: this.derived.activeBeam.v };
     }
     this.state.spotFixed = fixed;
+    if (!fixed) this.state.spotAutoTrack = false;
     this.beamsDirty = true;
     this.resetQuant();
+  }
+
+  setSpotAutoTrack(enabled: boolean) {
+    this.state.spotAutoTrack = enabled;
+    if (enabled) {
+      this.state.spotFixed = true;
+      this.bodyBeam = null;
+    }
+    this.beamsDirty = true;
+    this.gainDirty = true;
+    this.resetQuant();
+  }
+
+  setStrictService(enabled: boolean) {
+    this.state.strictService = enabled;
   }
 
   setShapedCenter(lat: number, lon: number) {
@@ -563,7 +581,7 @@ export class Engine {
       } else {
         snapSat = this.lastBeamFrame ? this.lastBeamSat : sat.rEcef;
         snapFrame = this.lastBeamFrame ?? frame;
-        groundFixed = (s.mode === 'cellular' && s.region !== 'visible') || (s.mode === 'spot' && s.spotFixed);
+        groundFixed = (s.mode === 'cellular' && s.region !== 'visible') || (s.mode === 'spot' && s.spotFixed && !s.spotAutoTrack);
         gainMap = computeGainMap(pattern, beams, patternQ, size, s.mode === 'cellular' ? 'max' : 'sum', uvHalf);
       }
       if (s.mode === 'cellular' || s.mode === 'shaped' || s.mode === 'spot') {
@@ -658,6 +676,14 @@ export class Engine {
       limitingLink,
     };
 
+    let servedLocation: string | null = null;
+    if (s.mode === 'spot' && s.spotAutoTrack) {
+      servedLocation = active?.label ?? 'Océano / mar abierto';
+    } else if (s.mode === 'cellular' && s.region === 'visible') {
+      const near = nearestVisibleCity(sat.rEcef, sat.alt > 20000 ? 10 : 20);
+      servedLocation = near ? `${near.city.name}, ${near.city.country}` : 'Océano / mar abierto';
+    }
+
     return {
       sat,
       frame,
@@ -677,6 +703,7 @@ export class Engine {
       shaped: this.synthInfo,
       system,
       source,
+      servedLocation,
     };
   }
 
@@ -689,6 +716,30 @@ export class Engine {
       };
     }
     if (s.mode === 'spot') {
+      if (s.spotAutoTrack) {
+        const near = nearestVisibleCity(sat.rEcef, sat.alt > 20000 ? 10 : 15);
+        if (near) {
+          const res = beamToTarget(sat.rEcef, frame, near.city.lat, near.city.lon, 0);
+          if (res) {
+            res.beam.label = `${near.city.name}, ${near.city.country}`;
+            this.bodyBeam = { u: res.beam.u, v: res.beam.v };
+            return { beams: [res.beam], beamSet: null };
+          }
+        }
+        this.bodyBeam = { u: 0, v: 0 };
+        return {
+          beams: [{
+            id: 0,
+            u: 0,
+            v: 0,
+            amp: 1,
+            color: 0,
+            label: 'Océano (nadir)',
+            target: { lat: sat.lat / DEG, lon: sat.lon / DEG },
+          }],
+          beamSet: null,
+        };
+      }
       if (s.spotFixed) {
         const res = beamToTarget(sat.rEcef, frame, s.spotTarget.lat, s.spotTarget.lon, 0);
         if (!res) return { beams: [], beamSet: null };
@@ -707,7 +758,8 @@ export class Engine {
     if (s.mode === 'cellular') {
       const poly = regionPolygon(s.region);
       if (!poly) {
-        const beams = beamsVisibleLattice(sat.rEcef, frame, this.baseMetrics.hpbwDeg, s.reuse, 1200);
+        const minElev = sat.alt > 20000 ? 10 : 25;
+        const beams = beamsVisibleLattice(sat.rEcef, frame, this.baseMetrics.hpbwDeg, s.reuse, 400, minElev);
         const radius = R_EARTH * Math.acos(R_EARTH / (R_EARTH + Math.max(1, sat.alt)));
         const area = Math.PI * radius * radius;
         const spacing = cellSpacingKm(sat.alt, Math.max(1.2, this.baseMetrics.hpbwDeg));

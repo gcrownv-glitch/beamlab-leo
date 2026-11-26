@@ -60,25 +60,28 @@ export function beamsForGroundCells(
   return { beams, visibleCells: visible, totalCells: cells.length };
 }
 
-/** Rejilla hexagonal de haces fija al satélite (modo "disco visible"). */
+/** Rejilla hexagonal de haces fija al satélite dentro del cono operativo real. */
 export function beamsVisibleLattice(
   satEcef: Vec3,
   frame: AntennaFrame,
   hpbwDeg: number,
   reuse: number,
   maxBeams = 400,
+  minElevDeg = 25,
 ): Beam[] {
   const alt = Math.hypot(satEcef.x, satEcef.y, satEcef.z) - R_EARTH;
-  const horizon = horizonOffNadir(alt) * 0.96;
+  const effElev = alt > 20000 ? Math.min(minElevDeg, 10) : minElevDeg;
+  const sinHoriz = Math.sin(horizonOffNadir(alt) * 0.96);
+  const sinService = Math.min(sinHoriz, (R_EARTH / (R_EARTH + alt)) * Math.cos(effElev * DEG));
   const du = (hpbwDeg * DEG) * 0.88;
   const dv = du * Math.sqrt(3) / 2;
-  const nMax = Math.ceil(Math.sin(horizon) / du) + 2;
+  const nMax = Math.ceil(sinService / du) + 2;
   const beams: Beam[] = [];
   for (let j = -nMax; j <= nMax; j++) {
     for (let i = -nMax; i <= nMax; i++) {
       const u = (i + 0.5 * (j & 1)) * du;
       const v = j * dv;
-      if (u * u + v * v > Math.sin(horizon) ** 2) continue;
+      if (u * u + v * v > sinService * sinService) continue;
       const pt = beamGroundPoint(satEcef, frame, { id: 0, u, v, amp: 1, color: 0 });
       if (!pt) continue;
       const geo = ecefToGeodetic(pt);

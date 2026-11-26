@@ -213,6 +213,13 @@
               <span class="mode-ico">⬡</span><span>Conformada</span>
             </button>
           </div>
+          <div id="service-profile-bar">
+            <label class="switch-row">
+              <span>Solo servicios reales</span>
+              <input id="strict-service" type="checkbox" checked />
+            </label>
+            <p class="hint" id="service-profile-note">Todos los modos habilitados para laboratorio.</p>
+          </div>
 
           <div class="section-title">Arreglo en fase</div>
           <label class="field">
@@ -347,7 +354,11 @@
               <span>Fijo a Tierra (reapunta solo)</span>
               <input id="spot-fixed" type="checkbox" checked />
             </label>
-            <p class="hint">Elige una ciudad del Perú o haz clic sobre el globo para mover el haz.</p>
+            <label class="switch-row">
+              <span>Auto-apuntar en ruta (ciudades globales)</span>
+              <input id="spot-auto" type="checkbox" />
+            </label>
+            <p class="hint">Elige una ciudad del Perú, activa auto-apuntado en ruta o haz clic sobre el globo.</p>
           </div>
 
           <div class="mode-block" id="block-cellular" hidden>
@@ -361,7 +372,7 @@
                 <option value="americas">Américas (Norte, Centro y Sur)</option>
                 <option value="atlantic">Américas + Atlántico / Groenlandia</option>
                 <option value="europe">Europa</option>
-                <option value="visible">Disco visible completo</option>
+                <option value="visible">Huella activa en ruta (todo el recorrido)</option>
               </select>
             </label>
             <p class="hint" id="cell-region-note">Celdas centradas en la región con caída RF real (sin recorte artificial en frontera).</p>

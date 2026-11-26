@@ -2,10 +2,16 @@ import { DEG, R_EARTH } from './constants';
 import type { ArrayConfig, TaperType } from './array';
 import { gmstRad, type OrbitElements } from './orbit';
 import type { RegionId } from './regions';
+import type { Mode, ShapedRegionId } from '../state';
 
 export interface PresetPayload {
-  mode: 'global' | 'spot' | 'cellular' | 'shaped';
+  mode: Mode;
   region: RegionId;
+  shapedRegion?: ShapedRegionId;
+  autoSynthesize?: boolean;
+  spotAutoTrack?: boolean;
+  playing?: boolean;
+  bandwidthMHz?: number;
   freqGHz: number;
   n: number;
   dx: number;
@@ -29,7 +35,13 @@ export interface OrbitPreset {
   alongDeg: number;
   /** Longitud ecuatorial fija para ranuras GEO [deg]. */
   geoLonDeg?: number;
-  /** Perfil de carga útil realista por defecto (usado en flota Amazonas GEO). */
+  /** Modos físicamente soportados por la carga útil real del satélite. */
+  allowedModes?: Mode[];
+  /** Etiquetas descriptivas de los modos para este satélite. */
+  modeLabels?: Partial<Record<Mode, string>>;
+  /** Resumen corto del servicio real brindado por el satélite. */
+  serviceSummary?: string;
+  /** Perfil de carga útil realista por defecto. */
   payload?: PresetPayload;
   note: string;
 }
@@ -45,7 +57,25 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     incDeg: 53.0,
     ecc: 0.0001,
     alongDeg: 2.5,
-    note: 'Gen V1.0 · NORAD 44713 · Primer lote operativo comercial (nov 2019), 550 km, 53.0°.',
+    allowedModes: ['cellular', 'spot'],
+    modeLabels: { cellular: 'Multihaz LEO', shaped: 'TV / Conf.' },
+    serviceSummary: 'Banda ancha LEO multihaz Ku (sin TV DTH); cobertura dinámica en ruta',
+    payload: {
+      mode: 'cellular',
+      region: 'visible',
+      spotAutoTrack: true,
+      playing: true,
+      freqGHz: 12,
+      n: 16,
+      dx: 0.5,
+      q: 1,
+      taper: 'kaiser30',
+      ptxW: 20,
+      reuse: 3,
+      shapedRadiusKm: 100,
+      summary: 'STARLINK-1007: banda ancha LEO multihaz en ruta (cap. Ku, sin TV DTH).',
+    },
+    note: 'Gen V1.0 · NORAD 44713 · Primer lote operativo comercial (nov 2019), 550 km, 53.0° (reingresado oct 2024).',
   },
   {
     id: 'starlink-2150',
@@ -56,6 +86,24 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     incDeg: 53.2,
     ecc: 0.0001,
     alongDeg: 1.8,
+    allowedModes: ['cellular', 'spot'],
+    modeLabels: { cellular: 'Multihaz LEO', shaped: 'TV / Conf.' },
+    serviceSummary: 'Banda ancha LEO multihaz Ku (sin TV DTH); cobertura dinámica en ruta',
+    payload: {
+      mode: 'cellular',
+      region: 'visible',
+      spotAutoTrack: true,
+      playing: true,
+      freqGHz: 12,
+      n: 16,
+      dx: 0.5,
+      q: 1,
+      taper: 'kaiser30',
+      ptxW: 20,
+      reuse: 3,
+      shapedRadiusKm: 100,
+      summary: 'STARLINK-2150: banda ancha LEO multihaz en ruta (53.2°, sin TV DTH).',
+    },
     note: 'Gen V1.0 · NORAD 47751 · Últimos lotes V1.0 (mar 2021), 540 km, 53.2°.',
   },
 
@@ -66,10 +114,28 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     group: 'Starlink · Generación V1.5 (enlaces láser)',
     noradId: 49131,
     altKm: 570,
-    incDeg: 97.6,
+    incDeg: 97.3,
     ecc: 0.0002,
     alongDeg: 1.5,
-    note: 'Gen V1.5 (enlaces láser) · NORAD 49131 · Órbita polar (sep 2021), 570 km, 97.6°.',
+    allowedModes: ['cellular', 'spot'],
+    modeLabels: { cellular: 'Multihaz LEO', shaped: 'TV / Conf.' },
+    serviceSummary: 'Banda ancha LEO polar + enlaces láser ISL (sin TV DTH)',
+    payload: {
+      mode: 'cellular',
+      region: 'visible',
+      spotAutoTrack: true,
+      playing: true,
+      freqGHz: 12,
+      n: 16,
+      dx: 0.5,
+      q: 1,
+      taper: 'kaiser30',
+      ptxW: 20,
+      reuse: 3,
+      shapedRadiusKm: 100,
+      summary: 'STARLINK-3005: cobertura polar multihaz en ruta (97.3°, enlaces láser).',
+    },
+    note: 'Gen V1.5 (enlaces láser) · NORAD 49131 · Órbita polar (sep 2021), 570 km, 97.3°.',
   },
   {
     id: 'starlink-5241',
@@ -80,6 +146,24 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     incDeg: 43.0,
     ecc: 0.0001,
     alongDeg: 2.0,
+    allowedModes: ['cellular', 'spot'],
+    modeLabels: { cellular: 'Multihaz LEO', shaped: 'TV / Conf.' },
+    serviceSummary: 'Banda ancha LEO Grupo 5 + enlaces láser ISL (sin TV DTH)',
+    payload: {
+      mode: 'cellular',
+      region: 'visible',
+      spotAutoTrack: true,
+      playing: true,
+      freqGHz: 12,
+      n: 16,
+      dx: 0.5,
+      q: 1,
+      taper: 'kaiser30',
+      ptxW: 20,
+      reuse: 3,
+      shapedRadiusKm: 100,
+      summary: 'STARLINK-5241: banda ancha LEO Grupo 5 multihaz en ruta (43.0°).',
+    },
     note: 'Gen V1.5 (enlaces láser) · NORAD 55623 · Grupo 5 (feb 2023), 530 km, 43.0°.',
   },
 
@@ -93,6 +177,24 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     incDeg: 43.0,
     ecc: 0.0001,
     alongDeg: 2.2,
+    allowedModes: ['cellular', 'spot'],
+    modeLabels: { cellular: 'Multihaz LEO', shaped: 'TV / Conf.' },
+    serviceSummary: 'Banda ancha V2 Mini multihaz en ruta (sin TV DTH)',
+    payload: {
+      mode: 'cellular',
+      region: 'visible',
+      spotAutoTrack: true,
+      playing: true,
+      freqGHz: 12,
+      n: 16,
+      dx: 0.5,
+      q: 1,
+      taper: 'kaiser30',
+      ptxW: 20,
+      reuse: 3,
+      shapedRadiusKm: 100,
+      summary: 'STARLINK-30001 (V2 Mini): banda ancha LEO multihaz en ruta.',
+    },
     note: 'Gen V2 Mini · NORAD 55693 · Primera unidad de la serie V2 Mini (feb 2023), 530 km, 43.0°.',
   },
   {
@@ -104,6 +206,24 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     incDeg: 43.0,
     ecc: 0.0002,
     alongDeg: 1.2,
+    allowedModes: ['cellular', 'spot'],
+    modeLabels: { cellular: 'Celular DTC', shaped: 'TV / Conf.' },
+    serviceSummary: 'Telefonía móvil Direct-to-Cell 4G/5G (banda S) · sin TV DTH',
+    payload: {
+      mode: 'cellular',
+      region: 'visible',
+      spotAutoTrack: true,
+      playing: true,
+      freqGHz: 2.2,
+      n: 16,
+      dx: 0.5,
+      q: 1,
+      taper: 'kaiser30',
+      ptxW: 25,
+      reuse: 3,
+      shapedRadiusKm: 100,
+      summary: 'STARLINK-31005 (DTC): celdas móviles Direct-to-Cell banda S en ruta.',
+    },
     note: 'Gen V2 Mini Direct-to-Cell · NORAD 58695 · Antena celular DTC (ene 2024), 360 km, 43.0°.',
   },
 
@@ -116,6 +236,7 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     incDeg: 43.0,
     ecc: 0.0005,
     alongDeg: 1.0,
+    serviceSummary: 'Simulador estructural Starship (carga útil libre de laboratorio)',
     note: 'Gen V2 Completo · Simuladores estructurales masa/tamaño (Starship IFT-3/IFT-4; serie operativa cancelada para saltar directo a V3), 340 km.',
   },
 
@@ -128,6 +249,24 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     incDeg: 53.2,
     ecc: 0.0001,
     alongDeg: 2.0,
+    allowedModes: ['cellular', 'spot'],
+    modeLabels: { cellular: 'Multihaz LEO', shaped: 'TV / Conf.' },
+    serviceSummary: 'Banda ancha gigabit V3 multihaz en ruta (sin TV DTH)',
+    payload: {
+      mode: 'cellular',
+      region: 'visible',
+      spotAutoTrack: true,
+      playing: true,
+      freqGHz: 12,
+      n: 16,
+      dx: 0.5,
+      q: 1,
+      taper: 'kaiser30',
+      ptxW: 20,
+      reuse: 3,
+      shapedRadiusKm: 100,
+      summary: 'STARLINK-40001 (V3): banda ancha multihaz en ruta (480 km).',
+    },
     note: 'Gen V3 · Primer satélite operativo de producción V3 desplegado por Starship (sep 2026), 480 km, 53.2°.',
   },
   {
@@ -138,6 +277,24 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     incDeg: 53.2,
     ecc: 0.0001,
     alongDeg: 1.0,
+    allowedModes: ['cellular', 'spot'],
+    modeLabels: { cellular: 'Multihaz LEO', shaped: 'TV / Conf.' },
+    serviceSummary: 'Banda ancha ultrabaja VLEO multihaz en ruta (sin TV DTH)',
+    payload: {
+      mode: 'cellular',
+      region: 'visible',
+      spotAutoTrack: true,
+      playing: true,
+      freqGHz: 12,
+      n: 16,
+      dx: 0.5,
+      q: 1,
+      taper: 'kaiser30',
+      ptxW: 20,
+      reuse: 3,
+      shapedRadiusKm: 100,
+      summary: 'STARLINK-40012 (V3 VLEO): banda ancha multihaz a 350 km en ruta.',
+    },
     note: 'Gen V3 · Unidad operativa en órbita ultrabaja VLEO (~350 km), 53.2°.',
   },
 
@@ -152,20 +309,26 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     ecc: 0.0003,
     alongDeg: 0,
     geoLonDeg: -72,
+    allowedModes: ['shaped', 'spot', 'global'],
+    modeLabels: { shaped: 'TV / Conf.', cellular: 'Multihaz HTS' },
+    serviceSummary: 'TV DTH / FSS regional en bandas Ku y C (sin multihaz HTS/celular)',
     payload: {
-      mode: 'cellular',
+      mode: 'shaped',
       region: 'americas',
+      shapedRegion: 'americas',
+      autoSynthesize: true,
+      bandwidthMHz: 25,
       freqGHz: 12,
       n: 16,
       dx: 2.2,
       q: 36,
       taper: 'kaiser30',
-      ptxW: 50,
+      ptxW: 130,
       reuse: 4,
       shapedRadiusKm: 1400,
-      summary: 'Amazonas 2 (72°O): perfil realista Ku · Américas.',
+      summary: 'Amazonas 2 (72°O): perfil real TV DTH / FSS conformado sobre Américas (banda Ku · 25 MHz).',
     },
-    note: 'Hispasat GEO · NORAD 35942 · 72°O (órbita inclinada), 35 786 km, cobertura Américas (Ku/C).',
+    note: 'Hispasat GEO · NORAD 35942 · 72°O (órbita inclinada), 35 786 km, cobertura TV DTH Américas (Ku/C).',
   },
   {
     id: 'amazonas-3',
@@ -177,20 +340,26 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     ecc: 0.0002,
     alongDeg: 0,
     geoLonDeg: -61,
+    allowedModes: ['shaped', 'cellular', 'spot', 'global'],
+    modeLabels: { shaped: 'TV / Conf.', cellular: 'Multihaz HTS' },
+    serviceSummary: 'TV DTH Ku/C conformada + 9 haces Ka HTS (banda ancha / backhaul)',
     payload: {
-      mode: 'cellular',
+      mode: 'shaped',
       region: 'latam',
-      freqGHz: 20,
+      shapedRegion: 'latam',
+      autoSynthesize: true,
+      bandwidthMHz: 25,
+      freqGHz: 12,
       n: 16,
       dx: 1.9,
       q: 36,
       taper: 'kaiser30',
-      ptxW: 80,
+      ptxW: 110,
       reuse: 4,
       shapedRadiusKm: 1100,
-      summary: 'Amazonas 3 (61°O): perfil realista Ka HTS · Latinoamérica.',
+      summary: 'Amazonas 3 (61°O): TV DTH conformada sobre Latinoamérica (cambia a Multihaz HTS para sus 9 haces Ka).',
     },
-    note: 'Hispasat GEO · NORAD 39078 · 61°O sobre Sudamérica, 35 786 km, bandas Ku/Ka HTS y C.',
+    note: 'Hispasat GEO · NORAD 39078 · 61°O sobre Sudamérica, 35 786 km, TV DTH Ku/C + 9 haces Ka HTS.',
   },
   {
     id: 'amazonas-5',
@@ -202,9 +371,14 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     ecc: 0.0002,
     alongDeg: 0,
     geoLonDeg: -61,
+    allowedModes: ['cellular', 'shaped', 'spot', 'global'],
+    modeLabels: { shaped: 'TV / Conf.', cellular: 'Multihaz HTS' },
+    serviceSummary: 'Ka HTS (34 haces banda ancha/backhaul) + TV DTH Ku en LatAm',
     payload: {
       mode: 'cellular',
       region: 'latam',
+      shapedRegion: 'latam',
+      bandwidthMHz: 100,
       freqGHz: 20,
       n: 16,
       dx: 2.9,
@@ -213,9 +387,9 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
       ptxW: 60,
       reuse: 4,
       shapedRadiusKm: 900,
-      summary: 'Amazonas 5 (61°O): perfil realista Ka HTS · ~34 haces en Latinoamérica.',
+      summary: 'Amazonas 5 (61°O): multihaz Ka HTS (~34 haces, backhaul/banda ancha) en Latinoamérica.',
     },
-    note: 'Hispasat GEO · NORAD 42934 · 61°O, 35 786 km, haces Ka HTS sobre Latinoamérica y banda Ku.',
+    note: 'Hispasat GEO · NORAD 42934 · 61°O, 35 786 km, haces Ka HTS sobre Latinoamérica y TV DTH Ku.',
   },
   {
     id: 'amazonas-nexus',
@@ -227,9 +401,14 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     ecc: 0.0001,
     alongDeg: 0,
     geoLonDeg: -61,
+    allowedModes: ['cellular', 'shaped', 'spot', 'global'],
+    modeLabels: { shaped: 'DTP / Conf.', cellular: 'Multihaz HTS' },
+    serviceSummary: 'Ku HTS + Procesador Digital (movilidad aérea/marítima, Américas y Atlántico)',
     payload: {
       mode: 'cellular',
       region: 'atlantic',
+      shapedRegion: 'atlantic',
+      bandwidthMHz: 100,
       freqGHz: 12,
       n: 16,
       dx: 2.6,
@@ -238,7 +417,7 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
       ptxW: 60,
       reuse: 4,
       shapedRadiusKm: 1500,
-      summary: 'Amazonas Nexus (61°O): perfil realista Ku HTS + DTP · Américas y Atlántico/Groenlandia.',
+      summary: 'Amazonas Nexus (61°O): Ku HTS + DTP · Américas, Atlántico y Groenlandia.',
     },
     note: 'Hispasat GEO HTS · NORAD 55508 · 61°O (relevo de Amazonas 2), 35 786 km, carga útil digital Ku/Ka.',
   },

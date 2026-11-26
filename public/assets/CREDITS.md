@@ -2,13 +2,8 @@
 
 ## Texturas de la Tierra
 
-Los archivos `earth_day.jpg`, `earth_specular.jpg` y `earth_clouds.png` provienen de los ejemplos de **Three.js**:
-
-- <https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg>
-- <https://threejs.org/examples/textures/planets/earth_specular_2048.jpg>
-- <https://threejs.org/examples/textures/planets/earth_clouds_1024.png>
-
-Las imágenes originales son de **NASA Visible Earth** (dominio público). Se incluyen aquí para que el simulador funcione sin conexión.
+- `earth_day.jpg` (`4096×2048` equirectangular): derivada de **NASA Visible Earth — Blue Marble Next Generation** (`world.200410.3x5400x2700.jpg`, dominio público).
+- `earth_specular.jpg` (`2048×1024`) y `earth_clouds.png` (`1024×512`): procedentes de los ejemplos de **Three.js** (<https://threejs.org/examples/textures/planets/>), originalmente de **NASA Visible Earth** (dominio público). Se incluyen localmente para que el simulador funcione sin conexión.
 
 ## Librerías
 

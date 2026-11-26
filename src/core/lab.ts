@@ -131,6 +131,7 @@ export function buildSample(state: SimState, d: Derived, notes = ''): LabSample 
     simTime: Math.round(state.simTime / 1000),
     target,
     spotFixed: state.spotFixed,
+    spotAutoTrack: state.spotAutoTrack,
     region: state.region,
     reuse: state.reuse,
     cellularCi: state.cellularCi,

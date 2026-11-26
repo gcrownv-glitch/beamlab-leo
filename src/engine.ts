@@ -376,7 +376,7 @@ export class Engine {
       active = s.mode === 'cellular' ? beams[this.pickActive(beams)] : beams[0];
     } else if (s.mode === 'shaped') {
       const ang = anglesForGroundPoint(sat.rEcef, frame, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG);
-      if (ang.w > 0.02) {
+      if (elevationAngle(sat.rEcef, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG) > 0 && ang.w > 0.02) {
         active = { id: 0, u: ang.u, v: ang.v, amp: 1, color: 0, target: s.shapedCenter };
       }
     }
@@ -868,7 +868,7 @@ export class Engine {
     const sat = propagate(s.orbit, s.simTime, true);
     const frame = antennaBasis(sat.rEcef);
     const center = anglesForGroundPoint(sat.rEcef, frame, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG);
-    if (center.w <= 0.02) {
+    if (elevationAngle(sat.rEcef, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG) <= 0 || center.w <= 0.02) {
       throw new Error('La zona no es visible desde el satélite. Mueve el tiempo o elige otro centro.');
     }
     const scan = Math.acos(Math.max(-1, Math.min(1, center.w)));
@@ -903,7 +903,7 @@ export class Engine {
         const groundKm = Math.hypot(dlat, dlon * cosLat) * R_EARTH;
         if (groundKm > totalKm + stepKm) continue;
         const ang = anglesForGroundPoint(sat.rEcef, frame, lat, lon);
-        if (ang.w <= 0.02) continue;
+        if (elevationAngle(sat.rEcef, lat, lon) <= 0 || ang.w <= 0.02) continue;
         const rho = groundKm / radiusKm;
         if (rho <= 1) {
           inside.push({ u: ang.u, v: ang.v, desired: 1, inside: true, lat, lon, weight: 4 });
@@ -916,20 +916,24 @@ export class Engine {
       }
     }
 
-    let maxInUv = 0;
-    for (const p of inside) {
-      maxInUv = Math.max(maxInUv, Math.hypot(p.u - center.u, p.v - center.v));
-    }
-    const farMinR = Math.min(0.92, maxInUv + 0.03);
+    // Exclusión geodésica en el disco visible: suprime lóbulos espurios fuera de la zona
+    // elíptica (u,v) al escanear lejos de nadir y sobre el cielo más allá del horizonte.
+    const exclRad = (radiusKm + edgeKm) / R_EARTH;
     const farOutside: DirectionSample[] = [];
-    const farStep = 0.085;
-    for (let u = -0.96; u <= 0.96 + 1e-9; u += farStep) {
-      for (let v = -0.96; v <= 0.96 + 1e-9; v += farStep) {
-        if (u * u + v * v > 0.96) continue;
-        const du = u - center.u;
-        const dv = v - center.v;
-        if (Math.hypot(du, dv) <= farMinR) continue;
-        farOutside.push({ u, v, desired: 0, inside: false, lat: 0, lon: 0, weight: 0.45 });
+    const farStep = 0.075;
+    for (let u = -0.99; u <= 0.99 + 1e-9; u += farStep) {
+      for (let v = -0.99; v <= 0.99 + 1e-9; v += farStep) {
+        if (u * u + v * v > 0.992) continue;
+        const gp = beamGroundPoint(sat.rEcef, frame, { id: 0, u, v, amp: 1, color: 0 });
+        if (gp) {
+          const g = ecefToGeodetic(gp);
+          const cosD = Math.sin(g.lat) * Math.sin(lat0)
+            + Math.cos(g.lat) * Math.cos(lat0) * Math.cos(g.lon - lon0);
+          if (Math.acos(Math.max(-1, Math.min(1, cosD))) <= exclRad) continue;
+          farOutside.push({ u, v, desired: 0, inside: false, lat: g.lat, lon: g.lon, weight: 0.65 });
+        } else {
+          farOutside.push({ u, v, desired: 0, inside: false, lat: 0, lon: 0, weight: 0.9 });
+        }
       }
     }
 
@@ -951,7 +955,7 @@ export class Engine {
         baseHpbwDeg: this.baseMetrics.hpbwDeg,
         centerBeam,
         inside: thin(inside, 900),
-        outside: [...thin(outside, 300), ...thin(farOutside, 400)],
+        outside: [...thin(outside, 250), ...thin(farOutside, 500)],
       },
       satEcef: { x: sat.rEcef.x, y: sat.rEcef.y, z: sat.rEcef.z },
       frame,

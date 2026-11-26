@@ -93,4 +93,38 @@ describe('haz conformado con geometría real', () => {
       }
     }
   }, 120000);
+
+  it('converge también en zonas fuera de nadir dentro de la huella (hasta ~60° de escaneo) y rechaza caras ocultas', () => {
+    const base = defaultState();
+    base.mode = 'shaped';
+    const baseEng = new Engine(base);
+    const subLat = baseEng.derived.sat.lat / DEG;
+    const subLon = baseEng.derived.sat.lon / DEG;
+
+    const offsets: [number, number][] = [
+      [3, 0],
+      [6, 0],
+      [9, 0],
+      [-6, 6],
+      [-8, -6],
+      [0, 9],
+    ];
+    for (const [dlat, dlon] of offsets) {
+      for (const radiusKm of [60, 100, 200, 350]) {
+        const state = defaultState();
+        state.mode = 'shaped';
+        state.shapedCenter = { lat: subLat + dlat, lon: subLon + dlon };
+        state.shapedRadiusKm = radiusKm;
+        const engine = new Engine(state);
+        const info = engine.synthesizeShaped();
+        expect(info.coverage, `off-nadir d=(${dlat},${dlon}), r=${radiusKm}`).toBeGreaterThanOrEqual(0.75);
+      }
+    }
+
+    const hiddenState = defaultState();
+    hiddenState.mode = 'shaped';
+    hiddenState.shapedCenter = { lat: -subLat, lon: subLon + 180 };
+    const hiddenEng = new Engine(hiddenState);
+    expect(() => hiddenEng.prepareShapedSynthesis()).toThrow(/visible/);
+  }, 120000);
 });

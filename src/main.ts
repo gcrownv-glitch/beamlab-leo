@@ -8,7 +8,7 @@ import { defaultState, type CameraMode, type Mode, type Quality, type SimState }
 import { elementsOverPoint, presetById } from './core/presets';
 import { DEG, R_EARTH } from './core/constants';
 import { anglesForGroundPoint } from './core/geometry';
-import type { OrbitElements } from './core/orbit';
+import { elevationAngle, type OrbitElements } from './core/orbit';
 import type { RegionId } from './core/regions';
 import { regionCenter } from './core/regions';
 import type { ArrayConfig } from './core/array';
@@ -154,7 +154,8 @@ class App {
       this.engine.setMode('shaped');
       const der = this.engine.derived;
       const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, lat * DEG, lon * DEG);
-      if (ang.w < 0.06) this.snapToRegion(lat, lon, false);
+      const elev = elevationAngle(der.sat.rEcef, lat * DEG, lon * DEG);
+      if (elev <= 0 || ang.w < 0.06) this.snapToRegion(lat, lon, false);
       this.engine.setShapedCenter(lat, lon);
       this.refresh();
       this.ui.toast(`Zona conformada centrada en ${fmtLat(lat)} ${fmtLon(lon)}`);
@@ -272,8 +273,9 @@ class App {
       } else {
         const der = this.engine.derived;
         const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, this.state.shapedCenter.lat * DEG, this.state.shapedCenter.lon * DEG);
+        const elev = elevationAngle(der.sat.rEcef, this.state.shapedCenter.lat * DEG, this.state.shapedCenter.lon * DEG);
         const scanDeg = Math.acos(Math.max(-1, Math.min(1, ang.w))) / DEG;
-        if (ang.w <= 0.02 || scanDeg > 58) {
+        if (elev <= 0 || ang.w <= 0.02 || scanDeg > 58) {
           this.snapToRegion(this.state.shapedCenter.lat, this.state.shapedCenter.lon, false);
         }
       }
@@ -352,8 +354,9 @@ class App {
     this.state.playing = false;
     const der = this.engine.derived;
     const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, this.state.shapedCenter.lat * DEG, this.state.shapedCenter.lon * DEG);
+    const elev = elevationAngle(der.sat.rEcef, this.state.shapedCenter.lat * DEG, this.state.shapedCenter.lon * DEG);
     const scanDeg = Math.acos(Math.max(-1, Math.min(1, ang.w))) / DEG;
-    if (ang.w <= 0.02 || scanDeg > 58) {
+    if (elev <= 0 || ang.w <= 0.02 || scanDeg > 60) {
       this.snapToRegion(this.state.shapedCenter.lat, this.state.shapedCenter.lon, false);
     }
     if (this.state.mode !== 'shaped') {

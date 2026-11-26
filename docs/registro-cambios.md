@@ -8,11 +8,11 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 |---|---|
 | **Repositorio** | `beamlab-leo` |
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
-| **Versión declarada en manifiestos** | `2.4.0-beta.2` *(canal pre-release beta desplegado en web antes de portar instaladores; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
+| **Versión declarada en manifiestos** | `2.4.0-beta.3` *(canal pre-release beta desplegado en web tras corregir síntesis conformada fuera de nadir; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
 | **Puntos de recuperación estables** | `stable/v2.3.4-orig` (`25ce657`, v2.3.4 original) · `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2) · tag/Release `v2.3.4` intacto en GitHub |
-| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.2`) |
-| **Última actualización** | `2026-11-24T20:01:07-05:00` (`2026-11-25T01:01:07Z`) |
-| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` en verde · `vitest run`: **15 archivos / 67 pruebas aprobadas** |
+| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.3`) |
+| **Última actualización** | `2026-11-26T01:53:35-05:00` (`2026-11-26T06:53:35Z`) |
+| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` en verde · `vitest run`: **15 archivos / 68 pruebas aprobadas** |
 
 ---
 
@@ -36,6 +36,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Tramo 6** | `f6ac5d7` | `2026-11-24T19:32:18-05:00` (`00:32:18Z`) | `rel/tramo-6-devops-beta` (`beta`) | Aligerar `docs/portable/`, script `bump-version.mjs`, soporte SemVer/beta en lanzador y updater, hardening CI y bump a `2.4.0-beta.1` |
 | **Tramo 6** | `6dbc374` | `2026-11-24T19:33:37-05:00` (`00:33:37Z`) | `rel/tramo-6-devops-beta` (`v2.4.0-beta.1`) | Actualizar registro técnico con Tramo 6 y respaldo local |
 | **Fix Conformada** | `f9ad6f6` | `2026-11-24T19:58:18-05:00` (`00:58:18Z`) | `rel/tramo-6-devops-beta` | Cerrar brecha `(u, v)` en campo lejano para radios 60–80 km, normalizar contra pico radiado real, respaldo síncrono de Web Worker y aviso 32×32 |
+| **Web Beta 2** | `816b091` | `2026-11-24T20:01:44-05:00` (`01:01:44Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Desplegar `2.4.0-beta.2` en GitHub Pages preservando `stable/v2.3.4-orig` (`25ce657`) |
+| **Fix Off-Nadir / Beta 3** | *(cabeza de rama)* | `2026-11-26T01:53:35-05:00` (`06:53:35Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Exclusión geodésica en campo lejano, coordenadas `[-half, +half]` en `peakRadiatedPower()`, visibilidad real por `elevationAngle()` y bump a `2.4.0-beta.3` para web |
 
 ---
 
@@ -246,6 +248,17 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 - **Causa raíz detectada tras `v2.4.0-beta.1`:** En modo **Conformada**, `prepareShapedSynthesis()` mezclaba el muestreo cercano y lejano en un único `thin(outside, 500)` y dejaba una franja sin muestrear en `(u, v)` para radios de `60–80 km`, permitiendo lóbulos espurios y cobertura `0 %`; adicionalmente, `measureSynthesis()` comparaba contra el pico sin factor de elemento (`cos^{2q}θ`) rechazando haces anchos (`350–400 km`), y `worker.onerror` no degradaba a cálculo síncrono en entornos sin Worker `Blob`/`data:`.
 - **Corrección (`src/engine.ts`, `src/core/synthesis.ts`, `src/main.ts`, `src/ui.ts`, `tests/shaped.test.ts`):** Muestreo separado en guarda cercano (`300`) + campo lejano (`400`, `farMinR = maxInUv + 0.03`), normalización contra `peakRadiatedPower()`, respaldo síncrono en `App.synthesize()` y aviso claro cuando `n > 20` (`32×32`).
 - **Despliegue web previo:** Se respaldó `25ce657` en `stable/v2.3.4-orig`, se actualizó a `2.4.0-beta.2` y se desplegó primero en `main` (GitHub Pages) para validación web antes de etiquetar los instaladores desktop/portables.
+
+#### 5. Síntesis conformada en cualquier zona fuera de nadir dentro de la huella (`2.4.0-beta.3`)
+- **Causa raíz detectada tras probar `beta.2` en web:**
+  1. `peakRadiatedPower()` en `src/core/synthesis.ts` iteraba `u, v ∈ [-1, 1]` usando `grid.power[iv*n + iu]`, pero `patternFromWeights` usa `half = 2.2`, por lo que leía potencia de `[-2.2, +2.2]` comprimida sobre `[-1, 1]`.
+  2. La exclusión de `farOutside` usaba un círculo en `(u, v)` centrado en `center`, pero un círculo sobre la Tierra proyecta una elipse comprimida al escanear a `45°–60°`: los puntos de la elipse quedaban sin suprimir en `farOutside`, permitiendo lóbulos espurios fuera de la zona y cobertura `0 %` en zonas fuera de nadir (incluso a `48°` dentro de la huella).
+  3. `main.ts` y `engine.ts` evaluaban visibilidad con `ang.w` aproximado en lugar de `elevationAngle(sat.rEcef, lat, lon)`.
+- **Corrección (`src/core/synthesis.ts`, `src/engine.ts`, `src/main.ts`, `tests/shaped.test.ts`):**
+  - `peakRadiatedPower()` indexa la grilla con `[-grid.half, +grid.half]`.
+  - `prepareShapedSynthesis()` proyecta cada muestra `(u, v)` a geodésica con `beamGroundPoint()`, excluye únicamente puntos dentro del radio geodésico `(radiusKm + edgeKm) / R_EARTH`, y penaliza también direcciones sobre el cielo más allá del horizonte (`gp === null`).
+  - `elevationAngle()` verifica visibilidad real sobre el horizonte tanto al posicionar/sintetizar en `main.ts` como en `engine.ts`.
+  - Pruebas añadidas en `tests/shaped.test.ts` verificando convergencia (`coverage >= 75 %`) desde `0°` hasta `~59.5°` de nadir en todos los cuadrantes (`60–350 km`) y rechazo de cara oculta (**15 archivos / 68 pruebas aprobadas**).
 
 ---
 

@@ -1,25 +1,25 @@
 {
   "schema": 1,
   "latest": "2.3.4",
-  "latestBeta": "2.4.0-beta.2",
+  "latestBeta": "2.4.0-beta.3",
   "versions": [
     {
-      "version": "2.4.0-beta.2",
+      "version": "2.4.0-beta.3",
       "channel": "beta",
-      "date": "2026-11-25",
-      "notes": "Beta 2: corrige síntesis de haz conformado en todos los radios (40-400 km), normalización de pico radiado, respaldo síncrono del Web Worker y aviso de límite 20x20.",
-      "html": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.2/BeamLabLEO-2.4.0-beta.2.html",
-      "zip": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.2/BeamLabLEO-2.4.0-beta.2-portable.zip",
-      "release": "https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.4.0-beta.2",
+      "date": "2026-11-26",
+      "notes": "Beta 3: corrige síntesis de haz conformado fuera de nadir en toda la huella visible mediante exclusión geodésica y coordenadas reales de grilla en peakRadiatedPower.",
+      "html": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.3/BeamLabLEO-2.4.0-beta.3.html",
+      "zip": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.3/BeamLabLEO-2.4.0-beta.3-portable.zip",
+      "release": "https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.4.0-beta.3",
       "downloads": {
-        "windowsPortable": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.2/beamlab-leo.exe",
-        "windowsInstaller": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.2/BeamLab.LEO_2.4.0-beta.2_x64-setup.exe",
-        "linuxAppImage": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.2/BeamLab.LEO_2.4.0-beta.2_amd64.AppImage",
-        "linuxDeb": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.2/BeamLab.LEO_2.4.0-beta.2_amd64.deb",
-        "macDmg": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.2/BeamLab.LEO_2.4.0-beta.2_aarch64.dmg"
+        "windowsPortable": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.3/beamlab-leo.exe",
+        "windowsInstaller": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.3/BeamLab.LEO_2.4.0-beta.3_x64-setup.exe",
+        "linuxAppImage": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.3/BeamLab.LEO_2.4.0-beta.3_amd64.AppImage",
+        "linuxDeb": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.3/BeamLab.LEO_2.4.0-beta.3_amd64.deb",
+        "macDmg": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.3/BeamLab.LEO_2.4.0-beta.3_aarch64.dmg"
       },
-      "size": 4598143,
-      "sha256": "950f8aac93ac7b169af28518601d3b4326fbea751cd7705038d8e716daff78f5"
+      "size": 4598717,
+      "sha256": "f6befb8e77ca2c2121dbfbfefd92d6610bd6d536bdbb7b11cf3d74938e814b5a"
     },
     {
       "version": "2.4.0-beta.1",

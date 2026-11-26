@@ -1,6 +1,6 @@
 [package]
 name = "beamlab-leo"
-version = "2.4.0-beta.2"
+version = "2.4.0-beta.3"
 description = "BeamLab LEO: simulador de beamforming satelital LEO"
 authors = ["Jhorel Kennedy Cornejo Cruz <https://github.com/gcrownv-glitch>"]
 license = "MIT"

@@ -215,14 +215,18 @@ export interface ShapedSynthesisOutput {
 
 function peakRadiatedPower(grid: PatternGrid, q: number): number {
   const n = grid.size;
+  const step = (2 * grid.half) / (n - 1);
   let peak = 1e-12;
   for (let iv = 0; iv < n; iv++) {
-    const v = -1 + (2 * (iv + 0.5)) / n;
+    const v = -grid.half + iv * step;
+    const v2 = v * v;
+    if (v2 >= 1) continue;
+    const row = iv * n;
     for (let iu = 0; iu < n; iu++) {
-      const u = -1 + (2 * (iu + 0.5)) / n;
-      const w2 = 1 - u * u - v * v;
-      if (w2 <= 0) continue;
-      const p = grid.power[iv * n + iu] * Math.pow(w2, q);
+      const u = -grid.half + iu * step;
+      const w2 = 1 - u * u - v2;
+      if (w2 <= 1e-6) continue;
+      const p = grid.power[row + iu] * Math.pow(w2, q);
       if (p > peak) peak = p;
     }
   }

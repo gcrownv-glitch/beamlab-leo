@@ -6,6 +6,16 @@ import { SceneView, type Textures } from './scene';
 import { UI, type ToggleKey, type UIHandlers } from './ui';
 import { defaultState, type CameraMode, type Mode, type Quality, type SimState } from './state';
 import { defaultLeoAntenna, elementsOverPoint, geoOrbitAtLongitude, orbitForPreset, presetById, type PresetPayload } from './core/presets';
+import { reflectorGainDbi } from './core/link';
+import {
+  buildScenarioSetup,
+  observerPresetById,
+  orbitForScenario,
+  scenarioSpecById,
+  type ScenarioBeamTracking,
+  type ScenarioId,
+  type ScenarioVariantId,
+} from './core/scenarios';
 import { DEG, R_EARTH } from './core/constants';
 import { anglesForGroundPoint } from './core/geometry';
 import { elevationAngle, type OrbitElements } from './core/orbit';
@@ -260,9 +270,12 @@ class App {
       this.ui.update(this.state, this.engine.derived);
     },
     setTerminal: (id) => {
+      const fGHz = this.state.antenna.freqGHz;
       const presets = {
         vsat60: { gain: 34, nf: 1.5 },
         vsat45: { gain: 32, nf: 1.6 },
+        dish3m: { gain: Number(reflectorGainDbi(3.0, 0.55, fGHz).toFixed(2)), nf: 1.5 },
+        phone: { gain: -3, nf: 7 },
         isotropic: { gain: 0, nf: 2 },
       };
       this.state.terminalId = id;
@@ -304,6 +317,62 @@ class App {
     },
     setFpsCap: (cap) => this.setFpsCap(cap),
     setQuality: (q) => this.setQuality(q),
+    setScenario: (id, variant) => this.applyScenario(id, variant),
+    setScenarioVariant: (variant) => {
+      if (!this.state.scenarioId) return;
+      this.applyScenario(this.state.scenarioId, variant);
+    },
+    setScenarioObserver: (observerId) => {
+      const obs = observerPresetById(observerId);
+      this.engine.setScenarioState({ scenarioObserver: obs });
+      if (this.state.scenarioId) {
+        this.applyScenario(this.state.scenarioId, this.state.scenarioVariant);
+      } else {
+        this.refresh();
+      }
+    },
+    setScenarioBeamTracking: (tracking: ScenarioBeamTracking) => {
+      this.engine.setScenarioState({ scenarioBeamTracking: tracking });
+      if (this.state.scenarioId === 'report-starlink11200') {
+        this.engine.setRegion(tracking === 'fixed-cell' ? 'peru' : 'visible');
+        this.refresh();
+      } else {
+        this.refresh();
+      }
+    },
+    setScenarioSib19: (enabled: boolean) => {
+      this.engine.setScenarioState({ scenarioSib19: enabled });
+      this.refresh();
+    },
+    jumpScenarioTime: (offsetSec: number) => {
+      if (!this.state.scenarioId) return;
+      const obs = this.state.scenarioObserver;
+      const orbit = orbitForScenario(this.state.scenarioId, obs);
+      this.state.playing = false;
+      this.state.simTime = orbit.epoch + offsetSec * 1000;
+      this.engine.setOrbit(orbit, this.state.presetId);
+      this.engine.invalidateBeams();
+      this.refresh();
+      this.scene?.setViewToEci(this.engine.derived.sat.r);
+    },
+    exitScenario: () => {
+      this.engine.setScenarioState({ scenarioId: null });
+      this.state.ptxW = 20;
+      this.state.uplinkPowerW = 4;
+      this.state.bandwidthMHz = 100;
+      this.state.terminalId = 'vsat60';
+      this.state.rxGainDbi = 34;
+      this.state.noiseFigureDb = 1.5;
+      this.engine.setAntenna(defaultLeoAntenna());
+      this.engine.setFrequency(12);
+      this.engine.setReuse(3);
+      this.engine.setRegion('peru');
+      this.engine.setSpotTarget(-12.05, -77.04);
+      this.engine.setSpotAutoTrack(false);
+      this.engine.setMode('spot');
+      this.setPreset('starlink');
+      this.ui.toast('Modo libre del simulador restaurado.');
+    },
   };
 
   private setFpsCap(cap: number) {
@@ -418,7 +487,42 @@ class App {
     this.engine.setMode(payload.mode);
   }
 
+  private applyScenario(id: ScenarioId, variant?: ScenarioVariantId) {
+    const spec = scenarioSpecById(id);
+    const chosenVariant = variant && spec.variants.some((v) => v.id === variant)
+      ? variant
+      : spec.defaultVariant;
+    const obs = this.state.scenarioObserver;
+    const cfg = buildScenarioSetup(id, chosenVariant, obs, this.state.scenarioBeamTracking);
+
+    this.engine.setScenarioState({ scenarioId: id, scenarioVariant: chosenVariant });
+    this.state.presetId = cfg.presetId;
+    this.state.simTime = cfg.simTime;
+    this.state.playing = cfg.playing;
+    this.state.ptxW = cfg.ptxW;
+    this.state.uplinkPowerW = cfg.uplinkPowerW;
+    this.state.terminalId = cfg.terminalId;
+    this.state.rxGainDbi = cfg.rxGainDbi;
+    this.state.noiseFigureDb = cfg.noiseFigureDb;
+    this.state.bandwidthMHz = cfg.bandwidthMHz;
+    this.engine.setOrbit(cfg.orbit, cfg.presetId);
+    this.engine.setReuse(cfg.reuse);
+    this.engine.setRegion(cfg.region);
+    this.engine.setAntenna({ n: cfg.n, dx: cfg.dx, dy: cfg.dx, q: cfg.q, taper: 'kaiser30' });
+    this.engine.setFrequency(cfg.freqGHz);
+    this.engine.setSpotTarget(cfg.spotTarget.lat, cfg.spotTarget.lon);
+    this.engine.setSpotFixed(cfg.spotFixed);
+    this.engine.setSpotAutoTrack(cfg.spotAutoTrack);
+    this.engine.setMode(cfg.mode);
+    this.refresh();
+    this.scene?.setViewToEci(this.engine.derived.sat.r);
+    this.ui.toast(`Escenario ${spec.code}: ${spec.title}`);
+  }
+
   private setPreset(id: string) {
+    if (this.state.scenarioId !== null) {
+      this.engine.setScenarioState({ scenarioId: null });
+    }
     const p = presetById(id);
     const prevPreset = presetById(this.state.presetId);
     const wasCustomProfile = Boolean(prevPreset.payload) || this.state.orbit.a - R_EARTH > 20000;

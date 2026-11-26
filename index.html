@@ -50,6 +50,10 @@
           <button class="btn ghost small mobile-only" id="btn-mobile-antenna" aria-controls="panel-antenna" aria-expanded="false" title="Panel de antena y enlace">
             <span>Antena</span>
           </button>
+          <button class="btn ghost btn-scenarios" id="btn-scenarios" aria-controls="scenarios-drawer" aria-expanded="false" title="Escenarios LTE y 5G del informe técnico (E)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6" /><path d="M4.5 9.5h15M4.5 14.5h15M12 3a13 13 0 0 0 0 18M12 3a13 13 0 0 1 0 18" fill="none" stroke="currentColor" stroke-width="1.3" /></svg>
+            <span>Escenarios</span>
+          </button>
           <button class="btn ghost" id="btn-tour" title="Guía de presentación (T)">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
             <span>Guía</span>
@@ -94,6 +98,7 @@
               <optgroup label="Starlink · Generación V2 Mini">
                 <option value="starlink-30001">STARLINK-30001 · NORAD 55693 (V2 Mini · 530 km)</option>
                 <option value="starlink-31005">STARLINK-31005 · NORAD 58695 (V2 Mini DTC · 360 km)</option>
+                <option value="starlink-11200-dtc">STARLINK-11200 [DTC] · NORAD 60310 (363 km · 53.16°)</option>
               </optgroup>
               <optgroup label="Starlink · Generación V2 Completo">
                 <option value="starlink-v2-sim">STARLINK-V2-SIM-01 / 02 (IFT-3/IFT-4 · 340 km)</option>
@@ -225,7 +230,11 @@
           <label class="field">
             <span>Banda / frecuencia</span>
             <select id="freq">
+              <option value="1.542">L · 1.54 GHz (n255)</option>
               <option value="1.6">L · 1.6 GHz</option>
+              <option value="1.9925">PCS G · 1.99 GHz</option>
+              <option value="2">S · 2.0 GHz (D2C)</option>
+              <option value="2.185">S · 2.18 GHz (n256)</option>
               <option value="2.2">S · 2.2 GHz</option>
               <option value="12" selected>Ku · 12 GHz</option>
               <option value="20">K · 20 GHz</option>
@@ -333,6 +342,7 @@
                 <option value="custom">Personalizado (clic en globo)</option>
                 <option value="lima" selected>Lima · 12.05°S 77.04°O</option>
                 <option value="arequipa">Arequipa · 16.41°S 71.54°O</option>
+                <option value="quilca">Quilca (Arequipa) · 16.70°S 72.40°O</option>
                 <option value="cusco">Cusco · 13.53°S 71.97°O</option>
                 <option value="trujillo">Trujillo · 8.11°S 79.03°O</option>
                 <option value="chiclayo">Chiclayo · 6.77°S 79.84°O</option>
@@ -421,6 +431,7 @@
                   <option value="custom">Personalizado (clic en globo)</option>
                   <option value="lima" selected>Lima · 12.05°S 77.04°O</option>
                   <option value="arequipa">Arequipa · 16.41°S 71.54°O</option>
+                  <option value="quilca">Quilca (Arequipa) · 16.70°S 72.40°O</option>
                   <option value="cusco">Cusco · 13.53°S 71.97°O</option>
                   <option value="trujillo">Trujillo · 8.11°S 79.03°O</option>
                   <option value="chiclayo">Chiclayo · 6.77°S 79.84°O</option>
@@ -478,6 +489,99 @@
         <span class="tab-text">Antena</span><span class="chev">‹</span>
       </button>
 
+      <aside class="panel scenarios-drawer" id="scenarios-drawer" hidden aria-label="Escenarios LTE y 5G del informe">
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">Informe técnico · LTE y 5G</div>
+            <h2>Escenarios</h2>
+          </div>
+          <div class="sc-head-actions">
+            <button class="btn small" id="sc-exit" title="Volver al modo libre del simulador" hidden>Salir</button>
+            <button class="collapse" id="sc-close" aria-label="Cerrar escenarios" title="Cerrar escenarios (Esc)">✕</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="sc-tabs" id="sc-tabs" role="tablist" aria-label="Escenarios satelitales">
+            <button class="sc-tab" data-scenario="report-amazonas5" role="tab">
+              <span class="sc-code">A</span>
+              <div><strong>Amazonas 5</strong><small>Backhaul GEO · 61°O · Ku/Ka</small></div>
+            </button>
+            <button class="sc-tab" data-scenario="report-starlink11200" role="tab">
+              <span class="sc-code">B</span>
+              <div><strong>STARLINK-11200</strong><small>LTE Directo (D2C) · 363 km</small></div>
+            </button>
+            <button class="sc-tab" data-scenario="report-nr-ntn" role="tab">
+              <span class="sc-code">C</span>
+              <div><strong>5G NR-NTN</strong><small>Rel-17 Transparente · L / S</small></div>
+            </button>
+          </div>
+
+          <div id="sc-active-body" hidden>
+            <label class="field">
+              <span>Punto de observación</span>
+              <select id="sc-observer">
+                <option value="quilca" selected>Quilca, Arequipa · 16.70°S 72.40°O</option>
+                <option value="lima">Lima (MTC) · 12.05°S 77.04°O</option>
+                <option value="arequipa">Arequipa · 16.41°S 71.54°O</option>
+                <option value="cusco">Cusco · 13.53°S 71.97°O</option>
+              </select>
+            </label>
+
+            <div class="field">
+              <span>Modalidad / banda de frecuencia</span>
+              <div class="segmented" id="sc-variants"></div>
+            </div>
+
+            <div class="field" id="sc-beam-row" hidden>
+              <span>Comportamiento del haz D2C</span>
+              <div class="segmented" id="sc-beam-mode">
+                <button data-track="moving" class="active">Haces móviles (traza)</button>
+                <button data-track="fixed-cell">Celda fija (handover)</button>
+              </div>
+            </div>
+
+            <div id="sc-sib19-row" hidden>
+              <label class="switch-row">
+                <span>Precompensación SIB19 (efemérides)</span>
+                <input id="sc-sib19" type="checkbox" checked />
+              </label>
+            </div>
+
+            <div class="field" id="sc-pass-row" hidden>
+              <span>Instante del paso sobre observador</span>
+              <div class="segmented three" id="sc-pass-jumps">
+                <button data-offset="-150">−2.5 min</button>
+                <button data-offset="0" class="active">Máx. elev.</button>
+                <button data-offset="150">+2.5 min</button>
+              </div>
+            </div>
+
+            <div class="section-title">Telemetría en tiempo real</div>
+            <div class="sc-metrics" id="sc-metrics">
+              <div><span>Elevación</span><b id="sc-elev">—</b></div>
+              <div><span>Azimut</span><b id="sc-az">—</b></div>
+              <div><span>Distancia ρ</span><b id="sc-slant">—</b></div>
+              <div><span>Retardo τ</span><b id="sc-delay">—</b></div>
+              <div><span>FSPL</span><b id="sc-fspl">—</b></div>
+              <div><span>Doppler f<sub>D</sub></span><b id="sc-doppler">—</b></div>
+              <div><span>C/N₀</span><b id="sc-cn0">—</b></div>
+              <div><span>C/N</span><b id="sc-cn">—</b></div>
+            </div>
+
+            <div class="info-row" id="sc-detail">—</div>
+            <div class="info-row sc-feeder-box" id="sc-feeder-box" hidden>—</div>
+            <div class="info-row sc-sib-box" id="sc-sib19-status" hidden>—</div>
+
+            <div class="section-title">Arquitectura de ruta extremo a extremo</div>
+            <div class="sc-route-card" id="sc-route-card">
+              <div class="sc-bs-badge" id="sc-bs-badge">—</div>
+              <div class="sc-route-flow" id="sc-route-flow"></div>
+            </div>
+            <p class="hint" id="sc-footnote">—</p>
+          </div>
+        </div>
+      </aside>
+
       <section class="dock" id="dock" aria-label="Análisis">
         <button class="dock-toggle" id="dock-toggle" title="Mostrar/ocultar análisis">
           <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" /></svg>
@@ -515,6 +619,8 @@
               <select id="terminal-preset">
                 <option value="vsat60" selected>VSAT 0.6 m · 34 dBi</option>
                 <option value="vsat45">VSAT 0.45 m · 32 dBi</option>
+                <option value="dish3m">Reflector 3 m · 48.9 dBi</option>
+                <option value="phone">Teléfono LTE/5G · −3 dBi</option>
                 <option value="isotropic">Isotrópica · 0 dBi</option>
               </select>
             </label>

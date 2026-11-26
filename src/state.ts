@@ -4,11 +4,19 @@ import type { LinkResult } from './core/link';
 import type { OrbitElements, OrbitState } from './core/orbit';
 import { elementsOverPoint } from './core/presets';
 import type { RegionId } from './core/regions';
+import {
+  DEFAULT_OBSERVER,
+  type ScenarioBeamTracking,
+  type ScenarioId,
+  type ScenarioObserver,
+  type ScenarioTelemetry,
+  type ScenarioVariantId,
+} from './core/scenarios';
 
 export type Mode = 'global' | 'spot' | 'cellular' | 'shaped';
 export type CameraMode = 'earth' | 'sat' | 'follow';
 export type Quality = 'high' | 'medium' | 'low';
-export type TerminalId = 'vsat60' | 'vsat45' | 'isotropic';
+export type TerminalId = 'vsat60' | 'vsat45' | 'isotropic' | 'dish3m' | 'phone';
 export type QuantMode = 'ideal' | 'realtime' | 'analysis';
 export type LinkDirection = 'downlink' | 'uplink';
 export type ShapedRegionId = 'circle' | 'peru' | 'southamerica' | 'latam' | 'americas' | 'atlantic' | 'europe';
@@ -87,6 +95,7 @@ export interface Derived {
   system: SystemInfo;
   source: 'horn' | 'array' | 'synthesis';
   servedLocation?: string | null;
+  scenario: ScenarioTelemetry | null;
 }
 
 export interface SimState {
@@ -112,6 +121,11 @@ export interface SimState {
   spotFixed: boolean;
   spotAutoTrack: boolean;
   strictService: boolean;
+  scenarioId: ScenarioId | null;
+  scenarioVariant: ScenarioVariantId;
+  scenarioObserver: ScenarioObserver;
+  scenarioBeamTracking: ScenarioBeamTracking;
+  scenarioSib19: boolean;
   shapedCenter: { lat: number; lon: number };
   shapedRadiusKm: number;
   shapedRegion: ShapedRegionId;
@@ -186,6 +200,11 @@ export function defaultState(): SimState {
     spotFixed: true,
     spotAutoTrack: false,
     strictService: true,
+    scenarioId: null,
+    scenarioVariant: 'ku-backhaul',
+    scenarioObserver: DEFAULT_OBSERVER,
+    scenarioBeamTracking: 'moving',
+    scenarioSib19: true,
     shapedCenter: { lat: -12.05, lon: -77.04 },
     shapedRadiusKm: 100,
     shapedRegion: 'circle',

@@ -9,6 +9,15 @@ import { DEG, R_EARTH } from './core/constants';
 import { apogeeAlt, meanMotion, orbitalPeriod, perigeeAlt, propagate, type OrbitElements } from './core/orbit';
 import { ORBIT_PRESETS } from './core/presets';
 import { cityById, PERU_CITIES, regionById, type RegionId } from './core/regions';
+import {
+  REPORT_SCENARIOS,
+  scenarioSpecById,
+  type ScenarioBeamTracking,
+  type ScenarioId,
+  type ScenarioRouteNode,
+  type ScenarioTelemetry,
+  type ScenarioVariantId,
+} from './core/scenarios';
 import { drawPatternChart, drawPhaseMap, type PatternPoint } from './charts';
 import { BEAM_HEX, REUSE_LABELS } from './palette';
 import type { CameraMode, Derived, LinkDirection, Mode, PhaseView, Quality, QuantMode, QuantState, ShapedRegionId, SimState, TerminalId } from './state';
@@ -67,6 +76,13 @@ export interface UIHandlers {
   exportScene(): Promise<SaveResult>;
   setFpsCap(cap: number): void;
   setQuality(quality: Quality): void;
+  setScenario(id: ScenarioId, variant?: ScenarioVariantId): void;
+  setScenarioVariant(variant: ScenarioVariantId): void;
+  setScenarioObserver(observerId: string): void;
+  setScenarioBeamTracking(tracking: ScenarioBeamTracking): void;
+  setScenarioSib19(enabled: boolean): void;
+  jumpScenarioTime(offsetSec: number): void;
+  exitScenario(): void;
 }
 
 interface TourStep {
@@ -97,6 +113,8 @@ export class UI {
   private lastPhaseObj: PhaseView | null = null;
   private lastReuseKey = '';
   private lastPatternKey = '';
+  private lastScenarioVariantsKey = '';
+  private lastScenarioRouteKey = '';
   private lab = new LabStore();
   private labSample: LabSample | null = null;
   private latestState: SimState | null = null;
@@ -419,6 +437,39 @@ export class UI {
     $('tour-prev').addEventListener('click', () => this.stepTour(-1));
     $('tour-next').addEventListener('click', () => this.stepTour(1));
 
+    $('btn-scenarios').addEventListener('click', () => this.toggleScenariosDrawer());
+    $('sc-close').addEventListener('click', () => this.toggleScenariosDrawer(false));
+    $('sc-exit').addEventListener('click', () => {
+      this.h.exitScenario();
+      this.toggleScenariosDrawer(false);
+      if (window.innerWidth > 760) {
+        $('panel-orbit').classList.remove('collapsed');
+        this.syncPanelTabs();
+      }
+    });
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('#sc-tabs [data-scenario]')) {
+      btn.addEventListener('click', () => {
+        const scId = btn.dataset.scenario as ScenarioId;
+        this.h.setScenario(scId);
+      });
+    }
+    ($('sc-observer') as HTMLSelectElement).addEventListener('change', (e) => {
+      this.h.setScenarioObserver((e.target as HTMLSelectElement).value);
+    });
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('#sc-beam-mode [data-track]')) {
+      btn.addEventListener('click', () => {
+        this.h.setScenarioBeamTracking((btn.dataset.track as ScenarioBeamTracking) ?? 'moving');
+      });
+    }
+    ($('sc-sib19') as HTMLInputElement).addEventListener('change', (e) => {
+      this.h.setScenarioSib19((e.target as HTMLInputElement).checked);
+    });
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('#sc-pass-jumps [data-offset]')) {
+      btn.addEventListener('click', () => {
+        this.h.jumpScenarioTime(Number(btn.dataset.offset ?? 0));
+      });
+    }
+
     $('dock-toggle').addEventListener('click', () => {
       $('dock').classList.toggle('collapsed');
     });
@@ -487,6 +538,7 @@ export class UI {
       this.closeLab();
       this.hideUpdate();
       this.closeTour();
+      this.toggleScenariosDrawer(false);
       return;
     }
     const t = e.target as HTMLElement | null;
@@ -498,6 +550,7 @@ export class UI {
     else if (e.key === '2') this.h.setMode('spot');
     else if (e.key === '3') this.h.setMode('cellular');
     else if (e.key === '4') this.h.setMode('shaped');
+    else if (e.key.toLowerCase() === 'e') this.toggleScenariosDrawer();
     else if (e.key.toLowerCase() === 'g') this.h.setToggle('showGain', !this.state.showGain);
     else if (e.key.toLowerCase() === 't') this.startTour();
     else if (e.key.toLowerCase() === 'h') this.toggleHelp();
@@ -670,6 +723,8 @@ export class UI {
       $('block-cellular').hidden = s.mode !== 'cellular';
       $('block-shaped').hidden = s.mode !== 'shaped';
 
+      this.syncScenarios(s);
+
       $('btn-play').classList.toggle('playing', s.playing);
       for (const b of document.querySelectorAll<HTMLButtonElement>('#speeds button')) {
         b.classList.toggle('active', Number(b.dataset.speed) === s.speed);
@@ -732,6 +787,7 @@ export class UI {
     this.updateLink(s, d);
     this.updateBeams(s, d);
     this.updateQuant(d);
+    this.updateScenarios(s, d);
 
     $('cell-info').textContent = d.beamSet
       ? s.region === 'visible' && d.servedLocation
@@ -821,7 +877,8 @@ export class UI {
       $('sys-aggregate').textContent = '—';
       return;
     }
-    $('link-badge').textContent = `${dirLabel} · ${l.freqGHz.toFixed(0)} GHz · ${s.bandwidthMHz} MHz`;
+    const freqTxt = l.freqGHz >= 10 ? l.freqGHz.toFixed(0) : l.freqGHz.toFixed(2);
+    $('link-badge').textContent = `${dirLabel} · ${freqTxt} GHz · ${s.bandwidthMHz} MHz`;
     $('lk-eirp').textContent = `${l.eirpDbW.toFixed(1)} dBW`;
     $('lk-fspl').textContent = `${l.fsplDb.toFixed(1)} dB`;
     $('lk-prx').textContent = `${l.rxPowerDbm.toFixed(1)} dBm`;
@@ -1158,5 +1215,159 @@ export class UI {
 
   private applyTour() {
     this.tourSteps[this.tourIndex].apply(this.h);
+  }
+
+  toggleScenariosDrawer(force?: boolean) {
+    const drawer = this.el('scenarios-drawer');
+    const open = force ?? drawer.hidden;
+    drawer.hidden = !open;
+    const btn = this.el('btn-scenarios');
+    btn.setAttribute('aria-expanded', String(open));
+    btn.classList.toggle('active', open || this.state.scenarioId !== null);
+    if (open) {
+      this.el('panel-orbit').classList.add('collapsed');
+      if (window.innerWidth <= 760) {
+        this.el('panel-antenna').classList.add('collapsed');
+      }
+      this.syncPanelTabs();
+      if (!this.state.scenarioId) {
+        this.h.setScenario(REPORT_SCENARIOS[0].id);
+      }
+    }
+  }
+
+  private syncScenarios(s: SimState) {
+    const $ = <T extends HTMLElement>(id: string) => this.el<T>(id);
+    const activeId = s.scenarioId;
+    const drawer = $('scenarios-drawer');
+    $('btn-scenarios').classList.toggle('active', !drawer.hidden || activeId !== null);
+    $('sc-exit').hidden = activeId === null;
+    $('sc-active-body').hidden = activeId === null;
+    for (const b of document.querySelectorAll<HTMLButtonElement>('#sc-tabs [data-scenario]')) {
+      b.classList.toggle('active', b.dataset.scenario === activeId);
+    }
+    if (!activeId) return;
+
+    const spec = scenarioSpecById(activeId);
+    ($('sc-observer') as HTMLSelectElement).value = s.scenarioObserver.id;
+    const vKey = `${spec.id}|${s.scenarioVariant}`;
+    if (vKey !== this.lastScenarioVariantsKey) {
+      this.lastScenarioVariantsKey = vKey;
+      const box = $('sc-variants');
+      const btns = spec.variants.map((v) => {
+        const b = document.createElement('button');
+        b.textContent = v.shortLabel;
+        b.title = v.label;
+        if (v.id === s.scenarioVariant) b.className = 'active';
+        b.addEventListener('click', () => this.h.setScenarioVariant(v.id));
+        return b;
+      });
+      box.replaceChildren(...btns);
+    }
+
+    $('sc-beam-row').hidden = activeId !== 'report-starlink11200';
+    for (const b of document.querySelectorAll<HTMLButtonElement>('#sc-beam-mode [data-track]')) {
+      b.classList.toggle('active', b.dataset.track === s.scenarioBeamTracking);
+    }
+    $('sc-sib19-row').hidden = activeId !== 'report-nr-ntn';
+    ($('sc-sib19') as HTMLInputElement).checked = s.scenarioSib19;
+    $('sc-pass-row').hidden = activeId === 'report-amazonas5';
+  }
+
+  private updateScenarios(s: SimState, d: Derived) {
+    const sc = d.scenario;
+    if (!sc) return;
+    const $ = <T extends HTMLElement>(id: string) => this.el<T>(id);
+
+    $('mission-name').textContent = `${sc.title} · ${sc.serviceModeBadge}`;
+    $('sc-elev').textContent = `${sc.elevationDeg.toFixed(2)}°`;
+    $('sc-az').textContent = `${sc.azimuthDeg.toFixed(2)}°`;
+    $('sc-slant').textContent = `${sc.slantKm.toFixed(2)} km`;
+    $('sc-delay').textContent = `${sc.delayMs.toFixed(2)} ms`;
+    $('sc-fspl').textContent = `${sc.fsplDb.toFixed(2)} dB`;
+    if (Math.abs(sc.dopplerHz) < 500 && sc.id !== 'report-amazonas5') {
+      const sign = sc.dopplerHz >= 0 ? '+' : '';
+      $('sc-doppler').textContent = `${sign}${sc.dopplerHz.toFixed(0)} Hz`;
+    } else {
+      const kHz = sc.dopplerHz / 1000;
+      const sign = kHz >= 0 ? '+' : '';
+      $('sc-doppler').textContent = `${sign}${kHz.toFixed(2)} kHz`;
+    }
+    $('sc-cn0').textContent = `${sc.cn0DbHz.toFixed(2)} dBHz`;
+    $('sc-cn').textContent = `${sc.cnDb >= 0 ? '+' : ''}${sc.cnDb.toFixed(2)} dB`;
+
+    $('sc-detail').textContent = sc.handoverState
+      ? `${sc.bandSummary}\n${sc.handoverState}`
+      : sc.bandSummary;
+
+    const feederBox = $('sc-feeder-box');
+    if (sc.feeder) {
+      feederBox.hidden = false;
+      feederBox.textContent = `Doble enlace (Gateway ${sc.feeder.gatewayName}): E ${sc.feeder.elevationDeg.toFixed(1)}° · ρ ${sc.feeder.slantKm.toFixed(1)} km · Ka ${sc.feeder.freqGHz} GHz · τ_total ${sc.feeder.totalDelayMs.toFixed(2)} ms`;
+    } else {
+      feederBox.hidden = true;
+    }
+
+    const sibBox = $('sc-sib19-status');
+    if (sc.sib19) {
+      sibBox.hidden = false;
+      sibBox.textContent = `${sc.sib19.status} · Avance TA ≈ ${sc.sib19.timingAdvanceMs.toFixed(2)} ms`;
+    } else {
+      sibBox.hidden = true;
+    }
+
+    const bsBadge = $('sc-bs-badge');
+    bsBadge.textContent = sc.baseStationLocation;
+    bsBadge.classList.toggle('orbit', sc.id === 'report-starlink11200');
+    $('sc-footnote').textContent = sc.footnote;
+
+    const routeKey = `${sc.id}|${sc.variantId}|${sc.observer.id}`;
+    if (routeKey !== this.lastScenarioRouteKey) {
+      this.lastScenarioRouteKey = routeKey;
+      this.renderScenarioRoute(sc);
+    }
+
+    if (sc.id !== 'report-amazonas5') {
+      const dtSec = Math.round((s.simTime - s.orbit.epoch) / 1000);
+      for (const b of document.querySelectorAll<HTMLButtonElement>('#sc-pass-jumps [data-offset]')) {
+        const off = Number(b.dataset.offset ?? 0);
+        b.classList.toggle('active', Math.abs(dtSec - off) <= 3);
+      }
+    }
+  }
+
+  private renderScenarioRoute(sc: ScenarioTelemetry) {
+    const flow = this.el('sc-route-flow');
+    const children: HTMLElement[] = [];
+    const buildNode = (n: ScenarioRouteNode) => {
+      const card = document.createElement('div');
+      card.className = `sc-node${
+        n.role === 'bs-orbit' || n.role === 'bs-ground'
+          ? ' bs'
+          : n.role === 'sat-relay'
+            ? ' sat'
+            : ''
+      }`;
+      const title = document.createElement('b');
+      title.textContent = n.label;
+      const sub = document.createElement('span');
+      sub.textContent = n.sub;
+      card.append(title, sub);
+      children.push(card);
+
+      if (n.linkAfter) {
+        const hop = document.createElement('div');
+        const cls = n.linkAfter.kind === 'sat-feeder'
+          ? ' feeder'
+          : n.linkAfter.kind !== 'terrestrial'
+            ? ' sat'
+            : '';
+        hop.className = `sc-hop${cls}`;
+        hop.textContent = `↓ ${n.linkAfter.label}`;
+        children.push(hop);
+      }
+    };
+    for (const node of sc.route) buildNode(node);
+    flow.replaceChildren(...children);
   }
 }

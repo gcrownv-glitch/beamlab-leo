@@ -315,6 +315,7 @@ export interface CityPreset {
 export const PERU_CITIES: CityPreset[] = [
   { id: 'lima', name: 'Lima', lat: -12.05, lon: -77.04 },
   { id: 'arequipa', name: 'Arequipa', lat: -16.41, lon: -71.54 },
+  { id: 'quilca', name: 'Quilca (Arequipa)', lat: -16.7, lon: -72.4 },
   { id: 'cusco', name: 'Cusco', lat: -13.53, lon: -71.97 },
   { id: 'trujillo', name: 'Trujillo', lat: -8.11, lon: -79.03 },
   { id: 'chiclayo', name: 'Chiclayo', lat: -6.77, lon: -79.84 },
@@ -341,6 +342,7 @@ export interface WorldCity {
 export const WORLD_CITIES: WorldCity[] = [
   { name: 'Lima', country: 'PE', lat: -12.05, lon: -77.04 },
   { name: 'Arequipa', country: 'PE', lat: -16.41, lon: -71.54 },
+  { name: 'Quilca', country: 'PE', lat: -16.7, lon: -72.4 },
   { name: 'Cusco', country: 'PE', lat: -13.53, lon: -71.97 },
   { name: 'Trujillo', country: 'PE', lat: -8.11, lon: -79.03 },
   { name: 'Iquitos', country: 'PE', lat: -3.75, lon: -73.25 },

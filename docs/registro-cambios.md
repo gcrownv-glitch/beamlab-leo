@@ -8,11 +8,11 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 |---|---|
 | **Repositorio** | `beamlab-leo` |
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
-| **Versión declarada en manifiestos** | `2.4.0-beta.7` *(perfiles reales de servicio Starlink/Amazonas, seguimiento dinámico en ruta LEO y textura terrestre NASA Blue Marble 4K; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
+| **Versión declarada en manifiestos** | `2.4.0-beta.8` *(nueva sección dedicada «Escenarios» LTE y 5G desde Quilca: Amazonas 5 Backhaul Ku/Ka, STARLINK-11200 D2C y 5G NR-NTN transparente Rel-17; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
 | **Puntos de recuperación estables** | `stable/v2.3.4-orig` (`25ce657`, v2.3.4 original) · `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2) · tag/Release `v2.3.4` intacto en GitHub |
-| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.7`) |
-| **Última actualización** | `2026-11-26T08:52:00-05:00` (`2026-11-26T13:52:00Z`) |
-| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` + verificación visual en Chromium (`1280×720`) en verde · `vitest run`: **16 archivos / 79 pruebas aprobadas** |
+| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.8`) |
+| **Última actualización** | `2026-11-26T10:19:00-05:00` (`2026-11-26T15:19:00Z`) |
+| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` + verificación visual en Chromium (`1280×720`) en verde · `vitest run`: **17 archivos / 83 pruebas aprobadas** |
 
 ---
 
@@ -41,7 +41,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Catálogo Starlink/Amazonas** | `355780c` | `2026-11-26T02:17:31-05:00` (`07:17:31Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Añadir Starlink V1.0–V3 (`1007`, `2150`, `3005`, `5241`, `30001`, `31005`, `V2-SIM`, `40001`, `40012`) + flota GEO Amazonas (`2`, `3`, `5`, `Nexus`) y soporte 3D/enlace GEO (`2.4.0-beta.4`) |
 | **Huella Celular / Beta 5** | `8dbd169` | `2026-11-26T02:51:54-05:00` (`07:51:54Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Mapa celular 512×512 acotado espacialmente, envolvente RF individual (`lobeFade`) + feather geodésico suave en frontera, shader translúcido, corrección `.btn.mobile-only` en escritorio y deploy web `2.4.0-beta.5` |
 | **GEO Amazonas & Ciudades / Beta 6** | `03f7d26` | `2026-11-26T03:37:00-05:00` (`08:37:00Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Perfiles realistas Amazonas 2/3/5/Nexus, regiones Américas/LatAm/Atlántico, zoom dinámico `(u,v)` en `GainMap`, puntual/celular/conformada circular y poligonal en GEO, ranura GEO libre y selector de 13 ciudades del Perú (`2.4.0-beta.6`) |
-| **Perfiles Reales, Ruta LEO & Tierra 4K / Beta 7** | *(cabeza de rama)* | `2026-11-26T08:52:00-05:00` (`13:52:00Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Perfiles reales de servicio (`#strict-service` + modo laboratorio), autoapuntado dinámico LEO en ruta con 50 ciudades (`WORLD_CITIES`), cono operativo `≥ 25°`, roles DTH/HTS Amazonas y textura NASA Blue Marble 4K (`2.4.0-beta.7`) |
+| **Perfiles Reales, Ruta LEO & Tierra 4K / Beta 7** | `a5ece3d` | `2026-11-26T08:52:00-05:00` (`13:52:00Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Perfiles reales de servicio (`#strict-service` + modo laboratorio), autoapuntado dinámico LEO en ruta con 50 ciudades (`WORLD_CITIES`), cono operativo `≥ 25°`, roles DTH/HTS Amazonas y textura NASA Blue Marble 4K (`2.4.0-beta.7`) |
+| **Sección Escenarios LTE/5G (Informe Quilca) / Beta 8** | *(cabeza de rama)* | `2026-11-26T10:19:00-05:00` (`15:19:00Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Nueva sección dedicada **Escenarios** (`#scenarios-drawer`) con Escenario A (Amazonas 5 Backhaul GEO Ku/Ka), Escenario B (STARLINK-11200 [DTC] NORAD 60310), Escenario C (5G NR-NTN Rel-17 n255/n256 + doble enlace + SIB19), observador Quilca y diagramas de ruta extremo a extremo (`2.4.0-beta.8`) |
 
 ---
 
@@ -306,6 +307,17 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
   - **Seguimiento dinámico continuo en ruta Starlink (`region: 'visible'`, `#spot-auto`, `WORLD_CITIES`, `nearestVisibleCity()`):** todos los Starlink operativos inician reproduciendo su órbita real inclinada (`53.0°`, `53.2°`, `97.3°`, `43.0°`) con huella activa continua en todo el recorrido (`≥ 25°` de elevación operativa en `beamsVisibleLattice()`) e identificando dinámicamente la ciudad servida (`WORLD_CITIES`, 50 ciudades globales).
   - **Textura terrestre 4K (`4096×2048`):** reemplazada `public/assets/earth_day.jpg` (`820 567` bytes) a partir de NASA Blue Marble Next Generation, más *anisotropy* hasta `16×`, *mipmaps* trilineales y mayor contraste relieve/costa en `src/scene.ts`.
   - Verificado con **16 archivos / 79 pruebas** en verde e inspección visual en Chromium `1280×720` (`Amazonas 2`, `STARLINK-3005`, `STARLINK-31005` y modo laboratorio desbloqueado).
+
+#### 10. Sección dedicada «Escenarios» LTE y 5G del informe técnico (`2.4.0-beta.8`)
+- **Alcance e integración modular sin alterar el simulador base (`src/core/orbit.ts`, `src/core/link.ts`, `src/core/regions.ts`, `src/core/scenarios.ts`, `src/core/presets.ts`, `src/state.ts`, `src/engine.ts`, `src/scene.ts`, `src/ui.ts`, `src/main.ts`, `index.html`, `src/styles.css`, `tests/scenarios.test.ts`):**
+  - El arranque por defecto (`defaultState().scenarioId = null`) permanece intacto; el botón **`Escenarios`** (`#btn-scenarios`, tecla `E`) despliega el panel lateral `#scenarios-drawer` (colapsando `#panel-orbit` sin solapar `#dock`) y el botón **`Salir`** restaura por completo el modo libre.
+  - **Observador por defecto:** **Quilca, Arequipa (`16.7° S, 72.4° O`)**, agregado también a `PERU_CITIES`, `WORLD_CITIES` y selectores de ciudades, con selector rápido a `Lima (MTC)`, `Arequipa` y `Cusco`.
+  - **Cálculo orbital y de enlace ampliado:** `observerLookAngles()` (azimut, elevación, $\rho$, retardo $\tau = \rho/c$), `radialDoppler()` (diferencia centrada $\Delta t = 2\text{ s}$, Ec. 24), `computePassWindows()` (ventanas `0°/10°/20°/30°`), `elementsForPassPeak()` y utilidades de reflector parabólico (`reflectorGainDbi()`, `reflectorHpbwDeg()`, `fsplDb()`).
+  - **Escenario A — Amazonas 5 (Backhaul GEO, Hispasat, NORAD 42934):** `61° O`, `r_s = 42 164 km`; desde Quilca reproduce `A = 35.06°`, `E = 66.40°`, `ρ = 36 241.92 km`, `τ = 120.89 ms`, reflector `D = 3 m` (`48.94 dBi`, `θ₃dB ≈ 0.58°`), `FSPL = 205.22 dB`, `P_R = -112.28 dBW` (`C/N = 19.00 dB`, `C/N₀ = 94.56 dBHz` en `12 GHz / 36 MHz`) y conmutación a **34 haces puntuales en Ka (`20 GHz`)**.
+  - **Escenario B — STARLINK-11200 [DTC] (LTE Directo, NORAD 60310, `2024-133K`):** órbita LEO `362.83 km`, `53.1602°`, paso máximo `37.16°` sobre Quilca (`ρ_min = 574.91 km`, ventana `≥10° ≈ 5.57 min`), selector **`Ref. 2 GHz` (`180 kHz`)** / **`PCS G` (`1910–1915 / 1990–1995 MHz`)**, Doppler `±42.26 kHz` a `±2.5 min`, modo de haz móvil vs celda fija con indicador de *handover* y trazado del recorrido **Entel–Starlink (Quilca → Lima)**.
+  - **Escenario C — Modelo 5G NR-NTN Transparente (3GPP Release 17, TS 38.300):** selector **`n255` (L)** / **`n256` (S)**, doble enlace 3D simultáneo (**enlace de servicio `NR-Uu`** hacia Quilca + **enlace de alimentación `Ka 28 GHz`** hacia Pasarela NTN Lima) con retardo acumulado $\tau_{\text{total}}$, e indicador interactivo **SIB19** (precompensación de efemérides y avance temporal).
+  - **Diagrama visual de ruta y marcadores 3D:** pines y enlaces 3D en `SceneView` (`observerPin`, `gatewayPin`, `serviceLinkLine`, `feederLinkLine`) + tarjeta de bloques extremo a extremo señalando tramos radio espaciales y ubicación de la estación base (`tierra` vs `órbita` vs `repetidor transparente`).
+  - Verificado con **17 archivos / 83 pruebas** en verde e inspección visual en Chromium `1280×720`.
 
 ---
 

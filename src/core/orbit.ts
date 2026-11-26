@@ -1,4 +1,4 @@
-import { DEG, J2, MU_EARTH, R_EARTH, TWO_PI } from './constants';
+import { C_LIGHT, DEG, J2, MU_EARTH, R_EARTH, TWO_PI } from './constants';
 import { type Vec3, cross, dot, len, normalize, rotateZ, v3 } from './vec';
 
 /** Elementos keplerianos. Los ángulos están en radianes. */
@@ -284,4 +284,204 @@ export function circularElements(
     M0: M0Deg * DEG,
     epoch,
   };
+}
+
+export interface ObserverLook {
+  azimuthDeg: number;
+  elevationDeg: number;
+  slantKm: number;
+  delayMs: number;
+}
+
+/** Azimut, elevación, distancia oblicua y retardo unidireccional desde un observador en Tierra. */
+export function observerLookAngles(
+  satEcef: Vec3,
+  obsLatRad: number,
+  obsLonRad: number,
+): ObserverLook {
+  const obs = geodeticToEcef(obsLatRad, obsLonRad, 0);
+  const rho = { x: satEcef.x - obs.x, y: satEcef.y - obs.y, z: satEcef.z - obs.z };
+  const sinLat = Math.sin(obsLatRad);
+  const cosLat = Math.cos(obsLatRad);
+  const sinLon = Math.sin(obsLonRad);
+  const cosLon = Math.cos(obsLonRad);
+
+  const east: Vec3 = { x: -sinLon, y: cosLon, z: 0 };
+  const north: Vec3 = { x: -sinLat * cosLon, y: -sinLat * sinLon, z: cosLat };
+  const up: Vec3 = { x: cosLat * cosLon, y: cosLat * sinLon, z: sinLat };
+
+  const xE = dot(rho, east);
+  const xN = dot(rho, north);
+  const xU = dot(rho, up);
+  const slantKm = Math.hypot(xE, xN, xU);
+  const horiz = Math.hypot(xE, xN);
+  const azimuthDeg = (((Math.atan2(xE, xN) / DEG) % 360) + 360) % 360;
+  const elevationDeg = Math.atan2(xU, horiz) / DEG;
+  const delayMs = ((slantKm * 1000) / C_LIGHT) * 1000;
+  return { azimuthDeg, elevationDeg, slantKm, delayMs };
+}
+
+/** Rapidez radial y desplazamiento Doppler por diferencia centrada (Ec. 24). */
+export function radialDoppler(
+  el: OrbitElements,
+  ms: number,
+  obsLatRad: number,
+  obsLonRad: number,
+  freqGHz: number,
+  dtSec = 2,
+  useJ2 = true,
+): { vrKmS: number; dopplerHz: number } {
+  const dtMs = dtSec * 1000;
+  const rPlus = slantRange(propagate(el, ms + dtMs, useJ2).rEcef, obsLatRad, obsLonRad);
+  const rMinus = slantRange(propagate(el, ms - dtMs, useJ2).rEcef, obsLatRad, obsLonRad);
+  const vrKmS = (rPlus - rMinus) / (2 * dtSec);
+  const dopplerHz = -(vrKmS / (C_LIGHT / 1000)) * (freqGHz * 1e9);
+  return { vrKmS, dopplerHz };
+}
+
+export interface PassWindowSummary {
+  peakElevDeg: number;
+  minSlantKm: number;
+  peakTimeMs: number;
+  windowsMin: Record<number, number>;
+}
+
+/** Evalúa ventanas geométricas sobre distintos umbrales de elevación alrededor de un paso. */
+export function computePassWindows(
+  el: OrbitElements,
+  centerMs: number,
+  obsLatRad: number,
+  obsLonRad: number,
+  thresholdsDeg: readonly number[] = [0, 10, 20, 30],
+  spanSec = 420,
+  stepSec = 2,
+): PassWindowSummary {
+  let peakElevDeg = -90;
+  let minSlantKm = Infinity;
+  let peakTimeMs = centerMs;
+  const first: Record<number, number | null> = {};
+  const last: Record<number, number | null> = {};
+  for (const th of thresholdsDeg) {
+    first[th] = null;
+    last[th] = null;
+  }
+
+  for (let dtS = -spanSec; dtS <= spanSec; dtS += stepSec) {
+    const t = centerMs + dtS * 1000;
+    const look = observerLookAngles(propagate(el, t, true).rEcef, obsLatRad, obsLonRad);
+    if (look.elevationDeg > peakElevDeg) {
+      peakElevDeg = look.elevationDeg;
+      minSlantKm = look.slantKm;
+      peakTimeMs = t;
+    }
+    for (const th of thresholdsDeg) {
+      if (look.elevationDeg >= th) {
+        if (first[th] === null) first[th] = dtS;
+        last[th] = dtS;
+      }
+    }
+  }
+
+  const windowsMin: Record<number, number> = {};
+  for (const th of thresholdsDeg) {
+    const f = first[th];
+    const l = last[th];
+    windowsMin[th] = f !== null && l !== null && l > f ? (l - f) / 60 : 0;
+  }
+  return { peakElevDeg, minSlantKm, peakTimeMs, windowsMin };
+}
+
+function elementsOverSubpoint(
+  altKm: number,
+  incDeg: number,
+  latSatRad: number,
+  lonSatRad: number,
+  epoch: number,
+  descending: boolean,
+  ecc: number,
+): OrbitElements {
+  const inc = incDeg * DEG;
+  const sinInc = Math.sin(inc);
+  const ratio = sinInc !== 0 ? Math.max(-1, Math.min(1, Math.sin(latSatRad) / sinInc)) : 0;
+  const uBase = Math.asin(ratio);
+  const u = descending ? Math.PI - uBase : uBase;
+  const x = Math.cos(u);
+  const y = Math.sin(u) * Math.cos(inc);
+  const lonEci = Math.atan2(y, x);
+  const target = lonSatRad + gmstRad(epoch);
+  const raan = (((target - lonEci) % TWO_PI) + TWO_PI) % TWO_PI;
+  const e = Math.max(0, Math.min(0.99, ecc));
+  const nu = ((u % TWO_PI) + TWO_PI) % TWO_PI;
+  const E = 2 * Math.atan2(
+    Math.sqrt(1 - e) * Math.sin(nu / 2),
+    Math.sqrt(1 + e) * Math.cos(nu / 2),
+  );
+  const M0 = (((E - e * Math.sin(E)) % TWO_PI) + TWO_PI) % TWO_PI;
+  return {
+    a: R_EARTH + altKm,
+    e,
+    i: inc,
+    raan,
+    argp: 0,
+    M0,
+    epoch,
+  };
+}
+
+/** Construye una órbita LEO que alcanza una elevación máxima exacta sobre el observador en `epoch`. */
+export function elementsForPassPeak(
+  altKm: number,
+  incDeg: number,
+  obsLatDeg: number,
+  obsLonDeg: number,
+  maxElevDeg: number,
+  epoch: number,
+  descending = true,
+  side: 'east' | 'west' = 'east',
+  ecc = 0.0002,
+): OrbitElements {
+  const obsLat = obsLatDeg * DEG;
+  const obsLon = obsLonDeg * DEG;
+  const E = Math.max(0.5, Math.min(89.9, maxElevDeg)) * DEG;
+  let psi = Math.acos(Math.max(-1, Math.min(1, (R_EARTH / (R_EARTH + altKm)) * Math.cos(E)))) - E;
+
+  const inc = incDeg * DEG;
+  const sinAz = Math.max(-0.999, Math.min(0.999, Math.cos(inc) / Math.max(0.05, Math.cos(obsLat))));
+  let trkAz = descending ? Math.PI - Math.asin(sinAz) : Math.asin(sinAz);
+
+  const subpoint = (beta: number, angDist: number) => {
+    const lat2 = Math.asin(
+      Math.max(-1, Math.min(1, Math.sin(obsLat) * Math.cos(angDist) + Math.cos(obsLat) * Math.sin(angDist) * Math.cos(beta))),
+    );
+    const lon2 = obsLon + Math.atan2(
+      Math.sin(beta) * Math.sin(angDist) * Math.cos(obsLat),
+      Math.cos(angDist) - Math.sin(obsLat) * Math.sin(lat2),
+    );
+    return { lat2, lon2 };
+  };
+
+  let el = elementsOverSubpoint(altKm, incDeg, obsLat, obsLon, epoch, descending, ecc);
+  for (let k = 0; k < 6; k++) {
+    const beta = side === 'east' ? trkAz - Math.PI / 2 : trkAz + Math.PI / 2;
+    const { lat2, lon2 } = subpoint(beta, psi);
+    el = elementsOverSubpoint(altKm, incDeg, lat2, lon2, epoch, descending, ecc);
+    const sAt = propagate(el, epoch, true);
+    const sPrev = propagate(el, epoch - 5000, true);
+    const sNext = propagate(el, epoch + 5000, true);
+    const dLat = sNext.lat - sPrev.lat;
+    const dLon = (((sNext.lon - sPrev.lon + Math.PI) % TWO_PI) + TWO_PI) % TWO_PI - Math.PI;
+    trkAz = Math.atan2(dLon * Math.cos(lat2), dLat);
+    psi = Math.acos(Math.max(-1, Math.min(1, (R_EARTH / (R_EARTH + sAt.alt)) * Math.cos(E)))) - E;
+  }
+  const n = meanMotion(el.a);
+  const mDot = n + j2Rates(el.a, el.e, el.i).mDotJ2;
+  for (let j = 0; j < 2; j++) {
+    const vr0 = radialDoppler(el, epoch, obsLat, obsLon, 2.0, 1, true).vrKmS;
+    const vr1 = radialDoppler(el, epoch + 1000, obsLat, obsLon, 2.0, 1, true).vrKmS;
+    const slope = vr1 - vr0;
+    if (Math.abs(slope) < 1e-6) break;
+    const dtSec = Math.max(-15, Math.min(15, -vr0 / slope));
+    el = { ...el, M0: (((el.M0 + mDot * dtSec) % TWO_PI) + TWO_PI) % TWO_PI };
+  }
+  return el;
 }

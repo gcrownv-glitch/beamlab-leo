@@ -12,13 +12,37 @@ export interface LinkParams {
   rxGainDbi: number;
   noiseFigureDb: number;
   bandwidthMHz: number;
+  bandwidthHz?: number;
   antennaTempK?: number;
+  fixedTsysK?: number;
+  fixedEirpDbW?: number;
+  fixedExtraLossDb?: number;
   elevationDeg?: number;
   rainMarginDb?: number;
   atmosphericLossDb?: number;
   implementationMarginDb?: number;
   usersPerBeam?: number;
   coChannelCiDb?: number | null;
+}
+
+/** Pérdida básica de transmisión en espacio libre según UIT-R P.525 [dB]. */
+export function fsplDb(slantKm: number, freqGHz: number): number {
+  const dM = Math.max(slantKm, 1) * 1000;
+  const lambda = C_LIGHT / (Math.max(freqGHz, 1e-4) * 1e9);
+  return 20 * Math.log10((4 * Math.PI * dM) / lambda);
+}
+
+/** Ganancia idealizada de un reflector parabólico G = 10 log10(η (π D / λ)²) [dBi]. */
+export function reflectorGainDbi(diameterM: number, efficiency: number, freqGHz: number): number {
+  const lambda = C_LIGHT / (Math.max(freqGHz, 1e-4) * 1e9);
+  const ratio = (Math.PI * Math.max(0.05, diameterM)) / lambda;
+  return 10 * Math.log10(Math.max(1e-4, efficiency) * ratio * ratio);
+}
+
+/** Ancho de haz a mitad de potencia aproximado θ_3dB ≈ 70 λ / D [°]. */
+export function reflectorHpbwDeg(diameterM: number, freqGHz: number): number {
+  const lambda = C_LIGHT / (Math.max(freqGHz, 1e-4) * 1e9);
+  return (70 * lambda) / Math.max(0.05, diameterM);
 }
 
 /**
@@ -66,6 +90,7 @@ export interface LinkResult {
   tsysK: number;
   extraLossDb: number;
   elevationDeg: number;
+  delayMs: number;
   modcod: string;
   spectralEfficiency: number;
   throughputMbps: number;
@@ -118,23 +143,31 @@ export function atmosphericLossDb(freqGHz: number, elevationDeg: number): number
  */
 export function linkBudget(p: LinkParams): LinkResult {
   const dM = Math.max(p.slantKm, 1) * 1000;
-  const lambda = C_LIGHT / (p.freqGHz * 1e9);
-  const fsplDb = 20 * Math.log10((4 * Math.PI * dM) / lambda);
-  const eirpDbW = 10 * Math.log10(Math.max(p.txPowerW, 1e-6)) + p.txGainDbi;
+  const fspl = fsplDb(p.slantKm, p.freqGHz);
+  const delayMs = (dM / C_LIGHT) * 1000;
+  const eirpDbW = p.fixedEirpDbW !== undefined && Number.isFinite(p.fixedEirpDbW)
+    ? p.fixedEirpDbW
+    : 10 * Math.log10(Math.max(p.txPowerW, 1e-6)) + p.txGainDbi;
   const pfdDbWm2 = eirpDbW - 10 * Math.log10(4 * Math.PI * dM * dM);
 
   const elevationDeg = Math.max(0, Math.min(90, p.elevationDeg ?? 90));
   const rainDb = Math.max(0, p.rainMarginDb ?? 0);
   const atmDb = Math.max(0, p.atmosphericLossDb ?? atmosphericLossDb(p.freqGHz, elevationDeg));
-  const extraLossDb = atmDb + rainDb;
+  const extraLossDb = p.fixedExtraLossDb !== undefined && Number.isFinite(p.fixedExtraLossDb)
+    ? Math.max(0, p.fixedExtraLossDb)
+    : atmDb + rainDb;
 
-  const rxPowerDbm = eirpDbW - fsplDb - extraLossDb + p.rxGainDbi + 30;
+  const rxPowerDbm = eirpDbW - fspl - extraLossDb + p.rxGainDbi + 30;
 
-  // Temperatura de sistema: antena (50 K en tierra, 290 K en satélite) + receptor.
+  // Temperatura de sistema: fija explícita o antena (50 K en tierra, 290 K en satélite) + receptor.
   const tantK = Math.max(1, p.antennaTempK ?? GROUND_ANTENNA_TEMP_K);
-  const tsysK = tantK + (Math.pow(10, p.noiseFigureDb / 10) - 1) * 290;
+  const tsysK = p.fixedTsysK !== undefined && Number.isFinite(p.fixedTsysK)
+    ? Math.max(1, p.fixedTsysK)
+    : tantK + (Math.pow(10, p.noiseFigureDb / 10) - 1) * 290;
   const n0DbmHz = -174 + 10 * Math.log10(tsysK / 290);
-  const bandwidthHz = Math.max(1, p.bandwidthMHz) * 1e6;
+  const bandwidthHz = p.bandwidthHz !== undefined && Number.isFinite(p.bandwidthHz)
+    ? Math.max(1, p.bandwidthHz)
+    : Math.max(1, p.bandwidthMHz) * 1e6;
   const noiseDbm = n0DbmHz + 10 * Math.log10(bandwidthHz);
   const cn0DbHz = rxPowerDbm - n0DbmHz;
   const cnDb = rxPowerDbm - noiseDbm;
@@ -151,7 +184,7 @@ export function linkBudget(p: LinkParams): LinkResult {
     if (effectiveCnDb >= m.minCnDb) selected = m;
   }
 
-  const bandwidth = Math.max(1, p.bandwidthMHz);
+  const bandwidth = Math.max(0.01, bandwidthHz / 1e6);
   const throughputMbps = selected ? bandwidth * selected.spectralEfficiency : 0;
   const users = Math.max(1, p.usersPerBeam ?? 20);
   const userThroughputMbps = throughputMbps / users;
@@ -159,7 +192,7 @@ export function linkBudget(p: LinkParams): LinkResult {
   const marginDb = selected ? effectiveCnDb - selected.minCnDb : effectiveCnDb - lowest.minCnDb;
 
   return {
-    fsplDb,
+    fsplDb: fspl,
     freqGHz: p.freqGHz,
     eirpDbW,
     pfdDbWm2,
@@ -173,6 +206,7 @@ export function linkBudget(p: LinkParams): LinkResult {
     tsysK,
     extraLossDb,
     elevationDeg,
+    delayMs,
     modcod: selected?.name ?? 'sin enlace',
     spectralEfficiency: selected?.spectralEfficiency ?? 0,
     throughputMbps,

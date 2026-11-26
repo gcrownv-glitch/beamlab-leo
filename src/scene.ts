@@ -8,7 +8,7 @@ import { DEG, EARTH_UNITS, R_EARTH } from './core/constants';
 import { saveBlob, type SaveResult } from './save';
 import type { Derived, Quality, SimState } from './state';
 import { footprintRing, type AntennaFrame } from './core/geometry';
-import { ecefToGeodetic, groundTrack, horizonOffNadir, maxCentralAngle, orbitPathEci } from './core/orbit';
+import { ecefToGeodetic, geodeticToEcef, groundTrack, horizonOffNadir, maxCentralAngle, orbitPathEci } from './core/orbit';
 import { regionPolygon } from './core/regions';
 import type { Vec3 } from './core/vec';
 import type { Beam } from './core/array';
@@ -109,12 +109,16 @@ export class SceneView {
   private activeDisc!: THREE.Mesh;
   private beamCone!: THREE.Mesh;
   private regionLine!: THREE.LineLoop;
+  private observerPin!: THREE.Mesh;
+  private gatewayPin!: THREE.Mesh;
+  private serviceLinkLine!: THREE.Line;
+  private feederLinkLine!: THREE.Line;
 
   private beamPos!: Float32Array;
   private beamCol!: Float32Array;
   private maxBeamVerts = 600 * 56 * 2;
 
-  private labels: { sat: HTMLDivElement; target: HTMLDivElement };
+  private labels: { sat: HTMLDivElement; target: HTMLDivElement; observer: HTMLDivElement; gateway: HTMLDivElement };
   private ray = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
   private hoverQueued = 0;
@@ -217,6 +221,8 @@ export class SceneView {
     this.labels = {
       sat: this.makeLabel('sat'),
       target: this.makeLabel('target'),
+      observer: this.makeLabel('observer'),
+      gateway: this.makeLabel('gateway'),
     };
     this.applyTextures(textures);
 
@@ -237,7 +243,7 @@ export class SceneView {
     canvas.addEventListener('pointerleave', this.onPointerLeaveBound);
   }
 
-  private makeLabel(kind: 'sat' | 'target'): HTMLDivElement {
+  private makeLabel(kind: 'sat' | 'target' | 'observer' | 'gateway'): HTMLDivElement {
     const div = document.createElement('div');
     div.className = `label ${kind}`;
     div.style.opacity = '0';
@@ -647,6 +653,39 @@ export class SceneView {
     );
     this.regionLine.visible = false;
     this.earthGroup.add(this.regionLine);
+
+    const pinGeo = new THREE.SphereGeometry(0.068, 18, 12);
+    this.observerPin = new THREE.Mesh(
+      pinGeo,
+      new THREE.MeshBasicMaterial({ color: 0x22d3ee }),
+    );
+    this.observerPin.visible = false;
+    this.earthGroup.add(this.observerPin);
+
+    this.gatewayPin = new THREE.Mesh(
+      pinGeo.clone(),
+      new THREE.MeshBasicMaterial({ color: 0xfbbf24 }),
+    );
+    this.gatewayPin.visible = false;
+    this.earthGroup.add(this.gatewayPin);
+
+    const mkScLine = (color: number, opacity: number) => {
+      const lg = new THREE.BufferGeometry();
+      lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(2 * 3), 3));
+      const lm = new THREE.LineBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        blending: THREE.AdditiveBlending,
+      });
+      const line = new THREE.Line(lg, lm);
+      line.visible = false;
+      line.frustumCulled = false;
+      return line;
+    };
+    this.serviceLinkLine = mkScLine(0x22d3ee, 0.95);
+    this.feederLinkLine = mkScLine(0xfbbf24, 0.88);
+    this.earthGroup.add(this.serviceLinkLine, this.feederLinkLine);
   }
 
   /** Actualiza la escena con el estado y los datos derivados. */
@@ -713,6 +752,7 @@ export class SceneView {
     this.updateCoverageRing(d, state);
     this.updateBeams(d, state);
     this.updateRegion(state, d);
+    this.updateScenarioOverlays(d);
     this.updateCamera(dt, satPos, xAxis, yAxis, zAxis, state);
     this.updateLabels(d, satPos);
 
@@ -1078,6 +1118,59 @@ export class SceneView {
     this.regionLine.visible = false;
   }
 
+  private updateScenarioOverlays(d: Derived) {
+    const sc = d.scenario;
+    if (!sc) {
+      this.observerPin.visible = false;
+      this.gatewayPin.visible = false;
+      this.serviceLinkLine.visible = false;
+      this.feederLinkLine.visible = false;
+      return;
+    }
+
+    const obsEcef = geodeticToEcef(sc.observer.lat * DEG, sc.observer.lon * DEG, 12);
+    this.observerPin.position.set(obsEcef.x * KM, obsEcef.y * KM, obsEcef.z * KM);
+    this.observerPin.visible = true;
+
+    const satX = d.sat.rEcef.x * KM;
+    const satY = d.sat.rEcef.y * KM;
+    const satZ = d.sat.rEcef.z * KM;
+
+    if (sc.visible) {
+      const pos = this.serviceLinkLine.geometry.getAttribute('position') as THREE.BufferAttribute;
+      pos.setXYZ(0, satX, satY, satZ);
+      pos.setXYZ(1, obsEcef.x * KM, obsEcef.y * KM, obsEcef.z * KM);
+      pos.needsUpdate = true;
+      this.serviceLinkLine.visible = true;
+    } else {
+      this.serviceLinkLine.visible = false;
+    }
+
+    if (sc.gateway) {
+      const gwEcef = geodeticToEcef(sc.gateway.lat * DEG, sc.gateway.lon * DEG, 12);
+      this.gatewayPin.position.set(gwEcef.x * KM, gwEcef.y * KM, gwEcef.z * KM);
+      this.gatewayPin.visible = true;
+
+      const feederPos = this.feederLinkLine.geometry.getAttribute('position') as THREE.BufferAttribute;
+      feederPos.setXYZ(0, satX, satY, satZ);
+      feederPos.setXYZ(1, gwEcef.x * KM, gwEcef.y * KM, gwEcef.z * KM);
+      feederPos.needsUpdate = true;
+      const mat = this.feederLinkLine.material as THREE.LineBasicMaterial;
+      if (sc.feeder) {
+        mat.color.setHex(0xfbbf24);
+        mat.opacity = sc.feeder.elevationDeg >= 0 ? 0.92 : 0.25;
+        this.feederLinkLine.visible = sc.feeder.elevationDeg >= 0;
+      } else {
+        mat.color.setHex(0xa78bfa);
+        mat.opacity = sc.visible ? 0.52 : 0;
+        this.feederLinkLine.visible = sc.visible;
+      }
+    } else {
+      this.gatewayPin.visible = false;
+      this.feederLinkLine.visible = false;
+    }
+  }
+
   /**
    * Gestiona los tres modos de cámara:
    * - 'earth': órbita libre centrada en el planeta.
@@ -1177,6 +1270,34 @@ export class SceneView {
       this.setLabel(this.labels.target, p, visible, `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`, 16);
     } else {
       this.labels.target.style.opacity = '0';
+    }
+
+    const sc = d.scenario;
+    if (sc) {
+      const obsLocal = this.observerPin.position;
+      const obsWorld = this.earthGroup.localToWorld(this.tmpWorld.copy(obsLocal));
+      const obsUp = this.tmpUp.copy(obsWorld).normalize();
+      const obsToCam = this.tmpDir.copy(cam).sub(obsWorld).normalize();
+      const obsVis = obsUp.dot(obsToCam) > 0.02;
+      const obsProj = this.tmpProj.copy(obsWorld).project(this.camera);
+      this.setLabel(this.labels.observer, obsProj, obsVis, `${sc.observer.name} · E ${sc.elevationDeg.toFixed(1)}°`, -14);
+
+      if (sc.gateway && this.gatewayPin.visible) {
+        const gwWorld = this.earthGroup.localToWorld(this.tmpWorld.copy(this.gatewayPin.position));
+        const gwUp = this.tmpUp.copy(gwWorld).normalize();
+        const gwToCam = this.tmpDir.copy(cam).sub(gwWorld).normalize();
+        const gwVis = gwUp.dot(gwToCam) > 0.02;
+        const gwProj = this.tmpProj.copy(gwWorld).project(this.camera);
+        const gwText = sc.feeder
+          ? `Pasarela NTN · E ${sc.feeder.elevationDeg.toFixed(1)}°`
+          : sc.gateway.name;
+        this.setLabel(this.labels.gateway, gwProj, gwVis, gwText, 16);
+      } else {
+        this.labels.gateway.style.opacity = '0';
+      }
+    } else {
+      this.labels.observer.style.opacity = '0';
+      this.labels.gateway.style.opacity = '0';
     }
   }
 
@@ -1344,6 +1465,8 @@ export class SceneView {
     this.renderer.dispose();
     this.labels.sat.remove();
     this.labels.target.remove();
+    this.labels.observer.remove();
+    this.labels.gateway.remove();
   }
 }
 

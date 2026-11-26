@@ -63,6 +63,15 @@ import {
   type ShapedSynthesisOutput,
   type SynthesisResult,
 } from './core/synthesis';
+import {
+  evaluateScenarioTelemetry,
+  type PassCache,
+  type ScenarioBeamTracking,
+  type ScenarioId,
+  type ScenarioObserver,
+  type ScenarioTelemetry,
+  type ScenarioVariantId,
+} from './core/scenarios';
 import type { Derived, Mode, PhaseView, QuantInfo, ShapedInfo, ShapedRegionId, SimState, SystemInfo } from './state';
 
 const ZERO_BEAM: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 0 };
@@ -130,6 +139,7 @@ export class Engine {
   private cachedMetrics: ArrayMetrics | null = null;
   private cachedActive: Beam | null = null;
   private cachedPhase: PhaseView | null = null;
+  private passCache: PassCache | undefined;
 
   constructor(state: SimState) {
     this.state = state;
@@ -286,6 +296,17 @@ export class Engine {
 
   setStrictService(enabled: boolean) {
     this.state.strictService = enabled;
+  }
+
+  setScenarioState(patch: {
+    scenarioId?: ScenarioId | null;
+    scenarioVariant?: ScenarioVariantId;
+    scenarioObserver?: ScenarioObserver;
+    scenarioBeamTracking?: ScenarioBeamTracking;
+    scenarioSib19?: boolean;
+  }) {
+    Object.assign(this.state, patch);
+    this.passCache = undefined;
   }
 
   setShapedCenter(lat: number, lon: number) {
@@ -684,6 +705,20 @@ export class Engine {
       servedLocation = near ? `${near.city.name}, ${near.city.country}` : 'Océano / mar abierto';
     }
 
+    let scenario: ScenarioTelemetry | null = null;
+    if (s.scenarioId !== null) {
+      const res = evaluateScenarioTelemetry(
+        s.scenarioId,
+        s,
+        sat,
+        active,
+        activeMetrics.hpbwDeg,
+        this.passCache,
+      );
+      scenario = res.telemetry;
+      if (res.cache) this.passCache = res.cache;
+    }
+
     return {
       sat,
       frame,
@@ -704,6 +739,7 @@ export class Engine {
       system,
       source,
       servedLocation,
+      scenario,
     };
   }
 

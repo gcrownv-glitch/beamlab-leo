@@ -1,5 +1,21 @@
 import { DEG, R_EARTH } from './constants';
+import type { ArrayConfig, TaperType } from './array';
 import { gmstRad, type OrbitElements } from './orbit';
+import type { RegionId } from './regions';
+
+export interface PresetPayload {
+  mode: 'global' | 'spot' | 'cellular' | 'shaped';
+  region: RegionId;
+  freqGHz: number;
+  n: number;
+  dx: number;
+  q: number;
+  taper: TaperType;
+  ptxW: number;
+  reuse: number;
+  shapedRadiusKm: number;
+  summary: string;
+}
 
 export interface OrbitPreset {
   id: string;
@@ -13,6 +29,8 @@ export interface OrbitPreset {
   alongDeg: number;
   /** Longitud ecuatorial fija para ranuras GEO [deg]. */
   geoLonDeg?: number;
+  /** Perfil de carga útil realista por defecto (usado en flota Amazonas GEO). */
+  payload?: PresetPayload;
   note: string;
 }
 
@@ -134,6 +152,19 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     ecc: 0.0003,
     alongDeg: 0,
     geoLonDeg: -72,
+    payload: {
+      mode: 'cellular',
+      region: 'americas',
+      freqGHz: 12,
+      n: 16,
+      dx: 2.2,
+      q: 36,
+      taper: 'kaiser30',
+      ptxW: 50,
+      reuse: 4,
+      shapedRadiusKm: 1400,
+      summary: 'Amazonas 2 (72°O): perfil realista Ku · Américas.',
+    },
     note: 'Hispasat GEO · NORAD 35942 · 72°O (órbita inclinada), 35 786 km, cobertura Américas (Ku/C).',
   },
   {
@@ -146,6 +177,19 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     ecc: 0.0002,
     alongDeg: 0,
     geoLonDeg: -61,
+    payload: {
+      mode: 'cellular',
+      region: 'latam',
+      freqGHz: 20,
+      n: 16,
+      dx: 1.9,
+      q: 36,
+      taper: 'kaiser30',
+      ptxW: 80,
+      reuse: 4,
+      shapedRadiusKm: 1100,
+      summary: 'Amazonas 3 (61°O): perfil realista Ka HTS · Latinoamérica.',
+    },
     note: 'Hispasat GEO · NORAD 39078 · 61°O sobre Sudamérica, 35 786 km, bandas Ku/Ka HTS y C.',
   },
   {
@@ -158,6 +202,19 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     ecc: 0.0002,
     alongDeg: 0,
     geoLonDeg: -61,
+    payload: {
+      mode: 'cellular',
+      region: 'latam',
+      freqGHz: 20,
+      n: 16,
+      dx: 2.9,
+      q: 48,
+      taper: 'kaiser30',
+      ptxW: 60,
+      reuse: 4,
+      shapedRadiusKm: 900,
+      summary: 'Amazonas 5 (61°O): perfil realista Ka HTS · ~34 haces en Latinoamérica.',
+    },
     note: 'Hispasat GEO · NORAD 42934 · 61°O, 35 786 km, haces Ka HTS sobre Latinoamérica y banda Ku.',
   },
   {
@@ -170,6 +227,19 @@ export const ORBIT_PRESETS: OrbitPreset[] = [
     ecc: 0.0001,
     alongDeg: 0,
     geoLonDeg: -61,
+    payload: {
+      mode: 'cellular',
+      region: 'atlantic',
+      freqGHz: 12,
+      n: 16,
+      dx: 2.6,
+      q: 44,
+      taper: 'kaiser30',
+      ptxW: 60,
+      reuse: 4,
+      shapedRadiusKm: 1500,
+      summary: 'Amazonas Nexus (61°O): perfil realista Ku HTS + DTP · Américas y Atlántico/Groenlandia.',
+    },
     note: 'Hispasat GEO HTS · NORAD 55508 · 61°O (relevo de Amazonas 2), 35 786 km, carga útil digital Ku/Ka.',
   },
 
@@ -277,4 +347,22 @@ export function orbitForPreset(preset: OrbitPreset, epoch: number): OrbitElement
   const latDeg = preset.geoLonDeg !== undefined ? 0 : -12.05;
   const lonDeg = preset.geoLonDeg ?? -77.04;
   return elementsOverPoint(preset.altKm, preset.incDeg, latDeg, lonDeg, epoch, preset.alongDeg, preset.ecc);
+}
+
+/** Ranura geoestacionaria ecuatorial centrada en `lonDeg` [-180..180]. */
+export function geoOrbitAtLongitude(
+  lonDeg: number,
+  epoch: number,
+  altKm = 35786,
+  incDeg = 0.05,
+  ecc = 0.0002,
+): OrbitElements {
+  const lonNorm = ((((lonDeg + 180) % 360) + 360) % 360) - 180;
+  return elementsOverPoint(altKm, incDeg, 0, lonNorm, epoch, 0, ecc);
+}
+
+export const isGeoPreset = (preset: OrbitPreset): boolean => preset.geoLonDeg !== undefined;
+
+export function defaultLeoAntenna(): Partial<ArrayConfig> {
+  return { n: 16, dx: 0.5, dy: 0.5, freqGHz: 12, taper: 'kaiser30', q: 1, efficiency: 0.65 };
 }

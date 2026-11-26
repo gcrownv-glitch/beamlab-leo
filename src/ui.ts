@@ -6,12 +6,12 @@ import {
   type ArrayConfig,
 } from './core/array';
 import { DEG, R_EARTH } from './core/constants';
-import { apogeeAlt, meanMotion, orbitalPeriod, perigeeAlt, type OrbitElements } from './core/orbit';
+import { apogeeAlt, meanMotion, orbitalPeriod, perigeeAlt, propagate, type OrbitElements } from './core/orbit';
 import { ORBIT_PRESETS } from './core/presets';
-import type { RegionId } from './core/regions';
+import { cityById, PERU_CITIES, regionById, type RegionId } from './core/regions';
 import { drawPatternChart, drawPhaseMap, type PatternPoint } from './charts';
 import { BEAM_HEX, REUSE_LABELS } from './palette';
-import type { CameraMode, Derived, LinkDirection, Mode, PhaseView, Quality, QuantMode, QuantState, SimState, TerminalId } from './state';
+import type { CameraMode, Derived, LinkDirection, Mode, PhaseView, Quality, QuantMode, QuantState, ShapedRegionId, SimState, TerminalId } from './state';
 import { buildSample, type LabSample, type LabSession } from './core/lab';
 import { LabStore } from './lab-store';
 import { checkForUpdate, skipVersion, type UpdateInfo } from './update';
@@ -32,6 +32,8 @@ export interface UIHandlers {
   setAntenna(patch: Partial<ArrayConfig>): void;
   setFrequency(freqGHz: number): void;
   setPreset(id: string): void;
+  setGeoLon(lonDeg: number): void;
+  applyPresetRealProfile(): void;
   setOrbit(patch: Partial<OrbitElements>): void;
   setEpoch(ms: number): void;
   now(): void;
@@ -48,6 +50,7 @@ export interface UIHandlers {
   regenerate(): void;
   setShapedCenter(lat: number, lon: number): void;
   setShapedRadius(km: number): void;
+  setShapedRegion(region: ShapedRegionId): void;
   synthesize(): void;
   setPtx(w: number): void;
   setUplinkPower(w: number): void;
@@ -220,6 +223,12 @@ export class UI {
     $('orbit-preset').addEventListener('change', (e) => {
       this.h.setPreset((e.target as HTMLSelectElement).value);
     });
+    ($('geo-lon') as HTMLInputElement).addEventListener('input', (e) => {
+      this.h.setGeoLon(Number((e.target as HTMLInputElement).value));
+    });
+    $('geo-slot-61').addEventListener('click', () => this.h.setGeoLon(-61));
+    $('geo-slot-30').addEventListener('click', () => this.h.setGeoLon(-30));
+    $('geo-apply-real').addEventListener('click', () => this.h.applyPresetRealProfile());
 
     const bindRange = (id: string, fn: (v: number) => void) => {
       const input = $(id) as HTMLInputElement;
@@ -332,6 +341,10 @@ export class UI {
       b.addEventListener('click', () => this.h.setCamera(b.dataset.cam as CameraMode));
     }
 
+    ($('spot-city') as HTMLSelectElement).addEventListener('change', (e) => {
+      const c = cityById((e.target as HTMLSelectElement).value);
+      if (c) this.h.setSpotTarget(c.lat, c.lon);
+    });
     $('spot-lima').addEventListener('click', () => this.h.setSpotTarget(-12.05, -77.04));
     ($('spot-fixed') as HTMLInputElement).addEventListener('change', (e) => {
       this.h.setSpotFixed((e.target as HTMLInputElement).checked);
@@ -349,6 +362,13 @@ export class UI {
     }
     $('cell-generate').addEventListener('click', () => this.h.regenerate());
 
+    ($('shape-region') as HTMLSelectElement).addEventListener('change', (e) => {
+      this.h.setShapedRegion((e.target as HTMLSelectElement).value as ShapedRegionId);
+    });
+    ($('shape-city') as HTMLSelectElement).addEventListener('change', (e) => {
+      const c = cityById((e.target as HTMLSelectElement).value);
+      if (c) this.h.setShapedCenter(c.lat, c.lon);
+    });
     $('shape-lima').addEventListener('click', () => this.h.setShapedCenter(-12.05, -77.04));
     $('shape-run').addEventListener('click', () => this.h.synthesize());
 
@@ -503,6 +523,11 @@ export class UI {
     });
   }
 
+  private matchingCityId(lat: number, lon: number): string {
+    const match = PERU_CITIES.find((c) => Math.abs(c.lat - lat) < 0.03 && Math.abs(c.lon - lon) < 0.03);
+    return match ? match.id : 'custom';
+  }
+
   syncControls(s: SimState) {
     if (this.syncing) return;
     this.syncing = true;
@@ -513,6 +538,17 @@ export class UI {
       $('preset-note').textContent = preset?.note ?? 'Parámetros personalizados.';
 
       const alt = s.orbit.a - R_EARTH;
+      const isGeo = alt > 20000;
+      $('geo-controls').hidden = !isGeo;
+      const subLonDeg = this.latestDerived
+        ? Math.round(this.latestDerived.sat.lon / DEG)
+        : Math.round(propagate(s.orbit, s.simTime, false).lon / DEG);
+      const normLon = ((((subLonDeg + 180) % 360) + 360) % 360) - 180;
+      if (document.activeElement !== $('geo-lon')) {
+        ($('geo-lon') as HTMLInputElement).value = String(normLon);
+      }
+      $('geo-lon-val').textContent = `${Math.abs(normLon)}°${normLon >= 0 ? 'E' : 'O'}`;
+
       ($('altitude') as HTMLInputElement).value = String(Math.round(alt));
       $('alt-val').textContent = `${alt.toFixed(0)} km`;
       ($('inclination') as HTMLInputElement).value = String(s.orbit.i / DEG);
@@ -534,7 +570,9 @@ export class UI {
       }
       ($('freq') as HTMLSelectElement).value = String(s.antenna.freqGHz);
       ($('taper') as HTMLSelectElement).value = s.antenna.taper;
-      ($('spacing') as HTMLInputElement).value = String(s.antenna.dx);
+      const spacingEl = $('spacing') as HTMLInputElement;
+      spacingEl.max = isGeo ? '3.2' : '0.9';
+      spacingEl.value = String(s.antenna.dx);
       $('spacing-val').textContent = `${s.antenna.dx.toFixed(2)} λ`;
       ($('efficiency') as HTMLInputElement).value = String(s.antenna.efficiency);
       $('eff-val').textContent = `${Math.round(s.antenna.efficiency * 100)} %`;
@@ -571,10 +609,28 @@ export class UI {
         b.classList.toggle('active', b.dataset.cam === s.cameraMode);
       }
 
-      $('spot-target').textContent = fmtLatLon(s.spotTarget.lat, s.spotTarget.lon);
-      $('shape-center').textContent = fmtLatLon(s.shapedCenter.lat, s.shapedCenter.lon);
+      const spotCityId = this.matchingCityId(s.spotTarget.lat, s.spotTarget.lon);
+      ($('spot-city') as HTMLSelectElement).value = spotCityId;
+      const spotCity = cityById(spotCityId);
+      $('spot-target').textContent = spotCity
+        ? `${spotCity.name} · ${fmtLatLon(s.spotTarget.lat, s.spotTarget.lon)}`
+        : fmtLatLon(s.spotTarget.lat, s.spotTarget.lon);
+
+      const shapeCityId = this.matchingCityId(s.shapedCenter.lat, s.shapedCenter.lon);
+      ($('shape-city') as HTMLSelectElement).value = shapeCityId;
+      const shapeCity = cityById(shapeCityId);
+      $('shape-center').textContent = shapeCity
+        ? `${shapeCity.name} · ${fmtLatLon(s.shapedCenter.lat, s.shapedCenter.lon)}`
+        : fmtLatLon(s.shapedCenter.lat, s.shapedCenter.lon);
+
       ($('spot-fixed') as HTMLInputElement).checked = s.spotFixed;
-      ($('shape-radius') as HTMLInputElement).value = String(s.shapedRadiusKm);
+      ($('shape-region') as HTMLSelectElement).value = s.shapedRegion;
+      $('shape-circle-controls').hidden = s.shapedRegion !== 'circle';
+      const radiusEl = $('shape-radius') as HTMLInputElement;
+      radiusEl.min = isGeo ? '400' : '40';
+      radiusEl.max = isGeo ? '3500' : '400';
+      radiusEl.step = isGeo ? '50' : '10';
+      radiusEl.value = String(s.shapedRadiusKm);
       $('shape-radius-val').textContent = `${s.shapedRadiusKm} km`;
       ($('cell-region') as HTMLSelectElement).value = s.region;
       ($('cell-reuse') as HTMLSelectElement).value = String(s.reuse);
@@ -621,6 +677,12 @@ export class UI {
     $('ro-inc').textContent = `${(s.orbit.i / DEG).toFixed(1)}°`;
     $('ro-ecc').textContent = s.orbit.e.toFixed(4);
     $('ro-raan').textContent = `${((((s.orbit.raan / DEG) % 360) + 360) % 360).toFixed(0)}°`;
+    if (d.sat.alt > 20000 && document.activeElement !== $('geo-lon')) {
+      const subLon = Math.round(d.sat.lon / DEG);
+      const normLon = ((((subLon + 180) % 360) + 360) % 360) - 180;
+      ($('geo-lon') as HTMLInputElement).value = String(normLon);
+      $('geo-lon-val').textContent = `${Math.abs(normLon)}°${normLon >= 0 ? 'E' : 'O'}`;
+    }
 
     const m = d.activeMetrics;
     $('ant-d').textContent = `${m.directivityDb.toFixed(1)} dBi`;
@@ -634,7 +696,7 @@ export class UI {
       : m.apertureM >= 1
         ? `${m.apertureM.toFixed(2)} m`
         : `${(m.apertureM * 100).toFixed(0)} cm`;
-    $('grating-warn').hidden = !m.grating;
+    $('grating-warn').hidden = !m.grating || (d.sat.alt > 20000 && s.antenna.q >= 15 && s.antenna.dx <= 3.1);
 
     const sourceLabel = d.source === 'horn' ? 'bocina' : d.source === 'synthesis' ? 'síntesis' : 'arreglo';
     $('phase-caption').textContent = `${d.phase.n}×${d.phase.n} · ${sourceLabel} · ${m.hpbwDeg.toFixed(1)}°${d.quant ? ' · cuantizado' : ''}`;
@@ -650,11 +712,12 @@ export class UI {
       : s.mode === 'cellular'
         ? `${d.beams.length} haces sobre el disco visible`
         : '—';
+    const shapeLabel = s.shapedRegion !== 'circle' ? ` (${regionById(s.shapedRegion as RegionId).short})` : '';
     $('shape-info').textContent = d.shaped
-      ? `Sintetizado · Cobertura ${(d.shaped.coverage * 100).toFixed(0)} % · derrame ${d.shaped.spillDb.toFixed(1)} dB · D ${d.shaped.directivityDb.toFixed(1)} dBi`
+      ? `Sintetizado${shapeLabel} · Cobertura ${(d.shaped.coverage * 100).toFixed(0)} % · derrame ${d.shaped.spillDb.toFixed(1)} dB · D ${d.shaped.directivityDb.toFixed(1)} dBi`
       : s.antenna.n > 20
         ? `Arreglo ${s.antenna.n}×${s.antenna.n} supera el límite de síntesis (máx. 20×20). Cambia a 8×8 o 16×16 para sintetizar.`
-        : 'Pendiente de sintetizar · ajusta centro/radio y pulsa «Sintetizar cobertura».';
+        : 'Pendiente de sintetizar · elige ciudad o región y pulsa «Sintetizar cobertura».';
 
     const phase = ((((d.sat.M % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI)) * 1000;
     const timeline = $('timeline') as HTMLInputElement;

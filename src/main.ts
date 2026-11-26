@@ -5,13 +5,14 @@ import { Engine } from './engine';
 import { SceneView, type Textures } from './scene';
 import { UI, type ToggleKey, type UIHandlers } from './ui';
 import { defaultState, type CameraMode, type Mode, type Quality, type SimState } from './state';
-import { elementsOverPoint, orbitForPreset, presetById } from './core/presets';
+import { defaultLeoAntenna, elementsOverPoint, geoOrbitAtLongitude, orbitForPreset, presetById, type PresetPayload } from './core/presets';
 import { DEG, R_EARTH } from './core/constants';
 import { anglesForGroundPoint } from './core/geometry';
 import { elevationAngle, type OrbitElements } from './core/orbit';
 import type { RegionId } from './core/regions';
 import { regionCenter } from './core/regions';
 import type { ArrayConfig } from './core/array';
+import type { ShapedRegionId } from './state';
 import { runShapedSynthesisJob, type ShapedSynthesisOutput } from './core/synthesis';
 import { buildLabSheet, exportPdf, exportPng, sheetFilename } from './lab-sheet';
 import SynthWorker from './workers/synth.worker?worker&inline';
@@ -59,6 +60,24 @@ class App {
       this.refresh();
     },
     setPreset: (id) => this.setPreset(id),
+    setGeoLon: (lonDeg: number) => {
+      const alt = Math.max(35786, this.state.orbit.a - R_EARTH);
+      const inc = Math.min(this.state.orbit.i / DEG, 5);
+      const orbit = geoOrbitAtLongitude(lonDeg, this.state.orbit.epoch, alt, inc, this.state.orbit.e);
+      this.state.presetId = 'custom';
+      this.state.simTime = orbit.epoch;
+      this.engine.setOrbit(orbit, 'custom');
+      this.refresh();
+      this.scene?.setViewToEci(this.engine.derived.sat.r);
+    },
+    applyPresetRealProfile: () => {
+      const p = presetById(this.state.presetId);
+      const payload = p.payload ?? presetById('amazonas-5').payload;
+      if (!payload) return;
+      this.applyPayload(payload);
+      this.refresh();
+      this.ui.toast(payload.summary);
+    },
     setOrbit: (p: Partial<OrbitElements>) => {
       this.state.presetId = 'custom';
       this.engine.setOrbit({ ...this.state.orbit, ...p }, 'custom');
@@ -111,8 +130,12 @@ class App {
     setSpotTarget: (lat, lon) => {
       this.engine.setMode('spot');
       const der = this.engine.derived;
+      const isGeo = this.state.orbit.a - R_EARTH > 20000;
       const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, lat * DEG, lon * DEG);
-      if (ang.w < 0.06) this.snapToRegion(lat, lon, false);
+      const elev = elevationAngle(der.sat.rEcef, lat * DEG, lon * DEG);
+      if (isGeo ? (elev <= 5 * DEG || ang.w <= 0.02) : ang.w < 0.06) {
+        this.snapToRegion(lat, lon, false);
+      }
       this.engine.setSpotTarget(lat, lon);
       this.refresh();
       const visible = this.engine.derived.beams.length > 0;
@@ -130,9 +153,13 @@ class App {
     setRegion: (id: RegionId) => {
       this.engine.setRegion(id);
       if (this.state.mode === 'cellular') {
+        const isGeo = this.state.orbit.a - R_EARTH > 20000;
+        if (id === 'visible' && isGeo) {
+          this.refresh();
+          return;
+        }
         const [lat, lon] = id === 'visible' ? [-12.05, -77.04] : regionCenter(id);
         const der = this.engine.derived;
-        const isGeo = this.state.orbit.a - R_EARTH > 20000;
         const elev = elevationAngle(der.sat.rEcef, lat * DEG, lon * DEG);
         if (isGeo && elev > 10 * DEG) {
           this.refresh();
@@ -160,12 +187,29 @@ class App {
     setShapedCenter: (lat, lon) => {
       this.engine.setMode('shaped');
       const der = this.engine.derived;
+      const isGeo = this.state.orbit.a - R_EARTH > 20000;
       const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, lat * DEG, lon * DEG);
       const elev = elevationAngle(der.sat.rEcef, lat * DEG, lon * DEG);
-      if (elev <= 0 || ang.w < 0.06) this.snapToRegion(lat, lon, false);
+      if (isGeo ? (elev <= 5 * DEG || ang.w <= 0.02) : (elev <= 0 || ang.w < 0.06)) {
+        this.snapToRegion(lat, lon, false);
+      }
+      this.engine.setShapedRegion('circle');
       this.engine.setShapedCenter(lat, lon);
       this.refresh();
       this.ui.toast(`Zona conformada centrada en ${fmtLat(lat)} ${fmtLon(lon)}`);
+    },
+    setShapedRegion: (region: ShapedRegionId) => {
+      this.engine.setShapedRegion(region);
+      if (region !== 'circle') {
+        const [lat, lon] = regionCenter(region);
+        const der = this.engine.derived;
+        const elev = elevationAngle(der.sat.rEcef, lat * DEG, lon * DEG);
+        const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, lat * DEG, lon * DEG);
+        if (elev <= 5 * DEG || ang.w <= 0.02) {
+          this.snapToRegion(lat, lon, false);
+        }
+      }
+      this.refresh();
     },
     setShapedRadius: (km) => {
       this.engine.setShapedRadius(km);
@@ -283,12 +327,15 @@ class App {
           this.snapToRegion(lat, lon, false);
         }
       } else {
+        const [cLat, cLon] = this.state.shapedRegion !== 'circle'
+          ? regionCenter(this.state.shapedRegion)
+          : [this.state.shapedCenter.lat, this.state.shapedCenter.lon];
         const der = this.engine.derived;
-        const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, this.state.shapedCenter.lat * DEG, this.state.shapedCenter.lon * DEG);
-        const elev = elevationAngle(der.sat.rEcef, this.state.shapedCenter.lat * DEG, this.state.shapedCenter.lon * DEG);
+        const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, cLat * DEG, cLon * DEG);
+        const elev = elevationAngle(der.sat.rEcef, cLat * DEG, cLon * DEG);
         const scanDeg = Math.acos(Math.max(-1, Math.min(1, ang.w))) / DEG;
         if (elev <= 0 || ang.w <= 0.02 || scanDeg > 58) {
-          this.snapToRegion(this.state.shapedCenter.lat, this.state.shapedCenter.lon, false);
+          this.snapToRegion(cLat, cLon, false);
         }
       }
     }
@@ -296,37 +343,80 @@ class App {
     if (mode === 'shaped') {
       this.state.playing = false;
       this.ui.syncControls(this.state);
-      this.ui.toast('Satélite colocado sobre la zona. Ajusta el radio y pulsa «Sintetizar cobertura».');
+      this.ui.toast('Satélite listo sobre la zona. Elige ciudad o región y pulsa «Sintetizar cobertura».');
     }
   }
 
-  /** Reposiciona la órbita para pasar sobre (lat,lon) y pausa la simulación. */
+  /** Reposiciona la órbita para pasar sobre (lat,lon) o mover la ranura GEO. */
   private snapToRegion(lat: number, lon: number, announce = true) {
     const alt = this.state.orbit.a - R_EARTH;
     const inc = this.state.orbit.i / DEG;
-    const orbit = elementsOverPoint(alt, inc, lat, lon, this.state.orbit.epoch, 2.5, this.state.orbit.e);
+    const isGeo = alt > 20000;
+    const orbit = isGeo
+      ? geoOrbitAtLongitude(lon, this.state.orbit.epoch, alt, Math.min(inc, 3.5), this.state.orbit.e)
+      : elementsOverPoint(alt, inc, lat, lon, this.state.orbit.epoch, 2.5, this.state.orbit.e);
     this.state.simTime = orbit.epoch;
     this.state.playing = false;
-    this.engine.setOrbit(orbit, this.state.presetId);
+    this.engine.setOrbit(orbit, isGeo ? 'custom' : this.state.presetId);
     this.engine.invalidateBeams();
     this.refresh();
     this.scene?.setViewToEci(this.engine.derived.sat.r);
     if (announce) {
-      this.ui.toast(`Satélite reposicionado sobre ${fmtLat(lat)} ${fmtLon(lon)} · pausa para diseñar.`);
+      this.ui.toast(
+        isGeo
+          ? `Satélite GEO desplazado a ${fmtLon(lon)} para ver la zona.`
+          : `Satélite reposicionado sobre ${fmtLat(lat)} ${fmtLon(lon)} · pausa para diseñar.`,
+      );
     }
+  }
+
+  private applyPayload(payload: PresetPayload) {
+    this.state.ptxW = payload.ptxW;
+    this.engine.setReuse(payload.reuse);
+    this.engine.setRegion(payload.region);
+    this.engine.setAntenna({
+      n: payload.n,
+      dx: payload.dx,
+      dy: payload.dx,
+      q: payload.q,
+      taper: payload.taper,
+    });
+    this.engine.setFrequency(payload.freqGHz);
+    this.engine.setShapedRadius(payload.shapedRadiusKm);
+    this.engine.setShapedRegion('circle');
+    this.engine.setMode(payload.mode);
   }
 
   private setPreset(id: string) {
     const p = presetById(id);
+    const wasGeo = this.state.orbit.a - R_EARTH > 20000;
     this.state.presetId = id;
     if (p.id !== 'custom') {
       const epoch = this.state.orbit.epoch;
       const orbit = orbitForPreset(p, epoch);
       this.state.simTime = epoch;
       this.engine.setOrbit(orbit, id);
+      if (p.payload) {
+        this.applyPayload(p.payload);
+      } else if (wasGeo && p.altKm < 20000) {
+        this.state.ptxW = 20;
+        this.engine.setAntenna(defaultLeoAntenna());
+        this.engine.setFrequency(12);
+        this.engine.setReuse(3);
+        if (['latam', 'americas', 'atlantic'].includes(this.state.region)) {
+          this.engine.setRegion('peru');
+        }
+        if (this.state.shapedRadiusKm > 400) {
+          this.engine.setShapedRadius(100);
+        }
+        if (['latam', 'americas', 'atlantic'].includes(this.state.shapedRegion)) {
+          this.engine.setShapedRegion('circle');
+        }
+      }
     }
     this.refresh();
     this.scene?.setViewToEci(this.engine.derived.sat.r);
+    if (p.payload) this.ui.toast(p.payload.summary);
   }
 
   private now() {
@@ -365,12 +455,15 @@ class App {
 
   private synthesize() {
     this.state.playing = false;
+    const [cLat, cLon] = this.state.shapedRegion !== 'circle'
+      ? regionCenter(this.state.shapedRegion)
+      : [this.state.shapedCenter.lat, this.state.shapedCenter.lon];
     const der = this.engine.derived;
-    const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, this.state.shapedCenter.lat * DEG, this.state.shapedCenter.lon * DEG);
-    const elev = elevationAngle(der.sat.rEcef, this.state.shapedCenter.lat * DEG, this.state.shapedCenter.lon * DEG);
+    const ang = anglesForGroundPoint(der.sat.rEcef, der.frame, cLat * DEG, cLon * DEG);
+    const elev = elevationAngle(der.sat.rEcef, cLat * DEG, cLon * DEG);
     const scanDeg = Math.acos(Math.max(-1, Math.min(1, ang.w))) / DEG;
     if (elev <= 0 || ang.w <= 0.02 || scanDeg > 60) {
-      this.snapToRegion(this.state.shapedCenter.lat, this.state.shapedCenter.lon, false);
+      this.snapToRegion(cLat, cLon, false);
     }
     if (this.state.mode !== 'shaped') {
       this.engine.setMode('shaped');

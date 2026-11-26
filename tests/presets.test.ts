@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import indexHtml from '../index.html?raw';
-import { ORBIT_PRESETS, orbitForPreset, presetById } from '../src/core/presets';
+import { geoOrbitAtLongitude, ORBIT_PRESETS, orbitForPreset, presetById } from '../src/core/presets';
 import { orbitalPeriod, propagate } from '../src/core/orbit';
-import { buildGroundCells, regionPolygon } from '../src/core/regions';
+import { buildGroundCells, PERU_CITIES, regionPolygon } from '../src/core/regions';
 import { Engine } from '../src/engine';
 import { defaultState } from '../src/state';
 
@@ -84,5 +84,55 @@ describe('Catálogo de satélites Starlink (V1.0–V3) y flota GEO Amazonas', ()
     expect(polar.alt).toBeCloseTo(570, -1);
     expect(vleo.alt).toBeCloseTo(350, -1);
     expect(vleo.speed).toBeGreaterThan(polar.speed);
+  });
+
+  it('perfiles realistas de la flota Amazonas GEO cubren Américas/LatAm/Atlántico con haces múltiples y enlace positivo', () => {
+    const epoch = Date.UTC(2026, 10, 26, 7, 0, 0);
+    for (const id of ['amazonas-2', 'amazonas-3', 'amazonas-5', 'amazonas-nexus']) {
+      const p = presetById(id);
+      expect(p.payload, `falta payload realista en ${id}`).toBeDefined();
+      const pay = p.payload!;
+      const st = defaultState();
+      st.presetId = id;
+      st.orbit = orbitForPreset(p, epoch);
+      st.simTime = epoch;
+      st.mode = pay.mode;
+      st.region = pay.region;
+      st.reuse = pay.reuse;
+      st.ptxW = pay.ptxW;
+      st.antenna = { ...st.antenna, n: pay.n, dx: pay.dx, dy: pay.dx, q: pay.q, taper: pay.taper, freqGHz: pay.freqGHz };
+
+      const eng = new Engine(st);
+      expect(eng.derived.beams.length, `${id} haces`).toBeGreaterThanOrEqual(8);
+      expect(eng.derived.gainMap.uvHalf ?? 1).toBeLessThan(0.25);
+      expect(eng.derived.gainMap.max).toBeGreaterThan(0);
+      expect(eng.derived.links.downlink?.outage, `${id} enlace bajada`).toBe(false);
+      expect(eng.derived.links.downlink?.cnDb ?? -99, `${id} C/N`).toBeGreaterThan(2);
+      if (id === 'amazonas-5') {
+        expect(eng.derived.beams.length).toBeGreaterThanOrEqual(24);
+      }
+    }
+
+    // Ranura GEO libre (ej. 30°O Eur-Am) posiciona el satélite sobre esa longitud ecuatorial
+    const eurOrbit = geoOrbitAtLongitude(-30, epoch);
+    const satEur = propagate(eurOrbit, epoch, false);
+    expect((satEur.lon * 180) / Math.PI).toBeCloseTo(-30, 0);
+    expect((satEur.lat * 180) / Math.PI).toBeCloseTo(0, 1);
+  }, 30000);
+
+  it('incluye las principales ciudades del Perú sincronizadas entre PERU_CITIES e index.html', () => {
+    expect(PERU_CITIES.length).toBeGreaterThanOrEqual(12);
+    for (const city of PERU_CITIES) {
+      expect(city.lat).toBeGreaterThan(-19);
+      expect(city.lat).toBeLessThan(0);
+      expect(city.lon).toBeGreaterThan(-82);
+      expect(city.lon).toBeLessThan(-68);
+    }
+    for (const selectId of ['spot-city', 'shape-city']) {
+      const m = indexHtml.match(new RegExp(`<select id="${selectId}">([\\s\\S]*?)<\\/select>`));
+      expect(m, `falta select #${selectId}`).not.toBeNull();
+      const ids = Array.from(m![1].matchAll(/<option value="([^"]+)"/g)).map((x) => x[1]).filter((v) => v !== 'custom');
+      expect(new Set(ids)).toEqual(new Set(PERU_CITIES.map((c) => c.id)));
+    }
   });
 });

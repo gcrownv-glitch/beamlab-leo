@@ -8,11 +8,11 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 |---|---|
 | **Repositorio** | `beamlab-leo` |
 | **Commit base auditado** | `25ce657` (`main`, v2.3.4) |
-| **Versión declarada en manifiestos** | `2.4.0-beta.5` *(huella celular realista 512×512 con feather geodésico + catálogo Starlink/Amazonas; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
+| **Versión declarada en manifiestos** | `2.4.0-beta.6` *(beamforming completo en GEO, perfiles realistas Amazonas 2/3/5/Nexus y ciudades del Perú; la versión estable `2.3.4` se conserva intacta en `stable/v2.3.4-orig` y `checkpoint-tramo-2`)* |
 | **Puntos de recuperación estables** | `stable/v2.3.4-orig` (`25ce657`, v2.3.4 original) · `stable/v2.3.4-tramo2` y tag `checkpoint-tramo-2` (`62d3b68`, Tramos 0–2) · tag/Release `v2.3.4` intacto en GitHub |
-| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.5`) |
-| **Última actualización** | `2026-11-26T02:50:15-05:00` (`2026-11-26T07:50:15Z`) |
-| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` + verificación visual en Chromium (`1280×720`) en verde · `vitest run`: **16 archivos / 74 pruebas aprobadas** |
+| **Rama activa** | `main` / `beta` / `rel/tramo-6-devops-beta` (`2.4.0-beta.6`) |
+| **Última actualización** | `2026-11-26T03:37:00-05:00` (`2026-11-26T08:37:00Z`) |
+| **Estado de verificación** | `bump-version.mjs --check` + `tsc --noEmit` + `vite build` + `build-portable.mjs` + verificación visual en Chromium (`1280×720`) en verde · `vitest run`: **16 archivos / 77 pruebas aprobadas** |
 
 ---
 
@@ -39,7 +39,8 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
 | **Web Beta 2** | `816b091` | `2026-11-24T20:01:44-05:00` (`01:01:44Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Desplegar `2.4.0-beta.2` en GitHub Pages preservando `stable/v2.3.4-orig` (`25ce657`) |
 | **Fix Off-Nadir / Beta 3** | `bda3ade` | `2026-11-26T01:55:33-05:00` (`06:55:33Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Exclusión geodésica en campo lejano, coordenadas `[-half, +half]` en `peakRadiatedPower()`, visibilidad real por `elevationAngle()` y bump a `2.4.0-beta.3` para web |
 | **Catálogo Starlink/Amazonas** | `355780c` | `2026-11-26T02:17:31-05:00` (`07:17:31Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Añadir Starlink V1.0–V3 (`1007`, `2150`, `3005`, `5241`, `30001`, `31005`, `V2-SIM`, `40001`, `40012`) + flota GEO Amazonas (`2`, `3`, `5`, `Nexus`) y soporte 3D/enlace GEO (`2.4.0-beta.4`) |
-| **Huella Celular / Beta 5** | *(cabeza de rama)* | `2026-11-26T02:50:15-05:00` (`07:50:15Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Mapa celular 512×512 acotado espacialmente, envolvente RF individual (`lobeFade`) + feather geodésico suave en frontera, shader translúcido, corrección `.btn.mobile-only` en escritorio y deploy web `2.4.0-beta.5` |
+| **Huella Celular / Beta 5** | `8dbd169` | `2026-11-26T02:51:54-05:00` (`07:51:54Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Mapa celular 512×512 acotado espacialmente, envolvente RF individual (`lobeFade`) + feather geodésico suave en frontera, shader translúcido, corrección `.btn.mobile-only` en escritorio y deploy web `2.4.0-beta.5` |
+| **GEO Amazonas & Ciudades / Beta 6** | *(cabeza de rama)* | `2026-11-26T03:37:00-05:00` (`08:37:00Z`) | `rel/tramo-6-devops-beta` (`main`, `beta`) | Perfiles realistas Amazonas 2/3/5/Nexus, regiones Américas/LatAm/Atlántico, zoom dinámico `(u,v)` en `GainMap`, puntual/celular/conformada circular y poligonal en GEO, ranura GEO libre y selector de 13 ciudades del Perú (`2.4.0-beta.6`) |
 
 ---
 
@@ -279,6 +280,16 @@ Documento de trazabilidad diseñado para que cualquier persona o agente de IA pu
   - `distanceToPolygonKm()` y el *feather* geodésico en `maskGainMap()` sustituyen el recorte binario por un desbordamiento RF cúbico suave (`40–110 km` fuera de la frontera según HPBW), preservando íntegros los haces únicos amplios (`beamCount <= 4` como Amazonas GEO o disco visible).
   - Shader celular (`uCellular`) en `src/scene.ts` usa mezcla translúcida equilibrada (preservando el relieve debajo), atenuación rasante cerca del limbo (`cellHorizon`), sin contorno `fract()` ruidoso en mallas densas, y anillos `-3 dB` sutiles cuando `beams.length <= 60`.
   - Corregido `.btn.mobile-only, .mobile-only` en `src/styles.css` y verificadas visualmente las vistas `16×16`, `8×8` y `Amazonas 3` en Chromium `1280×720` (**16 archivos / 74 pruebas aprobadas**).
+
+#### 8. Perfiles realistas Amazonas GEO, cobertura Américas/Atlántico, síntesis regional y ciudades del Perú (`2.4.0-beta.6`)
+- **Problemas corregidos en satélites geoestacionarios (`35 786 km`, disco terrestre `±8.7°`, `sin θ ≤ 0.151`):**
+  1. `GainMap` cubría todo `[-1, 1]²`, dedicando menos del `2 %` de sus téxeles al planeta en GEO y rompiendo la nitidez en `puntual`, `celular` y `conformada`.
+  2. `snapToRegion()` usaba `elementsOverPoint` con inclinación `0.05°`, desplazando erróneamente el satélite GEO `90°`, y `prepareShapedSynthesis()` intentaba muestrear `±6500 km` con paso fino fijo.
+  3. Faltaban regiones reales públicas de Hispasat Amazonas (`latam`, `americas`, `atlantic`), selector de longitud GEO libre y selector de ciudades peruanas para apuntado/síntesis.
+- **Solución implementada (`src/core/regions.ts`, `src/core/presets.ts`, `src/core/array.ts`, `src/scene.ts`, `src/state.ts`, `src/engine.ts`, `src/main.ts`, `src/ui.ts`, `index.html`, `tests/presets.test.ts`, `tests/shaped.test.ts`):**
+  - Se añadieron `latam`, `americas`, `atlantic` (`REGIONS`), `distanceToPolygonKm()`, `PERU_CITIES` (13 ciudades principales del Perú) y perfiles de carga útil realistas por defecto para **Amazonas 2** (`72°O` Ku Américas), **Amazonas 3** (`61°O` Ka HTS LatAm), **Amazonas 5** (`61°O` ~34+ haces Ka HTS `2.90 λ` sobre Latinoamérica) y **Amazonas Nexus** (`61°O` Ku HTS + DTP Américas/Atlántico/Groenlandia), con restauración automática de parámetros LEO al volver a satélites LEO.
+  - Se añadió zoom dinámico `uvHalf` en `computeGainMap()` + uniform `uGainHalf` en `SceneView`, mayor resolución angular en `computeBasePattern`, `patternFromWeights` (`half = 0.36` si `q >= 15`) e integración `NTH = 360`, además de síntesis conformada **circular** adaptada a GEO y **poligonal** sobre regiones reales (`#shape-region`) y longitud GEO ajustable (`#geo-controls` + `geoOrbitAtLongitude()`).
+  - Verificado con **16 archivos / 77 pruebas** en verde e inspección visual en Chromium `1280×720` (`Amazonas 5`, `Amazonas Nexus`, `Arequipa`, síntesis `LatAm` y `Cusco`).
 
 ---
 

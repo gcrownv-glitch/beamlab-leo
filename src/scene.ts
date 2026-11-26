@@ -25,6 +25,22 @@ export interface Textures {
 
 const BEAM_COLORS = BEAM_NUM;
 
+function samplePolygonPoints(poly: [number, number][], maxPts: number): [number, number][] {
+  const closed = poly[0][0] === poly[poly.length - 1][0] && poly[0][1] === poly[poly.length - 1][1];
+  const edges = closed ? poly.length - 1 : poly.length;
+  const perEdge = Math.max(1, Math.floor(maxPts / Math.max(1, edges)));
+  const pts: [number, number][] = [];
+  for (let e = 0; e < edges; e++) {
+    const [la1, lo1] = poly[e];
+    const [la2, lo2] = poly[(e + 1) % poly.length];
+    for (let k = 0; k < perEdge && pts.length < maxPts; k++) {
+      const t = k / perEdge;
+      pts.push([la1 + (la2 - la1) * t, lo1 + (lo2 - lo1) * t]);
+    }
+  }
+  return pts;
+}
+
 function sunDirection(ms: number, out: THREE.Vector3): THREE.Vector3 {
   const n = (ms - Date.UTC(2000, 0, 1, 12)) / 86400000;
   const L = (280.46 + 0.9856474 * n) * DEG;
@@ -253,6 +269,7 @@ export class SceneView {
         uUseGainSnap: { value: 0 },
         uShowGain: { value: 1 },
         uGainOpacity: { value: 0.9 },
+        uGainHalf: { value: 1.0 },
         uCellular: { value: 0 },
       },
       vertexShader: `
@@ -285,6 +302,7 @@ export class SceneView {
         uniform float uUseGainSnap;
         uniform float uShowGain;
         uniform float uGainOpacity;
+        uniform float uGainHalf;
         uniform float uCellular;
         varying vec2 vUv;
         varying vec3 vWorld;
@@ -337,26 +355,28 @@ export class SceneView {
               float v = dot(d, ay);
               float w = dot(d, az);
               if (w > 0.0 && horizonFade > 0.0) {
-                vec2 guv = vec2(u, v) * 0.5 + 0.5;
-                vec4 g = texture2D(uGain, guv);
-                float db = g.a * 40.0 - 40.0;
-                vec3 beamCol = g.rgb;
-                if (uCellular > 0.5) {
-                  float cellHorizon = smoothstep(0.0, 0.15, cellElev) * horizonFade;
-                  float edge = smoothstep(-10.5, -0.5, db);
-                  float t = pow(edge, 1.15) * cellHorizon;
-                  float core = smoothstep(-2.4, -0.2, db) * cellHorizon;
-                  float alpha = clamp(t * uGainOpacity, 0.0, 0.64);
-                  col = mix(col, beamCol * 0.92, alpha * 0.72);
-                  col += beamCol * t * 0.16 * uGainOpacity;
-                  col += vec3(0.95, 0.99, 1.0) * core * 0.05 * uGainOpacity;
-                } else {
-                  float t = smoothstep(-7.0, -1.5, db) * horizonFade;
-                  float core = smoothstep(-3.0, -0.3, db) * horizonFade;
-                  float contour = smoothstep(0.43, 0.5, abs(fract(db / 6.0) - 0.5));
-                  col += beamCol * t * 0.72 * uGainOpacity;
-                  col += vec3(1.0, 0.98, 0.94) * core * 0.06 * uGainOpacity;
-                  col += vec3(0.7, 0.95, 1.0) * contour * t * 0.08 * uGainOpacity;
+                vec2 guv = vec2(u, v) / (2.0 * max(uGainHalf, 0.05)) + 0.5;
+                if (guv.x >= 0.0 && guv.x <= 1.0 && guv.y >= 0.0 && guv.y <= 1.0) {
+                  vec4 g = texture2D(uGain, guv);
+                  float db = g.a * 40.0 - 40.0;
+                  vec3 beamCol = g.rgb;
+                  if (uCellular > 0.5) {
+                    float cellHorizon = smoothstep(0.0, 0.15, cellElev) * horizonFade;
+                    float edge = smoothstep(-10.5, -0.5, db);
+                    float t = pow(edge, 1.15) * cellHorizon;
+                    float core = smoothstep(-2.4, -0.2, db) * cellHorizon;
+                    float alpha = clamp(t * uGainOpacity, 0.0, 0.64);
+                    col = mix(col, beamCol * 0.92, alpha * 0.72);
+                    col += beamCol * t * 0.16 * uGainOpacity;
+                    col += vec3(0.95, 0.99, 1.0) * core * 0.05 * uGainOpacity;
+                  } else {
+                    float t = smoothstep(-7.0, -1.5, db) * horizonFade;
+                    float core = smoothstep(-3.0, -0.3, db) * horizonFade;
+                    float contour = smoothstep(0.43, 0.5, abs(fract(db / 6.0) - 0.5));
+                    col += beamCol * t * 0.72 * uGainOpacity;
+                    col += vec3(1.0, 0.98, 0.94) * core * 0.06 * uGainOpacity;
+                    col += vec3(0.7, 0.95, 1.0) * contour * t * 0.08 * uGainOpacity;
+                  }
                 }
               }
             }
@@ -658,6 +678,7 @@ export class SceneView {
     u.uAntZ.value.copy(antZ);
     u.uShowGain.value = state.showGain && d.gainMap.max > 0 ? 1 : 0;
     u.uGainOpacity.value = state.mode === 'global' ? 0.22 : state.mode === 'cellular' ? 0.72 : 0.88;
+    u.uGainHalf.value = d.gainMap.uvHalf ?? 1.0;
     u.uCellular.value = state.mode === 'cellular' ? 1 : 0;
 
     const snap = d.gainMap.snapshot;
@@ -875,11 +896,11 @@ export class SceneView {
 
       const pt = activeGroundPoint(d);
       if (pt) {
-        if (state.mode === 'global' || d.activeMetrics.hpbwDeg / 2 > 10) {
+        const footKm = (d.link?.slantKm ?? d.sat.alt) * Math.tan((d.activeMetrics.hpbwDeg * DEG) / 2);
+        if (state.mode === 'global' || d.activeMetrics.hpbwDeg / 2 > 10 || footKm > 350) {
           this.activeDisc.visible = false;
         } else {
           const up = this.tmpUp.set(pt.x, pt.y, pt.z).normalize();
-          const footKm = (d.link?.slantKm ?? d.sat.alt) * Math.tan((d.activeMetrics.hpbwDeg * DEG) / 2);
           const rad = Math.max(0.004, footKm * KM * 1.05);
           this.activeDisc.position.copy(this.tmpPt.set(pt.x * KM, pt.y * KM, pt.z * KM)).addScaledVector(up, 0.002);
           this.activeDisc.quaternion.setFromUnitVectors(this.tmpUnitZ, up);
@@ -931,26 +952,63 @@ export class SceneView {
   private updateShapedCone(d: Derived, state: SimState): void {
     const pos = this.beamCone.geometry.getAttribute('position') as THREE.BufferAttribute;
     pos.setXYZ(0, d.sat.r.x * KM, d.sat.r.y * KM, d.sat.r.z * KM);
-    const lat = state.shapedCenter.lat * DEG;
-    const lon = state.shapedCenter.lon * DEG;
-    const gamma = state.shapedRadiusKm / R_EARTH;
-    for (let i = 0; i < 48; i++) {
-      const brg = (2 * Math.PI * i) / 48;
-      const la2 = Math.asin(Math.max(-1, Math.min(1, Math.sin(lat) * Math.cos(gamma) + Math.cos(lat) * Math.sin(gamma) * Math.cos(brg))));
-      const lo2 = lon + Math.atan2(Math.sin(brg) * Math.sin(gamma) * Math.cos(lat), Math.cos(gamma) - Math.sin(lat) * Math.sin(la2));
-      const v = this.tmpPt
-        .set(
-          Math.cos(la2) * Math.cos(lo2) * R_EARTH * KM,
-          Math.cos(la2) * Math.sin(lo2) * R_EARTH * KM,
-          Math.sin(la2) * R_EARTH * KM,
-        )
-        .applyAxisAngle(Z_AXIS, d.sat.gmst);
-      pos.setXYZ(i + 1, v.x, v.y, v.z);
+    const poly = state.shapedRegion !== 'circle' ? regionPolygon(state.shapedRegion) : null;
+    if (poly && poly.length >= 3) {
+      const pts = samplePolygonPoints(poly, 48);
+      for (let i = 0; i < 48; i++) {
+        const pt = pts[Math.min(i, pts.length - 1)];
+        const la = pt[0] * DEG;
+        const lo = pt[1] * DEG;
+        const v = this.tmpPt
+          .set(
+            Math.cos(la) * Math.cos(lo) * R_EARTH * KM,
+            Math.cos(la) * Math.sin(lo) * R_EARTH * KM,
+            Math.sin(la) * R_EARTH * KM,
+          )
+          .applyAxisAngle(Z_AXIS, d.sat.gmst);
+        pos.setXYZ(i + 1, v.x, v.y, v.z);
+      }
+    } else {
+      const lat = state.shapedCenter.lat * DEG;
+      const lon = state.shapedCenter.lon * DEG;
+      const gamma = state.shapedRadiusKm / R_EARTH;
+      for (let i = 0; i < 48; i++) {
+        const brg = (2 * Math.PI * i) / 48;
+        const la2 = Math.asin(Math.max(-1, Math.min(1, Math.sin(lat) * Math.cos(gamma) + Math.cos(lat) * Math.sin(gamma) * Math.cos(brg))));
+        const lo2 = lon + Math.atan2(Math.sin(brg) * Math.sin(gamma) * Math.cos(lat), Math.cos(gamma) - Math.sin(lat) * Math.sin(la2));
+        const v = this.tmpPt
+          .set(
+            Math.cos(la2) * Math.cos(lo2) * R_EARTH * KM,
+            Math.cos(la2) * Math.sin(lo2) * R_EARTH * KM,
+            Math.sin(la2) * R_EARTH * KM,
+          )
+          .applyAxisAngle(Z_AXIS, d.sat.gmst);
+        pos.setXYZ(i + 1, v.x, v.y, v.z);
+      }
     }
     pos.needsUpdate = true;
     this.beamCone.geometry.computeBoundingSphere();
     (this.beamCone.material as THREE.MeshBasicMaterial).color.setHex(0x34d399);
     this.beamCone.visible = true;
+  }
+
+  private fillPolygonRegion(
+    pos: THREE.BufferAttribute,
+    poly: [number, number][],
+    maxPts: number,
+  ): number {
+    const pts = samplePolygonPoints(poly, maxPts);
+    for (let i = 0; i < pts.length; i++) {
+      const la = pts[i][0] * DEG;
+      const lo = pts[i][1] * DEG;
+      pos.setXYZ(
+        i,
+        Math.cos(la) * Math.cos(lo) * R_EARTH * 1.004 * KM,
+        Math.cos(la) * Math.sin(lo) * R_EARTH * 1.004 * KM,
+        Math.sin(la) * R_EARTH * 1.004 * KM,
+      );
+    }
+    return pts.length;
   }
 
   private updateRegion(state: SimState, d: Derived) {
@@ -962,21 +1020,30 @@ export class SceneView {
       const synthesized = d.source === 'synthesis';
       mat.color.setHex(synthesized ? 0x34d399 : 0xfbbf24);
       mat.opacity = synthesized ? 0.95 : 0.65;
-      const key = `shaped|${state.shapedCenter.lat.toFixed(4)}|${state.shapedCenter.lon.toFixed(4)}|${state.shapedRadiusKm}`;
+      const poly = state.shapedRegion !== 'circle' ? regionPolygon(state.shapedRegion) : null;
+      const key = poly
+        ? `shaped-poly|${state.shapedRegion}`
+        : `shaped|${state.shapedCenter.lat.toFixed(4)}|${state.shapedCenter.lon.toFixed(4)}|${state.shapedRadiusKm}`;
       if (key !== this.lastRegionKey) {
-        const lat = state.shapedCenter.lat * DEG;
-        const lon = state.shapedCenter.lon * DEG;
-        const gamma = state.shapedRadiusKm / R_EARTH;
-        for (let i = 0; i < N; i++) {
-          const brg = (2 * Math.PI * i) / N;
-          const la2 = Math.asin(Math.max(-1, Math.min(1, Math.sin(lat) * Math.cos(gamma) + Math.cos(lat) * Math.sin(gamma) * Math.cos(brg))));
-          const lo2 = lon + Math.atan2(Math.sin(brg) * Math.sin(gamma) * Math.cos(lat), Math.cos(gamma) - Math.sin(lat) * Math.sin(la2));
-          pos.setXYZ(i, Math.cos(la2) * Math.cos(lo2) * R_EARTH * 1.004 * KM,
-            Math.cos(la2) * Math.sin(lo2) * R_EARTH * 1.004 * KM,
-            Math.sin(la2) * R_EARTH * 1.004 * KM);
+        if (poly && poly.length >= 3) {
+          const count = this.fillPolygonRegion(pos, poly, N);
+          pos.needsUpdate = true;
+          this.regionLine.geometry.setDrawRange(0, count);
+        } else {
+          const lat = state.shapedCenter.lat * DEG;
+          const lon = state.shapedCenter.lon * DEG;
+          const gamma = state.shapedRadiusKm / R_EARTH;
+          for (let i = 0; i < N; i++) {
+            const brg = (2 * Math.PI * i) / N;
+            const la2 = Math.asin(Math.max(-1, Math.min(1, Math.sin(lat) * Math.cos(gamma) + Math.cos(lat) * Math.sin(gamma) * Math.cos(brg))));
+            const lo2 = lon + Math.atan2(Math.sin(brg) * Math.sin(gamma) * Math.cos(lat), Math.cos(gamma) - Math.sin(lat) * Math.sin(la2));
+            pos.setXYZ(i, Math.cos(la2) * Math.cos(lo2) * R_EARTH * 1.004 * KM,
+              Math.cos(la2) * Math.sin(lo2) * R_EARTH * 1.004 * KM,
+              Math.sin(la2) * R_EARTH * 1.004 * KM);
+          }
+          pos.needsUpdate = true;
+          this.regionLine.geometry.setDrawRange(0, N);
         }
-        pos.needsUpdate = true;
-        this.regionLine.geometry.setDrawRange(0, N);
         this.regionLine.geometry.computeBoundingSphere();
         this.lastRegionKey = key;
       }
@@ -994,27 +1061,9 @@ export class SceneView {
       mat.opacity = 0.62;
       const key = `cell|${state.region}`;
       if (key !== this.lastRegionKey) {
-        const closed = poly[0][0] === poly[poly.length - 1][0] && poly[0][1] === poly[poly.length - 1][1];
-        const edges = closed ? poly.length - 1 : poly.length;
-        const perEdge = Math.max(1, Math.floor(N / Math.max(1, edges)));
-        const pts: [number, number][] = [];
-        for (let e = 0; e < edges; e++) {
-          const [la1, lo1] = poly[e];
-          const [la2, lo2] = poly[(e + 1) % poly.length];
-          for (let k = 0; k < perEdge && pts.length < N; k++) {
-            const t = k / perEdge;
-            pts.push([la1 + (la2 - la1) * t, lo1 + (lo2 - lo1) * t]);
-          }
-        }
-        for (let i = 0; i < pts.length; i++) {
-          const la = pts[i][0] * DEG;
-          const lo = pts[i][1] * DEG;
-          pos.setXYZ(i, Math.cos(la) * Math.cos(lo) * R_EARTH * 1.004 * KM,
-            Math.cos(la) * Math.sin(lo) * R_EARTH * 1.004 * KM,
-            Math.sin(la) * R_EARTH * 1.004 * KM);
-        }
+        const count = this.fillPolygonRegion(pos, poly, N);
         pos.needsUpdate = true;
-        this.regionLine.geometry.setDrawRange(0, pts.length);
+        this.regionLine.geometry.setDrawRange(0, count);
         this.regionLine.geometry.computeBoundingSphere();
         this.lastRegionKey = key;
       }

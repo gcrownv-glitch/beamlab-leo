@@ -1,25 +1,25 @@
 {
   "schema": 1,
   "latest": "2.3.4",
-  "latestBeta": "2.4.0-beta.5",
+  "latestBeta": "2.4.0-beta.6",
   "versions": [
     {
-      "version": "2.4.0-beta.5",
+      "version": "2.4.0-beta.6",
       "channel": "beta",
       "date": "2026-11-26",
-      "notes": "Beta 5: huella celular realista 512×512 con feather geodésico suave (sin recorte poligonal abrupto ni púas en bordes), catálogo Starlink V1.0-V3 + flota GEO Amazonas y corrección de botones móviles en escritorio.",
-      "html": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.5/BeamLabLEO-2.4.0-beta.5.html",
-      "zip": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.5/BeamLabLEO-2.4.0-beta.5-portable.zip",
-      "release": "https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.4.0-beta.5",
+      "notes": "Beta 6: beamforming completo en GEO (`puntual`, `celular`, `conformada` circular/poligonal con zoom dinámico `(u,v)`), perfiles realistas por defecto para Amazonas 2/3/5/Nexus (Américas, LatAm, Atlántico/Groenlandia), longitud GEO libre y selector de las 13 ciudades principales del Perú.",
+      "html": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.6/BeamLabLEO-2.4.0-beta.6.html",
+      "zip": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.6/BeamLabLEO-2.4.0-beta.6-portable.zip",
+      "release": "https://github.com/gcrownv-glitch/beamlab-leo/releases/tag/v2.4.0-beta.6",
       "downloads": {
-        "windowsPortable": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.5/beamlab-leo.exe",
-        "windowsInstaller": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.5/BeamLab.LEO_2.4.0-beta.5_x64-setup.exe",
-        "linuxAppImage": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.5/BeamLab.LEO_2.4.0-beta.5_amd64.AppImage",
-        "linuxDeb": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.5/BeamLab.LEO_2.4.0-beta.5_amd64.deb",
-        "macDmg": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.5/BeamLab.LEO_2.4.0-beta.5_aarch64.dmg"
+        "windowsPortable": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.6/beamlab-leo.exe",
+        "windowsInstaller": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.6/BeamLab.LEO_2.4.0-beta.6_x64-setup.exe",
+        "linuxAppImage": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.6/BeamLab.LEO_2.4.0-beta.6_amd64.AppImage",
+        "linuxDeb": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.6/BeamLab.LEO_2.4.0-beta.6_amd64.deb",
+        "macDmg": "https://github.com/gcrownv-glitch/beamlab-leo/releases/download/v2.4.0-beta.6/BeamLab.LEO_2.4.0-beta.6_aarch64.dmg"
       },
-      "size": 4608334,
-      "sha256": "6596c2b61d4a293c23f7c26df1d19d74be3f4ed70e87439888db9610cd1bff8c"
+      "size": 4622581,
+      "sha256": "9f42ade33f469a02789ea8b60b68e57a0e67defe4d05c55f38bc40ac82355b11"
     },
     {
       "version": "2.4.0-beta.1",

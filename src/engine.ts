@@ -50,9 +50,11 @@ import {
   pointInPolygon,
   polygonBBox,
   regionAreaKm2,
+  regionCenter,
   regionPolygon,
   type DirectionSample,
   type GroundCell,
+  type RegionId,
 } from './core/regions';
 import {
   runShapedSynthesisJob,
@@ -60,7 +62,7 @@ import {
   type ShapedSynthesisOutput,
   type SynthesisResult,
 } from './core/synthesis';
-import type { Derived, Mode, PhaseView, QuantInfo, ShapedInfo, SimState, SystemInfo } from './state';
+import type { Derived, Mode, PhaseView, QuantInfo, ShapedInfo, ShapedRegionId, SimState, SystemInfo } from './state';
 
 const ZERO_BEAM: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 0 };
 const SHAPED_BEAM: Beam = { id: 0, u: 0, v: 0, amp: 1, color: 1 };
@@ -280,6 +282,17 @@ export class Engine {
     this.resetQuant();
   }
 
+  setShapedRegion(region: ShapedRegionId) {
+    this.state.shapedRegion = region;
+    if (region !== 'circle') {
+      const [lat, lon] = regionCenter(region);
+      this.state.shapedCenter = { lat, lon };
+    }
+    this.resetSynthesis();
+    this.resetQuant();
+    this.beamsDirty = true;
+  }
+
   setRegion(region: SimState['region']) {
     this.state.region = region;
     this.state.cellTarget = null;
@@ -378,9 +391,12 @@ export class Engine {
     if (beams.length) {
       active = s.mode === 'cellular' ? beams[this.pickActive(beams)] : beams[0];
     } else if (s.mode === 'shaped') {
-      const ang = anglesForGroundPoint(sat.rEcef, frame, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG);
-      if (elevationAngle(sat.rEcef, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG) > 0 && ang.w > 0.02) {
-        active = { id: 0, u: ang.u, v: ang.v, amp: 1, color: 0, target: s.shapedCenter };
+      const [cLat, cLon] = s.shapedRegion !== 'circle'
+        ? regionCenter(s.shapedRegion)
+        : [s.shapedCenter.lat, s.shapedCenter.lon];
+      const ang = anglesForGroundPoint(sat.rEcef, frame, cLat * DEG, cLon * DEG);
+      if (elevationAngle(sat.rEcef, cLat * DEG, cLon * DEG) > 0 && ang.w > 0.02) {
+        active = { id: 0, u: ang.u, v: ang.v, amp: 1, color: 0, target: { lat: cLat, lon: cLon } };
       }
     }
 
@@ -529,6 +545,8 @@ export class Engine {
       const size = s.mode === 'cellular'
         ? (count > 900 ? 384 : 512)
         : (count > 800 ? 256 : count > 180 ? 320 : 384);
+      const horizonSin = Math.sin(horizonOffNadir(Math.max(10, sat.alt)));
+      const uvHalf = Math.min(1, Math.max(0.18, horizonSin * 1.15));
       let snapSat: Vec3;
       let snapFrame: AntennaFrame;
       let groundFixed: boolean;
@@ -536,17 +554,17 @@ export class Engine {
         snapSat = this.synthSatEcef ?? sat.rEcef;
         snapFrame = this.synthFrame ?? frame;
         groundFixed = true;
-        gainMap = computeGainMap(pattern, [SHAPED_BEAM], patternQ, size);
+        gainMap = computeGainMap(pattern, [SHAPED_BEAM], patternQ, size, 'sum', uvHalf);
       } else if (quantEnabled && s.mode !== 'cellular' && activePattern !== pattern && activePattern) {
         snapSat = this.quantSatEcef ?? sat.rEcef;
         snapFrame = this.quantFrame ?? frame;
         groundFixed = s.mode === 'spot' ? s.spotFixed : false;
-        gainMap = computeGainMap(activePattern, [SHAPED_BEAM], patternQ, size);
+        gainMap = computeGainMap(activePattern, [SHAPED_BEAM], patternQ, size, 'sum', uvHalf);
       } else {
         snapSat = this.lastBeamFrame ? this.lastBeamSat : sat.rEcef;
         snapFrame = this.lastBeamFrame ?? frame;
         groundFixed = (s.mode === 'cellular' && s.region !== 'visible') || (s.mode === 'spot' && s.spotFixed);
-        gainMap = computeGainMap(pattern, beams, patternQ, size, s.mode === 'cellular' ? 'max' : 'sum');
+        gainMap = computeGainMap(pattern, beams, patternQ, size, s.mode === 'cellular' ? 'max' : 'sum', uvHalf);
       }
       if (s.mode === 'cellular' || s.mode === 'shaped' || s.mode === 'spot') {
         this.maskGainMap(gainMap, snapSat, snapFrame, s, active, beams.length);
@@ -725,10 +743,13 @@ export class Engine {
       };
     }
     // shaped: un haz marcador en el centro de la zona
-    const ang = anglesForGroundPoint(sat.rEcef, frame, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG);
+    const [cLat, cLon] = s.shapedRegion !== 'circle'
+      ? regionCenter(s.shapedRegion)
+      : [s.shapedCenter.lat, s.shapedCenter.lon];
+    const ang = anglesForGroundPoint(sat.rEcef, frame, cLat * DEG, cLon * DEG);
     if (ang.w <= 0.02) return { beams: [], beamSet: null };
     return {
-      beams: [{ id: 0, u: ang.u, v: ang.v, amp: 1, color: 0, label: 'Zona', target: s.shapedCenter }],
+      beams: [{ id: 0, u: ang.u, v: ang.v, amp: 1, color: 0, label: 'Zona', target: { lat: cLat, lon: cLon } }],
       beamSet: null,
     };
   }
@@ -859,7 +880,7 @@ export class Engine {
     const a = s.antenna;
     const o = s.orbit;
     return [
-      s.shapedCenter.lat.toFixed(3), s.shapedCenter.lon.toFixed(3), s.shapedRadiusKm,
+      s.shapedRegion, s.shapedCenter.lat.toFixed(3), s.shapedCenter.lon.toFixed(3), s.shapedRadiusKm,
       a.n, a.dx, a.dy, a.freqGHz, a.taper, a.q,
       s.simTime, o.a.toFixed(3), o.e.toFixed(6), o.i.toFixed(6), o.raan.toFixed(6),
       o.argp.toFixed(6), o.M0.toFixed(6), o.epoch,
@@ -872,8 +893,12 @@ export class Engine {
     const s = this.state;
     const sat = propagate(s.orbit, s.simTime, true);
     const frame = antennaBasis(sat.rEcef);
-    const center = anglesForGroundPoint(sat.rEcef, frame, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG);
-    if (elevationAngle(sat.rEcef, s.shapedCenter.lat * DEG, s.shapedCenter.lon * DEG) <= 0 || center.w <= 0.02) {
+    const isGeo = sat.alt > 20000;
+    const horizonSin = Math.sin(horizonOffNadir(Math.max(10, sat.alt)));
+    const poly = s.shapedRegion !== 'circle' ? regionPolygon(s.shapedRegion) : null;
+    const [cLat, cLon] = poly ? regionCenter(s.shapedRegion as RegionId) : [s.shapedCenter.lat, s.shapedCenter.lon];
+    const center = anglesForGroundPoint(sat.rEcef, frame, cLat * DEG, cLon * DEG);
+    if (elevationAngle(sat.rEcef, cLat * DEG, cLon * DEG) <= 0 || center.w <= 0.02) {
       throw new Error('La zona no es visible desde el satélite. Mueve el tiempo o elige otro centro.');
     }
     const scan = Math.acos(Math.max(-1, Math.min(1, center.w)));
@@ -881,69 +906,135 @@ export class Engine {
       throw new Error('La zona está a más de 62° de nadir: el haz se deforma demasiado. Reposiciona el satélite.');
     }
 
-    const hpbw = Math.max(1.2, this.baseMetrics.hpbwDeg) * DEG;
-    const radiusKm = Math.max(10, s.shapedRadiusKm);
-    const edgeKm = Math.max(10, 0.55 * hpbw * center.range);
-    const guardKm = edgeKm + Math.max(40, 4 * hpbw * center.range);
-    const totalKm = radiusKm + guardKm;
-    const stepKm = Math.max(6, Math.min(20, radiusKm / 14));
-    const cosLat = Math.max(0.2, Math.cos(s.shapedCenter.lat * DEG));
-    const dLat = stepKm / R_EARTH;
-    const dLon = dLat / cosLat;
-    const latSpan = totalKm / R_EARTH;
-    const lonSpan = latSpan / cosLat;
-    const lat0 = s.shapedCenter.lat * DEG;
-    const lon0 = s.shapedCenter.lon * DEG;
-    const edgeFrac = edgeKm / radiusKm;
+    const hpbw = Math.max(0.6, this.baseMetrics.hpbwDeg) * DEG;
     const inside: DirectionSample[] = [];
     const outside: DirectionSample[] = [];
+    const farOutside: DirectionSample[] = [];
+    const diskLim = Math.min(0.99, horizonSin * 1.15);
+    const diskStep = Math.max(0.008, (2 * diskLim) / 28);
 
-    // Muestreo en coordenadas de Tierra: el objetivo es un círculo de radio
-    // `radiusKm` sobre la superficie, no un círculo en el espacio (u,v).
-    for (let dlat = -latSpan; dlat <= latSpan + 1e-12; dlat += dLat) {
-      for (let dlon = -lonSpan; dlon <= lonSpan + 1e-12; dlon += dLon) {
-        const lat = lat0 + dlat;
-        const lon = lon0 + dlon;
-        if (lat <= -Math.PI / 2 || lat >= Math.PI / 2) continue;
-        const groundKm = Math.hypot(dlat, dlon * cosLat) * R_EARTH;
-        if (groundKm > totalKm + stepKm) continue;
-        const ang = anglesForGroundPoint(sat.rEcef, frame, lat, lon);
-        if (elevationAngle(sat.rEcef, lat, lon) <= 0 || ang.w <= 0.02) continue;
-        const rho = groundKm / radiusKm;
-        if (rho <= 1) {
-          inside.push({ u: ang.u, v: ang.v, desired: 1, inside: true, lat, lon, weight: 4 });
-        } else if (rho <= 1 + edgeFrac) {
-          const desired = 0.5 * (1 + Math.cos((Math.PI * (rho - 1)) / edgeFrac));
-          inside.push({ u: ang.u, v: ang.v, desired, inside: false, lat, lon, weight: 0.5 });
-        } else {
+    if (poly) {
+      const edgeKm = Math.max(40, Math.min(isGeo ? 750 : 250, 0.55 * hpbw * center.range));
+      const bb = polygonBBox(poly);
+      const padDeg = Math.min(18, (edgeKm * 1.4) / 111);
+      const latMin = Math.max(-85, bb.latMin - padDeg);
+      const latMax = Math.min(85, bb.latMax + padDeg);
+      const lonMin = bb.lonMin - padDeg * 1.3;
+      const lonMax = bb.lonMax + padDeg * 1.3;
+      const stepLat = Math.max(0.25, (latMax - latMin) / 36);
+      const stepLon = Math.max(0.25, (lonMax - lonMin) / 36);
+      for (let latD = latMin; latD <= latMax + 1e-6; latD += stepLat) {
+        for (let lonD = lonMin; lonD <= lonMax + 1e-6; lonD += stepLon) {
+          const lat = latD * DEG;
+          const lon = lonD * DEG;
+          const ang = anglesForGroundPoint(sat.rEcef, frame, lat, lon);
+          if (elevationAngle(sat.rEcef, lat, lon) <= 0 || ang.w <= 0.02) continue;
+          if (pointInPolygon(latD, lonD, poly)) {
+            inside.push({ u: ang.u, v: ang.v, desired: 1, inside: true, lat, lon, weight: 4 });
+          } else {
+            const dKm = distanceToPolygonKm(latD, lonD, poly);
+            if (dKm <= edgeKm) {
+              const desired = 0.5 * (1 + Math.cos((Math.PI * dKm) / edgeKm));
+              inside.push({ u: ang.u, v: ang.v, desired, inside: false, lat, lon, weight: 0.5 });
+            } else if (dKm <= edgeKm * 3.2) {
+              outside.push({ u: ang.u, v: ang.v, desired: 0, inside: false, lat, lon, weight: 1.0 });
+            }
+          }
+        }
+      }
+      for (let u = -diskLim; u <= diskLim + 1e-9; u += diskStep) {
+        for (let v = -diskLim; v <= diskLim + 1e-9; v += diskStep) {
+          if (u * u + v * v > 0.992) continue;
+          const gp = beamGroundPoint(sat.rEcef, frame, { id: 0, u, v, amp: 1, color: 0 });
+          if (gp) {
+            const g = ecefToGeodetic(gp);
+            const latD = g.lat / DEG;
+            const lonD = g.lon / DEG;
+            if (pointInPolygon(latD, lonD, poly) || distanceToPolygonKm(latD, lonD, poly) <= edgeKm) continue;
+            farOutside.push({ u, v, desired: 0, inside: false, lat: g.lat, lon: g.lon, weight: 0.75 });
+          } else {
+            farOutside.push({ u, v, desired: 0, inside: false, lat: 0, lon: 0, weight: 0.85 });
+          }
+        }
+      }
+    } else {
+      const radiusKm = Math.max(10, s.shapedRadiusKm);
+      const edgeKm = Math.max(10, Math.min(radiusKm * 1.2, 0.55 * hpbw * center.range));
+      const guardKm = edgeKm + Math.min(isGeo ? 2400 : 1200, Math.max(40, 3.2 * hpbw * center.range));
+      const totalKm = Math.min(isGeo ? 6500 : 3000, radiusKm + guardKm);
+      const innerKm = radiusKm + edgeKm;
+      const innerStepKm = Math.max(5, innerKm / 14);
+      const outerStepKm = Math.max(innerStepKm, totalKm / 20);
+      const cosLat = Math.max(0.2, Math.cos(cLat * DEG));
+      const lat0 = cLat * DEG;
+      const lon0 = cLon * DEG;
+      const edgeFrac = edgeKm / radiusKm;
+
+      // Muestreo fino dentro del disco objetivo + transición.
+      const innerSpan = innerKm / R_EARTH;
+      const dLatIn = innerStepKm / R_EARTH;
+      const dLonIn = dLatIn / cosLat;
+      const innerLonSpan = innerSpan / cosLat;
+      for (let dlat = -innerSpan; dlat <= innerSpan + 1e-12; dlat += dLatIn) {
+        for (let dlon = -innerLonSpan; dlon <= innerLonSpan + 1e-12; dlon += dLonIn) {
+          const lat = lat0 + dlat;
+          const lon = lon0 + dlon;
+          if (lat <= -Math.PI / 2 || lat >= Math.PI / 2) continue;
+          const groundKm = Math.hypot(dlat, dlon * cosLat) * R_EARTH;
+          if (groundKm > innerKm + innerStepKm * 0.5) continue;
+          const ang = anglesForGroundPoint(sat.rEcef, frame, lat, lon);
+          if (elevationAngle(sat.rEcef, lat, lon) <= 0 || ang.w <= 0.02) continue;
+          const rho = groundKm / radiusKm;
+          if (rho <= 1) {
+            inside.push({ u: ang.u, v: ang.v, desired: 1, inside: true, lat, lon, weight: 4 });
+          } else if (rho <= 1 + edgeFrac) {
+            const desired = 0.5 * (1 + Math.cos((Math.PI * (rho - 1)) / edgeFrac));
+            inside.push({ u: ang.u, v: ang.v, desired, inside: false, lat, lon, weight: 0.5 });
+          }
+        }
+      }
+
+      // Anillo exterior cercano para suprimir el primer lóbulo alrededor de la zona.
+      const outerSpan = totalKm / R_EARTH;
+      const dLatOut = outerStepKm / R_EARTH;
+      const dLonOut = dLatOut / cosLat;
+      const outerLonSpan = outerSpan / cosLat;
+      for (let dlat = -outerSpan; dlat <= outerSpan + 1e-12; dlat += dLatOut) {
+        for (let dlon = -outerLonSpan; dlon <= outerLonSpan + 1e-12; dlon += dLonOut) {
+          const lat = lat0 + dlat;
+          const lon = lon0 + dlon;
+          if (lat <= -Math.PI / 2 || lat >= Math.PI / 2) continue;
+          const groundKm = Math.hypot(dlat, dlon * cosLat) * R_EARTH;
+          if (groundKm <= innerKm || groundKm > totalKm + outerStepKm) continue;
+          const ang = anglesForGroundPoint(sat.rEcef, frame, lat, lon);
+          if (elevationAngle(sat.rEcef, lat, lon) <= 0 || ang.w <= 0.02) continue;
           outside.push({ u: ang.u, v: ang.v, desired: 0, inside: false, lat, lon, weight: 1.0 });
         }
       }
-    }
 
-    // Exclusión geodésica en el disco visible: suprime lóbulos espurios fuera de la zona
-    // elíptica (u,v) al escanear lejos de nadir y sobre el cielo más allá del horizonte.
-    const exclRad = (radiusKm + edgeKm) / R_EARTH;
-    const farOutside: DirectionSample[] = [];
-    const farStep = 0.075;
-    for (let u = -0.99; u <= 0.99 + 1e-9; u += farStep) {
-      for (let v = -0.99; v <= 0.99 + 1e-9; v += farStep) {
-        if (u * u + v * v > 0.992) continue;
-        const gp = beamGroundPoint(sat.rEcef, frame, { id: 0, u, v, amp: 1, color: 0 });
-        if (gp) {
-          const g = ecefToGeodetic(gp);
-          const cosD = Math.sin(g.lat) * Math.sin(lat0)
-            + Math.cos(g.lat) * Math.cos(lat0) * Math.cos(g.lon - lon0);
-          if (Math.acos(Math.max(-1, Math.min(1, cosD))) <= exclRad) continue;
-          farOutside.push({ u, v, desired: 0, inside: false, lat: g.lat, lon: g.lon, weight: 0.65 });
-        } else {
-          farOutside.push({ u, v, desired: 0, inside: false, lat: 0, lon: 0, weight: 0.9 });
+      // Exclusión geodésica en el disco visible adaptada a órbita LEO o GEO.
+      const exclRad = (radiusKm + edgeKm) / R_EARTH;
+      for (let u = -diskLim; u <= diskLim + 1e-9; u += diskStep) {
+        for (let v = -diskLim; v <= diskLim + 1e-9; v += diskStep) {
+          if (u * u + v * v > 0.992) continue;
+          const gp = beamGroundPoint(sat.rEcef, frame, { id: 0, u, v, amp: 1, color: 0 });
+          if (gp) {
+            const g = ecefToGeodetic(gp);
+            const cosD = Math.sin(g.lat) * Math.sin(lat0)
+              + Math.cos(g.lat) * Math.cos(lat0) * Math.cos(g.lon - lon0);
+            if (Math.acos(Math.max(-1, Math.min(1, cosD))) <= exclRad) continue;
+            farOutside.push({ u, v, desired: 0, inside: false, lat: g.lat, lon: g.lon, weight: 0.65 });
+          } else {
+            farOutside.push({ u, v, desired: 0, inside: false, lat: 0, lon: 0, weight: 0.9 });
+          }
         }
       }
     }
 
     if (inside.filter((x) => x.inside).length < 12) {
-      throw new Error('La zona es demasiado pequeña para la apertura actual. Aumenta el radio.');
+      throw new Error(isGeo
+        ? 'La zona es demasiado pequeña para este haz desde GEO. Aumenta el radio (≥ 700 km) o elige una región.'
+        : 'La zona es demasiado pequeña para la apertura actual. Aumenta el radio.');
     }
 
     const thin = <T>(arr: T[], max: number): T[] => {
@@ -971,9 +1062,11 @@ export class Engine {
   applyShapedSynthesis(prep: PreparedShapedSynthesis, output: ShapedSynthesisOutput): ShapedInfo {
     const s = this.state;
     const directivity = output.finalDirectivityDb;
-    const dMax =
-      10 * Math.log10(4 * Math.PI * (s.antenna.n * s.antenna.dx) * (s.antenna.n * s.antenna.dy));
-    if (directivity > dMax + 1.5) {
+    const dMax = Math.max(
+      this.baseMetrics.directivityDb,
+      10 * Math.log10(4 * Math.PI * (s.antenna.n * s.antenna.dx) * (s.antenna.n * s.antenna.dy)),
+    );
+    if (directivity > dMax + 2.0) {
       throw new Error('La síntesis no converge para esta geometría. Prueba otro radio o vuelve a intentar.');
     }
     if (output.finalResult.insideCoverage < 0.25) {
@@ -997,10 +1090,12 @@ export class Engine {
       directivityDb: directivity,
       radiusKm: s.shapedRadiusKm,
       meanDb: output.finalResult.insideMeanDb,
+      region: s.shapedRegion,
     };
     this.synthInfo = info;
     this.beamsDirty = true;
     this.gainDirty = true;
+    this.lastGainMs = 0;
     this.cachedPhase = null;
     this.cachedMetrics = null;
     return info;
@@ -1016,81 +1111,103 @@ export class Engine {
     return this.applyShapedSynthesis(prep, output);
   }
 
+  private applyPolygonFeather(
+    map: GainMap,
+    sat: Vec3,
+    frame: AntennaFrame,
+    poly: [number, number][],
+    marginKm: number,
+    falloffDb: number,
+  ) {
+    const size = map.size;
+    const uvHalf = map.uvHalf ?? 1;
+    const bb = polygonBBox(poly);
+    const midLat = ((bb.latMin + bb.latMax) / 2) * DEG;
+    const mLat = marginKm / 110;
+    const mLon = marginKm / (110 * Math.max(0.15, Math.cos(midLat)));
+    let anyPositive = false;
+    for (let iv = 0; iv < size; iv++) {
+      const v = -uvHalf + (2 * uvHalf * (iv + 0.5)) / size;
+      for (let iu = 0; iu < size; iu++) {
+        const idx = iv * size + iu;
+        if (map.data[idx] <= 0 && map.rgba[idx * 4 + 3] === 0) continue;
+        const u = -uvHalf + (2 * uvHalf * (iu + 0.5)) / size;
+        if (u * u + v * v > 1) {
+          map.data[idx] = 0;
+          map.rgba[idx * 4 + 3] = 0;
+          continue;
+        }
+        const pt = beamGroundPoint(sat, frame, { id: 0, u, v, amp: 1, color: 0 });
+        if (!pt) {
+          map.data[idx] = 0;
+          map.rgba[idx * 4 + 3] = 0;
+          continue;
+        }
+        const geo = ecefToGeodetic(pt);
+        const latD = geo.lat / DEG;
+        const lonD = geo.lon / DEG;
+        if (pointInPolygon(latD, lonD, poly)) {
+          if (map.data[idx] > 0) anyPositive = true;
+          continue;
+        }
+        if (
+          latD < bb.latMin - mLat
+          || latD > bb.latMax + mLat
+          || lonD < bb.lonMin - mLon
+          || lonD > bb.lonMax + mLon
+        ) {
+          map.data[idx] = 0;
+          map.rgba[idx * 4 + 3] = 0;
+          continue;
+        }
+        const dKm = distanceToPolygonKm(latD, lonD, poly);
+        if (dKm >= marginKm) {
+          map.data[idx] = 0;
+          map.rgba[idx * 4 + 3] = 0;
+          continue;
+        }
+        const f = 1 - dKm / marginKm;
+        const w = f * f * (3 - 2 * f);
+        map.data[idx] *= w;
+        const dbOld = (map.rgba[idx * 4 + 3] / 255) * 40 - 40;
+        const dbNew = dbOld - falloffDb * (1 - w);
+        map.rgba[idx * 4 + 3] = Math.max(0, Math.min(255, Math.round(((dbNew + 40) / 40) * 255)));
+        if (map.data[idx] > 0) anyPositive = true;
+      }
+    }
+    if (!anyPositive) map.max = 0;
+  }
+
   /**
    * Recorta o atenúa suavemente el mapa de ganancia alrededor de la región de servicio.
    *
-   * En modo celular multi-celda aplica un feather geodésico cúbico fuera del
-   * polígono político (`marginKm`), preservando el desbordamiento RF natural sin
-   * corte abrupto en frontera ni púas radiales largas a baja elevación; en modo
-   * puntual/conformado recorta al círculo de diseño con un pequeño margen.
+   * En modo celular o conformado poligonal aplica un feather geodésico cúbico
+   * fuera del contorno político (`marginKm`), preservando el desbordamiento RF
+   * natural; en modo puntual o conformado circular recorta al círculo de diseño.
    */
   private maskGainMap(map: GainMap, sat: Vec3, frame: AntennaFrame, s: SimState, active: Beam | null, beamCount = 0) {
     const size = map.size;
+    const uvHalf = map.uvHalf ?? 1;
+    const satAlt = Math.max(100, Math.hypot(sat.x, sat.y, sat.z) - R_EARTH);
     if (s.mode === 'cellular') {
       const poly = regionPolygon(s.region);
       if (!poly || beamCount <= 4) return;
-      const satAlt = Math.max(100, Math.hypot(sat.x, sat.y, sat.z) - R_EARTH);
-      const marginKm = Math.max(40, Math.min(110, footprintRadiusKm(satAlt, this.baseMetrics.hpbwDeg) * 1.15));
-      const bb = polygonBBox(poly);
-      const midLat = ((bb.latMin + bb.latMax) / 2) * DEG;
-      const mLat = marginKm / 110;
-      const mLon = marginKm / (110 * Math.max(0.15, Math.cos(midLat)));
-      let anyCellPositive = false;
-      for (let iv = 0; iv < size; iv++) {
-        const v = -1 + (2 * (iv + 0.5)) / size;
-        for (let iu = 0; iu < size; iu++) {
-          const idx = iv * size + iu;
-          if (map.data[idx] <= 0 && map.rgba[idx * 4 + 3] === 0) continue;
-          const u = -1 + (2 * (iu + 0.5)) / size;
-          if (u * u + v * v > 1) {
-            map.data[idx] = 0;
-            map.rgba[idx * 4 + 3] = 0;
-            continue;
-          }
-          const pt = beamGroundPoint(sat, frame, { id: 0, u, v, amp: 1, color: 0 });
-          if (!pt) {
-            map.data[idx] = 0;
-            map.rgba[idx * 4 + 3] = 0;
-            continue;
-          }
-          const geo = ecefToGeodetic(pt);
-          const latD = geo.lat / DEG;
-          const lonD = geo.lon / DEG;
-          if (pointInPolygon(latD, lonD, poly)) {
-            if (map.data[idx] > 0) anyCellPositive = true;
-            continue;
-          }
-          if (
-            latD < bb.latMin - mLat
-            || latD > bb.latMax + mLat
-            || lonD < bb.lonMin - mLon
-            || lonD > bb.lonMax + mLon
-          ) {
-            map.data[idx] = 0;
-            map.rgba[idx * 4 + 3] = 0;
-            continue;
-          }
-          const dKm = distanceToPolygonKm(latD, lonD, poly);
-          if (dKm >= marginKm) {
-            map.data[idx] = 0;
-            map.rgba[idx * 4 + 3] = 0;
-            continue;
-          }
-          const f = 1 - dKm / marginKm;
-          const w = f * f * (3 - 2 * f);
-          map.data[idx] *= w;
-          const dbOld = (map.rgba[idx * 4 + 3] / 255) * 40 - 40;
-          const dbNew = dbOld - 11.5 * (1 - w);
-          map.rgba[idx * 4 + 3] = Math.max(0, Math.min(255, Math.round(((dbNew + 40) / 40) * 255)));
-          if (map.data[idx] > 0) anyCellPositive = true;
-        }
-      }
-      if (!anyCellPositive) map.max = 0;
+      const maxMargin = satAlt > 20000 ? 480 : 110;
+      const marginKm = Math.max(40, Math.min(maxMargin, footprintRadiusKm(satAlt, this.baseMetrics.hpbwDeg) * 0.95));
+      this.applyPolygonFeather(map, sat, frame, poly, marginKm, 11.5);
       return;
+    }
+    if (s.mode === 'shaped' && s.shapedRegion !== 'circle') {
+      const poly = regionPolygon(s.shapedRegion);
+      if (poly) {
+        const marginKm = Math.max(120, Math.min(520, footprintRadiusKm(satAlt, this.baseMetrics.hpbwDeg) * 1.1));
+        this.applyPolygonFeather(map, sat, frame, poly, marginKm, 14.0);
+        return;
+      }
     }
     const shapedLat = s.shapedCenter.lat * DEG;
     const shapedLon = s.shapedCenter.lon * DEG;
-    const shapedRadius = (s.shapedRadiusKm * 1.06) / R_EARTH;
+    const shapedRadius = (s.shapedRadiusKm * 1.12) / R_EARTH;
     let spotLat = s.spotTarget.lat * DEG;
     let spotLon = s.spotTarget.lon * DEG;
     let spotRadius = 0;
@@ -1117,12 +1234,14 @@ export class Engine {
           + Math.cos(g.lat) * Math.cos(spotLat) * Math.cos(g.lon - spotLon);
         spotRadius = Math.max(spotRadius, Math.acos(Math.max(-1, Math.min(1, cosD))));
       }
-      spotRadius = Math.min(Math.PI, spotRadius * 1.08 + 0.005);
+      const slantKm = slantRange(sat, spotLat, spotLon);
+      const minRad = ((this.baseMetrics.hpbwDeg * DEG) / 2) * (slantKm / R_EARTH) * 1.35;
+      spotRadius = Math.min(Math.PI, Math.max(minRad, spotRadius * 1.12 + 0.006));
     }
     for (let iv = 0; iv < size; iv++) {
-      const v = -1 + (2 * (iv + 0.5)) / size;
+      const v = -uvHalf + (2 * uvHalf * (iv + 0.5)) / size;
       for (let iu = 0; iu < size; iu++) {
-        const u = -1 + (2 * (iu + 0.5)) / size;
+        const u = -uvHalf + (2 * uvHalf * (iu + 0.5)) / size;
         const idx = iv * size + iu;
         if (u * u + v * v > 1) {
           map.data[idx] = 0;

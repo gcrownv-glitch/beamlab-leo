@@ -1,6 +1,14 @@
 import { DEG, R_EARTH } from './constants';
 
-export type RegionId = 'peru' | 'southamerica' | 'europe' | 'lima' | 'visible';
+export type RegionId =
+  | 'peru'
+  | 'southamerica'
+  | 'latam'
+  | 'americas'
+  | 'atlantic'
+  | 'europe'
+  | 'lima'
+  | 'visible';
 
 export interface RegionPreset {
   id: RegionId;
@@ -33,6 +41,42 @@ export const REGIONS: RegionPreset[] = [
       [12, -81], [12, -70], [10, -60], [5, -50], [-5, -35], [-15, -38], [-25, -48],
       [-35, -58], [-40, -62], [-55, -65], [-52, -72], [-45, -75], [-35, -72],
       [-20, -71], [-10, -75], [-5, -79], [0, -81], [12, -81],
+    ],
+  },
+  {
+    id: 'latam',
+    name: 'Latinoamérica y Caribe',
+    short: 'LatAm',
+    center: [-10.0, -68.0],
+    polygon: [
+      [32, -117], [32, -97], [26, -97], [24, -82], [22, -74], [18, -66], [11, -61],
+      [5, -52], [-5, -35], [-15, -38], [-25, -47], [-35, -55], [-43, -64], [-55, -67],
+      [-53, -74], [-42, -74], [-20, -71], [-12, -78], [-5, -81], [6, -78], [10, -86],
+      [16, -95], [22, -106], [32, -117],
+    ],
+  },
+  {
+    id: 'americas',
+    name: 'Américas (Norte, Centro y Sur)',
+    short: 'Américas',
+    center: [5.0, -76.0],
+    polygon: [
+      [68, -162], [70, -135], [64, -90], [60, -64], [48, -53], [40, -70], [26, -80],
+      [21, -74], [18, -65], [10, -61], [5, -52], [-5, -35], [-20, -40], [-36, -56],
+      [-55, -67], [-52, -74], [-22, -71], [-5, -81], [8, -79], [16, -95], [23, -106],
+      [33, -118], [48, -125], [60, -148], [68, -162],
+    ],
+  },
+  {
+    id: 'atlantic',
+    name: 'Américas + Atlántico / Groenlandia',
+    short: 'Atlántico',
+    center: [12.0, -56.0],
+    polygon: [
+      [78, -55], [80, -25], [72, -18], [62, -20], [50, -12], [36, -10], [20, -18],
+      [0, -20], [-25, -24], [-45, -35], [-55, -58], [-55, -67], [-52, -74], [-22, -71],
+      [-5, -81], [8, -79], [16, -95], [23, -106], [33, -118], [48, -125], [60, -148],
+      [68, -155], [71, -110], [74, -80], [78, -55],
     ],
   },
   {
@@ -257,3 +301,29 @@ export function regionCenter(id: RegionId): [number, number] {
   if (id === 'lima') return [-12.05, -77.04];
   return regionById(id).center;
 }
+
+export interface CityPreset {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+}
+
+/** Principales ciudades del Perú para apuntado puntual y síntesis conformada. */
+export const PERU_CITIES: CityPreset[] = [
+  { id: 'lima', name: 'Lima', lat: -12.05, lon: -77.04 },
+  { id: 'arequipa', name: 'Arequipa', lat: -16.41, lon: -71.54 },
+  { id: 'cusco', name: 'Cusco', lat: -13.53, lon: -71.97 },
+  { id: 'trujillo', name: 'Trujillo', lat: -8.11, lon: -79.03 },
+  { id: 'chiclayo', name: 'Chiclayo', lat: -6.77, lon: -79.84 },
+  { id: 'piura', name: 'Piura', lat: -5.19, lon: -80.63 },
+  { id: 'iquitos', name: 'Iquitos', lat: -3.75, lon: -73.25 },
+  { id: 'huancayo', name: 'Huancayo', lat: -12.07, lon: -75.21 },
+  { id: 'puno', name: 'Puno', lat: -15.84, lon: -70.02 },
+  { id: 'tacna', name: 'Tacna', lat: -18.01, lon: -70.25 },
+  { id: 'cajamarca', name: 'Cajamarca', lat: -7.16, lon: -78.51 },
+  { id: 'pucallpa', name: 'Pucallpa', lat: -8.38, lon: -74.55 },
+  { id: 'chimbote', name: 'Chimbote', lat: -9.07, lon: -78.59 },
+];
+
+export const cityById = (id: string): CityPreset | undefined => PERU_CITIES.find((c) => c.id === id);

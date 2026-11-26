@@ -11,6 +11,7 @@ export type Quality = 'high' | 'medium' | 'low';
 export type TerminalId = 'vsat60' | 'vsat45' | 'isotropic';
 export type QuantMode = 'ideal' | 'realtime' | 'analysis';
 export type LinkDirection = 'downlink' | 'uplink';
+export type ShapedRegionId = 'circle' | 'peru' | 'southamerica' | 'latam' | 'americas' | 'atlantic' | 'europe';
 
 export interface QuantState {
   mode: QuantMode;
@@ -58,6 +59,7 @@ export interface ShapedInfo {
   directivityDb: number;
   radiusKm: number;
   meanDb: number;
+  region?: ShapedRegionId;
 }
 
 export interface Derived {
@@ -109,6 +111,7 @@ export interface SimState {
   spotFixed: boolean;
   shapedCenter: { lat: number; lon: number };
   shapedRadiusKm: number;
+  shapedRegion: ShapedRegionId;
   cellTarget: { lat: number; lon: number } | null;
   terminalId: TerminalId;
   ptxW: number;
@@ -180,6 +183,7 @@ export function defaultState(): SimState {
     spotFixed: true,
     shapedCenter: { lat: -12.05, lon: -77.04 },
     shapedRadiusKm: 100,
+    shapedRegion: 'circle',
     cellTarget: null,
     terminalId: 'vsat60',
     ptxW: 20,

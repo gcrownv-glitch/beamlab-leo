@@ -136,6 +136,18 @@
             <input id="raan" type="range" min="0" max="360" step="1" value="120" />
           </div>
 
+          <div id="geo-controls" hidden>
+            <div class="slider-row">
+              <div class="slider-label"><span>Longitud GEO</span><b id="geo-lon-val">61°O</b></div>
+              <input id="geo-lon" type="range" min="-180" max="180" step="1" value="-61" />
+            </div>
+            <div class="inline-field">
+              <button class="btn small" id="geo-slot-61">61°O · Américas</button>
+              <button class="btn small" id="geo-slot-30">30°O · Eur-Am</button>
+              <button class="btn small primary" id="geo-apply-real">Perfil realista</button>
+            </div>
+          </div>
+
           <div class="inline-field">
             <label class="field grow">
               <span>Época (UTC)</span>
@@ -226,7 +238,7 @@
 
           <div class="slider-row">
             <div class="slider-label"><span>Separación</span><b id="spacing-val">0.50 λ</b></div>
-            <input id="spacing" type="range" min="0.35" max="0.9" step="0.01" value="0.5" />
+            <input id="spacing" type="range" min="0.35" max="3.2" step="0.01" value="0.5" />
           </div>
           <div class="slider-row">
             <div class="slider-label"><span>Eficiencia</span><b id="eff-val">65 %</b></div>
@@ -308,6 +320,25 @@
 
           <div class="mode-block" id="block-spot">
             <div class="section-title">Haz puntual</div>
+            <label class="field">
+              <span>Ciudad del Perú</span>
+              <select id="spot-city">
+                <option value="custom">Personalizado (clic en globo)</option>
+                <option value="lima" selected>Lima · 12.05°S 77.04°O</option>
+                <option value="arequipa">Arequipa · 16.41°S 71.54°O</option>
+                <option value="cusco">Cusco · 13.53°S 71.97°O</option>
+                <option value="trujillo">Trujillo · 8.11°S 79.03°O</option>
+                <option value="chiclayo">Chiclayo · 6.77°S 79.84°O</option>
+                <option value="piura">Piura · 5.19°S 80.63°O</option>
+                <option value="iquitos">Iquitos · 3.75°S 73.25°O</option>
+                <option value="huancayo">Huancayo · 12.07°S 75.21°O</option>
+                <option value="puno">Puno · 15.84°S 70.02°O</option>
+                <option value="tacna">Tacna · 18.01°S 70.25°O</option>
+                <option value="cajamarca">Cajamarca · 7.16°S 78.51°O</option>
+                <option value="pucallpa">Pucallpa · 8.38°S 74.55°O</option>
+                <option value="chimbote">Chimbote · 9.07°S 78.59°O</option>
+              </select>
+            </label>
             <div class="target-row">
               <div><span>Objetivo</span><b id="spot-target">Lima · 12.05°S 77.04°O</b></div>
               <button class="btn small" id="spot-lima">Lima</button>
@@ -316,7 +347,7 @@
               <span>Fijo a Tierra (reapunta solo)</span>
               <input id="spot-fixed" type="checkbox" checked />
             </label>
-            <p class="hint">Haz clic sobre el globo para mover el haz. La fase se recalcula para seguirlo.</p>
+            <p class="hint">Elige una ciudad del Perú o haz clic sobre el globo para mover el haz.</p>
           </div>
 
           <div class="mode-block" id="block-cellular" hidden>
@@ -326,7 +357,11 @@
               <select id="cell-region">
                 <option value="peru" selected>Perú</option>
                 <option value="southamerica">Sudamérica</option>
+                <option value="latam">Latinoamérica y Caribe</option>
+                <option value="americas">Américas (Norte, Centro y Sur)</option>
+                <option value="atlantic">Américas + Atlántico / Groenlandia</option>
                 <option value="europe">Europa</option>
+                <option value="visible">Disco visible completo</option>
               </select>
             </label>
             <p class="hint" id="cell-region-note">Celdas centradas en la región con caída RF real (sin recorte artificial en frontera).</p>
@@ -356,13 +391,46 @@
 
           <div class="mode-block" id="block-shaped" hidden>
             <div class="section-title">Haz conformado (DBF)</div>
-            <div class="target-row">
-              <div><span>Centro de la zona</span><b id="shape-center">Lima · 12.05°S 77.04°O</b></div>
-              <button class="btn small" id="shape-lima">Lima</button>
-            </div>
-            <div class="slider-row">
-              <div class="slider-label"><span>Radio de la zona</span><b id="shape-radius-val">100 km</b></div>
-              <input id="shape-radius" type="range" min="40" max="400" step="10" value="100" />
+            <label class="field">
+              <span>Forma / región a sintetizar</span>
+              <select id="shape-region">
+                <option value="circle" selected>Círculo · ciudad o punto</option>
+                <option value="peru">Perú (contorno nacional)</option>
+                <option value="southamerica">Sudamérica</option>
+                <option value="latam">Latinoamérica y Caribe</option>
+                <option value="americas">Américas (Norte, Centro y Sur)</option>
+                <option value="atlantic">Américas + Atlántico (Nexus)</option>
+                <option value="europe">Europa</option>
+              </select>
+            </label>
+            <div id="shape-circle-controls">
+              <label class="field">
+                <span>Ciudad del Perú</span>
+                <select id="shape-city">
+                  <option value="custom">Personalizado (clic en globo)</option>
+                  <option value="lima" selected>Lima · 12.05°S 77.04°O</option>
+                  <option value="arequipa">Arequipa · 16.41°S 71.54°O</option>
+                  <option value="cusco">Cusco · 13.53°S 71.97°O</option>
+                  <option value="trujillo">Trujillo · 8.11°S 79.03°O</option>
+                  <option value="chiclayo">Chiclayo · 6.77°S 79.84°O</option>
+                  <option value="piura">Piura · 5.19°S 80.63°O</option>
+                  <option value="iquitos">Iquitos · 3.75°S 73.25°O</option>
+                  <option value="huancayo">Huancayo · 12.07°S 75.21°O</option>
+                  <option value="puno">Puno · 15.84°S 70.02°O</option>
+                  <option value="tacna">Tacna · 18.01°S 70.25°O</option>
+                  <option value="cajamarca">Cajamarca · 7.16°S 78.51°O</option>
+                  <option value="pucallpa">Pucallpa · 8.38°S 74.55°O</option>
+                  <option value="chimbote">Chimbote · 9.07°S 78.59°O</option>
+                </select>
+              </label>
+              <div class="target-row">
+                <div><span>Centro de la zona</span><b id="shape-center">Lima · 12.05°S 77.04°O</b></div>
+                <button class="btn small" id="shape-lima">Lima</button>
+              </div>
+              <div class="slider-row">
+                <div class="slider-label"><span>Radio de la zona</span><b id="shape-radius-val">100 km</b></div>
+                <input id="shape-radius" type="range" min="40" max="3500" step="10" value="100" />
+              </div>
             </div>
             <button class="btn primary" id="shape-run">Sintetizar cobertura</button>
             <div class="info-row" id="shape-info">Diseña la fase para iluminar la zona y anular el exterior.</div>
@@ -383,7 +451,7 @@
           <div class="section-title">Potencia</div>
           <div class="slider-row">
             <div class="slider-label"><span>P<sub>tx</sub> sat (bajada)</span><b id="ptx-val">20 W</b></div>
-            <input id="ptx" type="range" min="1" max="60" step="1" value="20" />
+            <input id="ptx" type="range" min="1" max="150" step="1" value="20" />
           </div>
           <div class="slider-row">
             <div class="slider-label"><span>Ancho de canal</span><b id="bw-val">100 MHz</b></div>

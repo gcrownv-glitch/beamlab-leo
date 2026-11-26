@@ -11,9 +11,9 @@ import {
 } from '../src/core/array';
 import { anglesForGroundPoint } from '../src/core/geometry';
 import { antennaBasis, propagate } from '../src/core/orbit';
-import { elementsOverPoint } from '../src/core/presets';
+import { elementsOverPoint, orbitForPreset, presetById } from '../src/core/presets';
 import { DEG } from '../src/core/constants';
-import type { DirectionSample } from '../src/core/regions';
+import { cityById, type DirectionSample } from '../src/core/regions';
 
 const cfg: ArrayConfig = {
   n: 16,
@@ -126,5 +126,55 @@ describe('haz conformado con geometría real', () => {
     hiddenState.shapedCenter = { lat: -subLat, lon: subLon + 180 };
     const hiddenEng = new Engine(hiddenState);
     expect(() => hiddenEng.prepareShapedSynthesis()).toThrow(/visible/);
+  }, 120000);
+
+  it('soporta síntesis conformada en GEO (circular y regional) y en principales ciudades del Perú', () => {
+    const epoch = Date.UTC(2026, 10, 26, 7, 0, 0);
+    const a5 = presetById('amazonas-5');
+    const pay = a5.payload!;
+
+    // 1. Conformada circular GEO (Arequipa, 900 km)
+    const stGeoCircle = defaultState();
+    stGeoCircle.presetId = 'amazonas-5';
+    stGeoCircle.orbit = orbitForPreset(a5, epoch);
+    stGeoCircle.simTime = epoch;
+    stGeoCircle.mode = 'shaped';
+    stGeoCircle.shapedRegion = 'circle';
+    const arequipa = cityById('arequipa')!;
+    stGeoCircle.shapedCenter = { lat: arequipa.lat, lon: arequipa.lon };
+    stGeoCircle.shapedRadiusKm = 900;
+    stGeoCircle.antenna = { ...stGeoCircle.antenna, n: pay.n, dx: pay.dx, dy: pay.dx, q: pay.q, taper: pay.taper, freqGHz: pay.freqGHz };
+    const engGeoCircle = new Engine(stGeoCircle);
+    const infoGeoCircle = engGeoCircle.synthesizeShaped();
+    engGeoCircle.update();
+    expect(infoGeoCircle.coverage).toBeGreaterThanOrEqual(0.7);
+    expect(engGeoCircle.derived.gainMap.uvHalf ?? 1).toBeLessThan(0.25);
+
+    // 2. Conformada poligonal GEO sobre región real (Latinoamérica)
+    const stGeoPoly = defaultState();
+    stGeoPoly.presetId = 'amazonas-5';
+    stGeoPoly.orbit = orbitForPreset(a5, epoch);
+    stGeoPoly.simTime = epoch;
+    stGeoPoly.mode = 'shaped';
+    stGeoPoly.shapedRegion = 'latam';
+    stGeoPoly.antenna = { ...stGeoPoly.antenna, n: pay.n, dx: pay.dx, dy: pay.dx, q: pay.q, taper: pay.taper, freqGHz: pay.freqGHz };
+    const engGeoPoly = new Engine(stGeoPoly);
+    const infoGeoPoly = engGeoPoly.synthesizeShaped();
+    engGeoPoly.update();
+    expect(infoGeoPoly.coverage).toBeGreaterThanOrEqual(0.65);
+
+    // 3. Conformada LEO en ciudades del Perú (Cusco e Iquitos)
+    for (const id of ['cusco', 'iquitos']) {
+      const city = cityById(id)!;
+      const stCity = defaultState();
+      stCity.orbit = elementsOverPoint(550, 53, city.lat, city.lon, epoch, 2.0, 0.0001);
+      stCity.simTime = epoch;
+      stCity.mode = 'shaped';
+      stCity.shapedCenter = { lat: city.lat, lon: city.lon };
+      stCity.shapedRadiusKm = 100;
+      const engCity = new Engine(stCity);
+      const infoCity = engCity.synthesizeShaped();
+      expect(infoCity.coverage, city.name).toBeGreaterThanOrEqual(0.8);
+    }
   }, 120000);
 });

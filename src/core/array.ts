@@ -113,21 +113,23 @@ export function apertureMeters(cfg: ArrayConfig): { lx: number; ly: number } {
  * Para pesos separables, AF(du,dv) = fx(du)·fy(dv), por lo que se calcula
  * en O(size·N) y luego se hace el producto externo.
  */
-export function computeBasePattern(cfg: ArrayConfig, size = 801, half = 1.35): PatternGrid {
+export function computeBasePattern(cfg: ArrayConfig, size = 801, half?: number): PatternGrid {
+  const s = size;
+  const h = half ?? (cfg.q >= 15 ? 0.55 : 1.35);
   const w = taperWeights(cfg.n, cfg.taper);
-  const step = (2 * half) / (size - 1);
-  const fxRe = new Float64Array(size);
-  const fxIm = new Float64Array(size);
-  const fyRe = new Float64Array(size);
-  const fyIm = new Float64Array(size);
+  const step = (2 * h) / (s - 1);
+  const fxRe = new Float64Array(s);
+  const fxIm = new Float64Array(s);
+  const fyRe = new Float64Array(s);
+  const fyIm = new Float64Array(s);
   const xm = new Float64Array(cfg.n);
   const yn = new Float64Array(cfg.n);
   for (let i = 0; i < cfg.n; i++) {
     xm[i] = (i - (cfg.n - 1) / 2) * cfg.dx;
     yn[i] = (i - (cfg.n - 1) / 2) * cfg.dy;
   }
-  for (let j = 0; j < size; j++) {
-    const du = -half + j * step;
+  for (let j = 0; j < s; j++) {
+    const du = -h + j * step;
     let re = 0, im = 0;
     for (let i = 0; i < cfg.n; i++) {
       const ph = TWO_PI * xm[i] * du;
@@ -145,16 +147,16 @@ export function computeBasePattern(cfg: ArrayConfig, size = 801, half = 1.35): P
     fyRe[j] = re2;
     fyIm[j] = im2;
   }
-  const power = new Float32Array(size * size);
-  for (let iv = 0; iv < size; iv++) {
+  const power = new Float32Array(s * s);
+  for (let iv = 0; iv < s; iv++) {
     const py = fyRe[iv] * fyRe[iv] + fyIm[iv] * fyIm[iv];
-    const row = iv * size;
-    for (let iu = 0; iu < size; iu++) {
+    const row = iv * s;
+    for (let iu = 0; iu < s; iu++) {
       const px = fxRe[iu] * fxRe[iu] + fxIm[iu] * fxIm[iu];
       power[row + iu] = px * py;
     }
   }
-  return { size, half, power, kind: 'base' };
+  return { size: s, half: h, power, kind: 'base' };
 }
 
 /** Muestreo bilineal del patrón en (du,dv). */
@@ -202,6 +204,8 @@ export interface GainMap {
   max: number;
   /** Color + ganancia listos para la textura del globo (RGBA). */
   rgba: Uint8Array;
+  /** Semiancho en (u,v) cubierto por la textura (1 en LEO amplio; ~0.18 en GEO). */
+  uvHalf?: number;
   /** Snapshot ECEF de la antena con que se proyectó este mapa. */
   snapshot?: GainMapSnapshot;
 }
@@ -223,7 +227,9 @@ export function computeGainMap(
   q: number,
   size = 384,
   combine: 'sum' | 'max' = 'sum',
+  uvHalf = 1,
 ): GainMap {
+  const half = Math.max(0.05, Math.min(1, uvHalf));
   const data = new Float32Array(size * size);
   const colorIdx = new Uint8Array(size * size);
   let second: Float32Array | null = null;
@@ -237,27 +243,27 @@ export function computeGainMap(
     peak0 = Math.max(1e-9, patternPowerAt(grid, 0, 0));
     const thresh = 0.015 * peak0;
     const step = (2 * grid.half) / Math.max(1, grid.size - 1);
-    let rSig = 0.06;
+    let rSig = Math.min(grid.half, 0.06);
     for (let r = 0; r <= grid.half + 1e-6; r += step) {
       const pAxis = patternPowerAt(grid, r, 0);
       const pDiag = patternPowerAt(grid, r * Math.SQRT1_2, r * Math.SQRT1_2);
       if (pAxis >= thresh || pDiag >= thresh) rSig = r;
     }
-    const rMax = Math.max(0.06, Math.min(Math.min(2.0, grid.half), rSig + step));
+    const rMax = Math.max(0.025, Math.min(Math.min(2.0, grid.half), rSig + step));
 
     for (let k = 0; k < beams.length; k++) {
       const b = beams[k];
       const pMin = b.amp * b.amp;
       if (pMin <= 0) continue;
-      const iu0 = Math.max(0, Math.floor(((b.u - rMax + 1) * 0.5) * size));
-      const iu1 = Math.min(size - 1, Math.ceil(((b.u + rMax + 1) * 0.5) * size));
-      const iv0 = Math.max(0, Math.floor(((b.v - rMax + 1) * 0.5) * size));
-      const iv1 = Math.min(size - 1, Math.ceil(((b.v + rMax + 1) * 0.5) * size));
+      const iu0 = Math.max(0, Math.floor(((b.u - rMax + half) / (2 * half)) * size));
+      const iu1 = Math.min(size - 1, Math.ceil(((b.u + rMax + half) / (2 * half)) * size));
+      const iv0 = Math.max(0, Math.floor(((b.v - rMax + half) / (2 * half)) * size));
+      const iv1 = Math.min(size - 1, Math.ceil(((b.v + rMax + half) / (2 * half)) * size));
       for (let iv = iv0; iv <= iv1; iv++) {
-        const v = -1 + (2 * (iv + 0.5)) / size;
+        const v = -half + (2 * half * (iv + 0.5)) / size;
         const dv = v - b.v;
         for (let iu = iu0; iu <= iu1; iu++) {
-          const u = -1 + (2 * (iu + 0.5)) / size;
+          const u = -half + (2 * half * (iu + 0.5)) / size;
           if (u * u + v * v >= 1 - 1e-6) continue;
           const pat = patternPowerAt(grid, u - b.u, dv);
           const val = pMin * pat;
@@ -275,11 +281,11 @@ export function computeGainMap(
     }
 
     for (let iv = 0; iv < size; iv++) {
-      const v = -1 + (2 * (iv + 0.5)) / size;
+      const v = -half + (2 * half * (iv + 0.5)) / size;
       for (let iu = 0; iu < size; iu++) {
         const idx = iv * size + iu;
         if (data[idx] <= 0) continue;
-        const u = -1 + (2 * (iu + 0.5)) / size;
+        const u = -half + (2 * half * (iu + 0.5)) / size;
         const w2 = 1 - u * u - v * v;
         if (w2 <= 1e-6) {
           data[idx] = 0;
@@ -296,9 +302,9 @@ export function computeGainMap(
     }
   } else {
     for (let iv = 0; iv < size; iv++) {
-      const v = -1 + (2 * (iv + 0.5)) / size;
+      const v = -half + (2 * half * (iv + 0.5)) / size;
       for (let iu = 0; iu < size; iu++) {
-        const u = -1 + (2 * (iu + 0.5)) / size;
+        const u = -half + (2 * half * (iu + 0.5)) / size;
         const w2 = 1 - u * u - v * v;
         let p = 0;
         if (w2 > 1e-6) {
@@ -344,7 +350,7 @@ export function computeGainMap(
       rgba[i * 4 + 3] = a;
     }
   }
-  return { size, data, max, rgba };
+  return { size, data, max, rgba, uvHalf: half };
 }
 
 /** Exponente q para que una bocina tenga un HPBW dado (grados). */
@@ -388,7 +394,7 @@ export function powerAtOffset(grid: PatternGrid, beam: Beam, deltaRad: number, q
 
 export function computeMetrics(cfg: ArrayConfig, grid: PatternGrid, beam: Beam): ArrayMetrics {
   const peak = powerAtOffset(grid, beam, 0, cfg.q);
-  const NTH = 180;
+  const NTH = cfg.q >= 12 || cfg.dx > 1.0 ? 360 : 180;
   const NPH = 360;
   const dth = Math.PI / 2 / NTH;
   const dph = TWO_PI / NPH;
@@ -494,7 +500,7 @@ export function patternFromWeights(
   re: Float32Array,
   im: Float32Array,
   size = 257,
-  half = 2.2,
+  half = cfg.q >= 15 ? 0.36 : 2.2,
 ): PatternGrid {
   const step = (2 * half) / (size - 1);
   const power = new Float32Array(size * size);
@@ -581,9 +587,11 @@ export function patternFromWeights(
 
 /** Dirección del máximo de un patrón absoluto dentro del disco visible. */
 export function peakDirection(grid: PatternGrid): { u: number; v: number; power: number } {
+  const lim = Math.min(0.95, grid.half * 0.98);
+  const step = Math.min(0.005, lim / 80);
   let best = { u: 0, v: 0, power: 0 };
-  for (let u = -0.95; u <= 0.95; u += 0.005) {
-    for (let v = -0.95; v <= 0.95; v += 0.005) {
+  for (let u = -lim; u <= lim + 1e-9; u += step) {
+    for (let v = -lim; v <= lim + 1e-9; v += step) {
       if (u * u + v * v > 0.9) continue;
       const p = patternPowerAt(grid, u, v);
       if (p > best.power) best = { u, v, power: p };
@@ -594,7 +602,7 @@ export function peakDirection(grid: PatternGrid): { u: number; v: number; power:
 
 /** Directividad de un patrón absoluto (grilla ya referida a u,v). */
 export function gridDirectivity(grid: PatternGrid, q: number): number {
-  const NTH = 180;
+  const NTH = q >= 12 ? 360 : 180;
   const NPH = 360;
   const dth = Math.PI / 2 / NTH;
   const dph = TWO_PI / NPH;

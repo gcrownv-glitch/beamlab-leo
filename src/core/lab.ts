@@ -135,6 +135,7 @@ export function buildSample(state: SimState, d: Derived, notes = ''): LabSample 
     reuse: state.reuse,
     cellularCi: state.cellularCi,
     shapedRadiusKm: state.shapedRadiusKm,
+    shapedRegion: state.shapedRegion,
     ptxW: state.ptxW,
     uplinkPowerW: state.uplinkPowerW,
     linkDirection: state.linkDirection,
